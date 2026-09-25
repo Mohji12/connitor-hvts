@@ -1,0 +1,10 @@
+Date: 19/6/2026
+Time: 4:48
+Phone Number: +917676283924
+Message: Connitor test: PyWhatKit WhatsApp is working. If you received this, appointment notifications are configured correctly.
+--------------------
+Date: 19/6/2026
+Time: 4:54
+Phone Number: +917676283924
+Message: Connitor test: PyWhatKit WhatsApp is working. If you received this, appointment notifications are configured correctly.
+--------------------

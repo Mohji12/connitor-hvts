@@ -1,0 +1,51 @@
+/* Conninter navy skin for LiveKit components (scoped to meeting containers). */
+.conninter-room[data-lk-theme='default'],
+.conninter-prejoin[data-lk-theme='default'] {
+  --lk-bg: #0b1437;
+  --lk-bg2: #111c4a;
+  --lk-bg3: #18245a;
+  --lk-bg4: #22306e;
+  --lk-bg5: #2d3d82;
+  --lk-fg: #f8fafc;
+  --lk-accent-bg: #4a90e2;
+  --lk-accent-fg: #ffffff;
+  --lk-accent2: #3a7bd0;
+  --lk-accent3: #2f6ab8;
+  --lk-accent4: #255aa0;
+  --lk-border-radius: 0.75rem;
+  --lk-control-bar-height: 72px;
+}
+
+.conninter-room .lk-video-conference {
+  height: 100%;
+}
+
+.conninter-room .lk-participant-tile {
+  border-radius: 0.75rem;
+}
+
+.conninter-room .lk-control-bar {
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.conninter-room .lk-disconnect-button {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+/* Name comes from the signed link, so the PreJoin username field is display-only. */
+.conninter-prejoin .lk-prejoin input.lk-form-control {
+  display: none;
+}
+
+.conninter-prejoin .lk-prejoin {
+  width: 100%;
+  max-width: none;
+}
+
+.conninter-prejoin .lk-join-button {
+  background-color: #4a90e2;
+  font-weight: 600;
+}

@@ -1,0 +1,25 @@
+sequenceDiagram
+    participant Staff
+    participant API
+    participant DB
+    participant ImageGen as GatePassService
+    participant WA as WhatsApp
+    participant Visitor
+    participant Security
+
+    Staff->>API: Approve Visit
+    API->>DB: Generate Check-In OTP (8hr expiry)
+    API->>ImageGen: Request Gate Pass Image
+    ImageGen->>ImageGen: Fetch Photo (GCP) + Overlay OTP
+    ImageGen-->>API: Return Image Buffer
+    API->>DB: Save Image (Base64)
+    API->>WA: Send Gate Pass Image
+    WA-->>Visitor: Receive Image on WhatsApp
+    
+    Note over Visitor, Security: Physical Arrival
+    
+    Visitor->>Security: Show Gate Pass (OTP)
+    Security->>API: POST /visitors/verify-checkin-otp
+    API-->>Security: Valid (Show details)
+    Security->>API: POST /checkin/:visitId
+    API->>DB: Mark Visit Active

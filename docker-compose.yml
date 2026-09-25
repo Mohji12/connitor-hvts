@@ -1,0 +1,106 @@
+services:
+  ##############################
+  # 1. Nginx Reverse Proxy with Certbot
+  ##############################
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx_proxy
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  ##############################
+  # 2. Certbot for SSL Certificate Management
+  ##############################
+  certbot:
+    image: certbot/certbot:latest
+    container_name: certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
+  ##############################
+  # 3. Backend Service (Nest.js)
+  ##############################
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nest_backend
+    ports:
+      - '5000:5000'
+
+    volumes:
+      - ./backend/google-credentials.json:/usr/src/app/google-credentials.json
+
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      SUPER_ADMIN_PHONE: ${SUPER_ADMIN_PHONE}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME}
+      VISITOR_FORM_URL: ${VISITOR_FORM_URL}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      GCP_BUCKET_NAME: ${GCP_BUCKET_NAME}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
+      PORT: 5000
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      WHATSAPP_API_URL: ${WHATSAPP_API_URL}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN}
+      WHATSAPP_TEMPLATE_GATE_PASS: ${WHATSAPP_TEMPLATE_GATE_PASS}
+
+    restart: unless-stopped
+
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  ##############################
+  # 4. Frontend Service (Next.js)
+  ##############################
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_BACKEND_API_URL: ${NEXT_PUBLIC_BACKEND_API_URL}
+
+    container_name: next_frontend
+    ports:
+      - '3000:3000'
+
+    environment:
+      NEXT_PUBLIC_BACKEND_API_URL: ${NEXT_PUBLIC_BACKEND_API_URL}
+      PORT: 3000
+
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+##############################
+# Docker Network Configuration
+##############################
+networks:
+  default:
+    driver: bridge

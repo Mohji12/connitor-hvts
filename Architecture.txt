@@ -1,0 +1,269 @@
+Connitor — Current Architecture (Written Overview)
+This document describes how Connitor works today, end to end, in plain language. Use it as a baseline when you design a cleaner future architecture.
+
+What Connitor Is
+Connitor is a Hospital Visitor Tracking System. It helps hospitals manage visitors from the moment someone wants to enter the building until they leave. That includes pre-registration, appointment booking, doctor approval, security check-in at the gate, and check-out when they leave.
+
+The product is built as a monorepo with two main parts:
+
+Frontend: A Next.js 15 web application (runs on port 3000 in development).
+Backend: A Python FastAPI API (runs on port 8001 in development).
+Older documentation still mentions NestJS and PostgreSQL, but the live system uses Python, SQLAlchemy, and MySQL. The old Nest backend folder is no longer in the project.
+
+In production, the frontend is built as static files and deployed to AWS Amplify. The API runs on a separate server (for example https://app.bengalurutechcommunity.in). The database is MySQL. Files such as visitor photos and ID documents go to AWS S3; gate pass images may use GCP storage.
+
+High-Level Picture
+Think of Connitor as three kinds of users talking to one web app, which talks to one API, which talks to a database and external services (SMS, WhatsApp, email, Zoom).
+
+Visitors use public pages: they can create a profile, book appointments, register at the gate, or track visit status.
+
+Hospital staff (doctors, admins, security) log in and use dashboards tailored to their role.
+
+The API holds all business rules: who can see what, when a visit moves from “pending” to “approved,” when to send SMS, and so on.
+
+In local development, the browser usually calls http://localhost:3000/api/... and Next.js forwards those requests to Python on port 8001. In production, the static site calls the API URL directly.
+
+There is also an optional mock mode: if mock API is turned on, the frontend can run without a backend by faking responses in the browser. That is useful for demos and some tests.
+
+Organization and Roles
+Hospitals are modeled as a hierarchy:
+
+Hospital chain → branch → department → sub-department → users (staff, security, admins).
+
+Each user has a role that decides what they see and what they can do.
+
+At the top is Super Admin, who manages chains, branches, departments, and users across the platform.
+
+Hospital Admin manages one hospital site (branch): departments, staff, visitors, and appointments for that site.
+
+Department Admin and Sub-Department Admin manage their slice of the org and the staff under them.
+
+Staff (typically doctors) see their own pending appointments and can approve or reject them.
+
+Security staff use a separate security dashboard focused on check-in, today’s appointments, and visitor logs at the gate.
+
+Legacy roles Chain Admin and Branch Admin still exist for older multi-site setups.
+
+Every role that uses the main dashboard lands on /dashboard, except security, which lands on /security/dashboard. The sidebar menu is different per role; that configuration lives in sidebar-config.ts.
+
+Data the System Cares About
+At the center are visits: a single record of someone coming to the hospital for a purpose. A visit has a status that moves through stages like request sent, approved, checked in, checked out, or rejected.
+
+Visits belong to a visitor (person at a specific branch) and are often tied to a doctor (staff member), a branch, and optionally department and sub-department.
+
+There are two layers of “visitor” identity:
+
+VisitorAccount — a global profile (like a Connitor account): name, phone, email, photo, government ID, login methods. This is used for pre-registration and booking with a logged-in profile.
+
+Visitor — a branch-scoped record linked to a hospital branch (and optionally to a VisitorAccount). Operations like check-in and gate pass usually work off this branch visitor.
+
+Users are hospital employees: admins, doctors, security. They log in with staff auth (password and/or OTP) and get a JWT stored in the browser session.
+
+Visits can be categorized as Meeting (normal appointment or visit) or Delivery (courier/food/package — lower friction, fewer steps). Delivery visits store extra fields such as delivery platform (Swiggy, Amazon, etc.) and recipient name.
+
+Doctor availability slots exist for public appointment booking: when a slot is booked, it links to the visit.
+
+Notifications are stored in the database for in-app alerts (bell icon on the dashboard).
+
+Backend Structure (Python)
+The API follows a simple pattern: routers receive HTTP requests, services contain business logic, and models map to MySQL tables.
+
+All API routes live under /api. Examples:
+
+Staff login and JWT: /api/auth
+Managing chains, branches, departments, users
+Public appointment booking: /api/public/appointments
+Doctor approval without login: /api/public/appointment-approval
+Visitor account creation and login: /api/public/visitor-accounts and /api/public/visitor-auth
+Phone OTP for gate registration: /api/public/visitors
+Doctor pending list and approve/reject: /api/staff
+Security check-in, ID verification, logs: /api/security
+Webhooks for Twilio SMS, WhatsApp, and Zoom
+Important services include: appointments, staff approval, security operations, visitor accounts, phone verification, gate pass generation, notifications (email/SMS/WhatsApp), visit approval links, analytics per role, and file storage (S3/GCP).
+
+The main app entry is main.py. CORS is configured so Amplify staging/production URLs and localhost can call the API.
+
+Frontend Structure (Next.js)
+The frontend uses the App Router: each URL is a page.tsx under src/app.
+
+Shared UI lives in src/components, grouped by area (home, auth, dashboard overviews, security, visitors, users, settings, etc.).
+
+Larger flows are also packaged as features under src/features (book appointment, visitor pre-registration, on-spot visit).
+
+API calls go through a central axios client in lib/api.ts, which attaches the staff JWT when present. Visitor flows use separate token storage for the visitor account.
+
+Forms often use react-hook-form and zod for validation. Lists and dashboards use SWR or TanStack Query in places. Styling is Tailwind plus Shadcn/Radix components.
+
+The root layout wraps the app with providers (including demo mode) and toast notifications.
+
+Staff dashboards use a sidebar layout with role-based navigation, notification bell, and optional demo role switcher.
+
+All Visitor Journeys (End to End)
+The home page presents four main visitor journeys: pre-register, book appointment, at the gate, and track visit.
+
+Journey 1: Pre-register, then book (modern path)
+A visitor goes to Create your profile (/visitor/register). The wizard collects identity, professional details, live photo, government ID, phone and email verification, then activates the account.
+
+They sign in at /visitor/login (password, Google, LinkedIn, or legacy email OTP).
+
+They book at /book-appointment: choose hospital, department, sub-department, doctor, time slot, and purpose. If logged in, profile details can pre-fill.
+
+Submitting creates a visit in request sent status. The doctor gets SMS (with approval link), email (same link), and an in-app notification.
+
+The doctor approves either by opening the one-tap link (/approve-visit?token=..., no login) or by logging in and using My Visitors on the dashboard.
+
+After approval, the visitor receives check-in details (OTP/QR) via messaging. On the appointment day, security verifies ID, scans QR or enters OTP, and checks them in. The doctor may get a “patient arrived” message. When the visitor leaves, security checks them out and duration is recorded.
+
+Online appointments follow the same approval path but create a Zoom link instead of a physical gate pass flow.
+
+Journey 2: On-spot QR at the branch
+A QR code at the hospital opens /visit/on-spot?branchId=.... The visitor must have an active Connitor profile and sign in. Then they see the same booking wizard scoped to that branch. The rest matches Journey 1.
+
+Journey 3: Gate registration wizard (walk-in, often no account)
+From /visitor-registration?branchId=..., the visitor enters the wizard at /visitor-registration/wizard.
+
+Steps in order:
+
+Enter phone number
+Verify phone with OTP
+Choose visit type: Meeting or Delivery
+Fill registration form (different form per type)
+Fill visit details (meeting: staff/purpose; delivery: platform and recipient)
+Confirmation and submit
+Progress can be saved in session storage so refresh does not lose everything.
+
+After submit, they can poll visit status and view a gate pass when approved. Security handles check-in at the gate.
+
+There are also older standalone step URLs (e.g. delivery-registration-form) that are mostly placeholders or used for tests; the real flow is the single wizard page.
+
+Journey 4: Public QR visitor form
+/public-qr-visitor-form is an alternate, large single-page form for branch registration without going through the step wizard.
+
+Journey 5: Track booking
+/book-appointment/status lets a visitor check status with booking ID and phone. Logged-in visitors use /visitor/dashboard for appointments and profile.
+
+Connitor Delivery (the “Delivery” section)
+There is no separate folder named Connitor_delivery in the repo. Delivery is integrated in two layers:
+
+1. Walk-in courier (gate wizard): VisitCategory.DELIVERY — name + photo + platform/recipient; security approves via /api/security.
+2. Inbound vendor delivery module (/api/delivery/*): PO scheduling, QR gate scan, receiving/GRN, vendor wallet, attendant passes — ported from Connitor_delivery into python_backend as a modular monolith sharing Branch scope and staff JWT auth.
+
+See docs/features/delivery-management/FEATURE-ARCHITECTURE.md for full integration details.
+
+When the visitor selects Delivery at visit type selection:
+
+Delivery registration asks for first name, last name (phone already verified), and a photo (camera capture).
+Delivery details asks for platform (chips like Zomato, Swiggy, Amazon, Dunzo, etc.) and recipient (who receives the package at the hospital).
+On submit, the visit is stored with category DELIVERY and fields like deliveryPlatform and deliveryRecipient.
+Supporting components include DeliveryRegistrationForm, DeliveryDetailsStep, DeliveryPlatformSelector, DeliveryCategorySelection, and DeliveryVisitRequest (alternate UI in some contexts).
+
+Delivery is meant for couriers and food delivery: minimal identity, quick security handling, less doctor involvement than a scheduled medical appointment. Meeting visits use a longer form (meeting registration, meeting details, staff/purpose).
+
+Specs for delivery steps live under docs/features/unified-visitor-workflow/specs/ (increment 4 and 10).
+
+Doctor Approval (how appointments get approved)
+When a booking or visit request is created, status is request sent. The assigned doctor can approve in these ways:
+
+Primary today: Open the secure link in SMS or email (/approve-visit?token=...), see visitor name, time, purpose, and tap Approve or Decline. No hospital login required. The link is one-time and expires after about 24 hours.
+
+Dashboard: Log in as staff, go to My Appointments / My Visitors, and approve or reject from the list.
+
+Also built but not always used on new bookings: Reply by SMS or WhatsApp with YES or NO plus a six-digit code; WhatsApp Yes/No buttons via Meta. The code paths exist in VisitApprovalReplyService and webhooks, but the current booking notification mainly sends the link, not the reply code.
+
+Doctors also see an in-app notification, but that is informational; approval happens via link or My Visitors.
+
+Security can approve visits on a different path (security service), which matters for walk-in/gate flows. That is not the same as doctor approval for a booked appointment. Keeping those two paths clear is important for any future redesign.
+
+Security at the Gate
+Security users open /security/dashboard with tabs:
+
+Quick check-in — QR scanner, OTP verification, ID proof verification
+Today’s appointments — approved visits for the day
+Visitor logs — live list with polling (about every 30 seconds), search, filters, and actions where allowed
+Components include QrCheckInScanner, IdProofVerificationForm, LogsTab, and related security visitor components.
+
+Check-in moves status to checked in; check-out to checked out. For in-person appointments, ID proof must often be verified before check-in.
+
+Admin and Analytics Dashboards
+The main /dashboard page shows a role-specific overview: Super Admin sees chain-wide stats; Hospital Admin sees branch-level; Department and Sub-Department admins see their scope; Staff sees their appointments summary; Security overview exists but security normally uses the dedicated security dashboard.
+
+Other dashboard pages manage hospital chains, branches, departments, sub-departments, users, visitors, appointments, and settings. User management components differ by role (SuperAdminUser, HospitalAdminUser, etc.).
+
+Analytics APIs under /api/analytics feed charts on overviews (visitor trends, department stats, etc.).
+
+Messaging and Integrations
+Connitor sends messages through Twilio (SMS), Meta WhatsApp Cloud API, and ZeptoMail (email). Configuration is in the Python backend environment.
+
+Typical messages: phone OTP, doctor approval link, visitor “booking received,” gate pass / check-in OTP after approval, doctor notified when patient checks in.
+
+WhatsApp Meta token issues have been a recurring production concern; the system can fall back to SMS when WhatsApp fails.
+
+Zoom is integrated for online appointments: when a doctor approves an online visit, a meeting is created and the join URL is sent to the visitor.
+
+Google Calendar invites can be sent for appointments when configured.
+
+Authentication Summary
+Staff: JWT after login; token in session storage; sent on API requests as Bearer token.
+
+Visitors (account): Separate visitor JWT after login or OAuth; used for booking and visitor dashboard.
+
+Public endpoints: Phone OTP, visit status by ID, doctor approval token, gate pass view — no login, secured by OTP, UUID, or one-time token instead.
+
+Demo mode can impersonate roles and send a demo user header without real login.
+
+Component Landscape (in words)
+Beyond pages, the UI is built from many reusable pieces:
+
+Marketing and home: header, hero, feature grid, journey picker, flow timeline, staff login grid, footer.
+
+Auth: phone, OTP, email, password forms wrapped in a shared auth shell.
+
+Dashboard shell: role sidebar, team switcher, notification bell, mobile nav.
+
+Overviews: one overview component per admin/staff role plus shared charts.
+
+User and org management: tables and forms for chains, branches, departments, users, with hierarchy-aware fields.
+
+Visitor flows: wizard steps for phone, visit type, meeting vs delivery forms, confirmation, gate pass view, public QR form, profile completion prompts.
+
+Security: scanner, ID form, logs tab with refresh and polling.
+
+Doctor: My Visitors list with approve/reject and filters.
+
+Settings: per-role settings screens.
+
+UI primitives: buttons, dialogs, forms, inputs from the shared UI library.
+
+Features folder holds the largest wizards (book appointment, pre-registration, on-spot) — this is the pattern worth extending in a future architecture instead of growing more one-off pages.
+
+Visit Lifecycle (one sentence per stage)
+A visit starts when someone registers or books. It waits as request sent until a doctor (or in some flows security) approves or rejects it. If approved, the visitor gets gate or online join instructions. On arrival, security checks them in. When they leave, security checks them out. Rejected visits stop earlier.
+
+What to Improve in a Future Architecture (based on current state)
+The system works but grew in layers. For a better architecture, consider:
+
+Unifying the many visitor entry points (wizard, public form, on-spot, book-appointment) behind one clear “visitor journey” concept with shared state and APIs.
+
+Retiring duplicate routes (standalone wizard step pages that are not the real wizard).
+
+Making doctor vs security approval explicit in the domain model so product and code always agree on who must approve what.
+
+Choosing one primary doctor approval channel (link vs SMS reply vs WhatsApp) and treating others as optional fallbacks.
+
+Moving more UI into feature modules with clear boundaries instead of a very large components/visitors tree.
+
+Updating documentation so it describes Python/MySQL/FastAPI as the source of truth.
+
+Planning database migrations and collation consistently for production MySQL.
+
+Separating Delivery and Meeting as clear policies on the same Visit entity (or as subtypes) so gate staff and reporting stay simple.
+
+For static Amplify hosting, keep a clear rule: all dynamic behavior goes to the Python API; the frontend remains a static client.
+
+Closing
+Connitor today is a role-based hospital visitor platform: visitors enter through several public flows; staff and security operate through dashboards; a Python API enforces rules and sends notifications; MySQL stores state; external services handle SMS, WhatsApp, email, and Zoom. Delivery is the fast-track branch of gate registration for couriers and packages, not a separate product repo. Doctor approval is centered on a one-time link and the My Visitors dashboard, with older SMS/WhatsApp reply flows still in the codebase.
+
+You can paste this document into Word or Google Docs as-is, or ask in Agent mode to save it as docs/knowledge/architecture/CURRENT-ARCHITECTURE-NARRATIVE.md in the repository.
+
+
+

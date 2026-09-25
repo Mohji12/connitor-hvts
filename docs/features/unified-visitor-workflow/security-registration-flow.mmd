@@ -1,0 +1,161 @@
+sequenceDiagram
+    autonumber
+    participant Security as Security Dashboard
+    participant Lookup as PhoneLookupFlow
+    participant Modal as SecurityRegistrationModal
+    participant API as POST /api/security/register-visitor
+    participant DB as Database
+    participant GCP as GCP Storage
+    participant WA as WhatsApp Service
+
+    Note over Security: Walk-in visitor arrives at security desk
+
+    Security->>Lookup: Enter visitor phone number
+    Lookup->>API: GET /api/visitors/search?phone={phone}
+    API->>DB: SELECT * FROM Visitor WHERE phone={phone}
+    DB-->>API: Not found (null)
+    API-->>Lookup: 404 Not Found - visitor not registered
+
+    Lookup->>Security: Display "Visitor Not Found" card
+    Security->>Lookup: Click "Register as new visitor" button
+
+    Lookup->>Modal: Trigger onRegisterNew(phone, branchId)
+    Modal->>Modal: Open modal (desktop) / bottom sheet (mobile)
+
+    Note over Modal: Step 1: Visit Type Selection
+    Modal->>Security: Display MEETING / DELIVERY options
+    Security->>Modal: Select "MEETING"
+
+    Note over Modal: Step 2: Visitor Registration Form
+    Modal->>Modal: Show MeetingRegistrationForm
+    Note over Modal: - Phone pre-filled from lookup<br/>- Auto-fill if existing visitor
+
+    Security->>Modal: Fill visitor details:<br/>First name, Last name, Email, Company, Designation
+
+    Security->>Modal: Upload visitor photo<br/>(camera capture for mobile)
+    Security->>Modal: Upload government ID (optional)
+    Security->>Modal: Upload office ID (optional)
+
+    Security->>Modal: Click "Continue" button
+    Modal->>Modal: Validate form (React Hook Form + Zod)
+
+    Note over Modal: Step 3: Meeting Details
+    Modal->>Modal: Show MeetingDetailsStep
+    Security->>Modal: Select department from dropdown
+
+    Security->>Modal: Select host mode:
+    alt Host from dropdown
+        Modal->>API: GET /api/users/staff/by-department/{branchId}/{department}
+        API->>DB: SELECT * FROM User WHERE department={department}
+        DB-->>API: Staff list
+        API-->>Modal: Staff members
+        Security->>Modal: Select staff member from dropdown
+    else Manual entry
+        Security->>Modal: Enter staff name manually
+        Security->>Modal: Enter staff phone manually
+    end
+
+    Security->>Modal: Enter purpose of visit (5-500 chars)
+    Security->>Modal: Click "Register & Check-In" button
+
+    Modal->>Modal: Show loading state (spinner)
+
+    Note over Modal: Backend Processing
+    Modal->>API: POST /api/security/register-visitor<br/>(multipart/form-data)
+    Note over API: Request Body:<br/>- data: JSON string of visitor + visit details<br/>- photo: File<br/>- governmentIdDocument: File (optional)<br/>- officeIdDocument: File (optional)
+
+    API->>API: Validate JWT token (SECURITY role)
+    API->>API: Validate branchId matches user's branch
+
+    API->>DB: Find visitor by phone + branchId
+    alt Visitor exists
+        API->>DB: UPDATE visitor with new data<br/>(optional fields only)
+        DB-->>API: Updated visitor
+    else Visitor not exists
+        API->>DB: INSERT visitor (new profile)
+        DB-->>API: Created visitor
+    end
+
+    par Upload visitor files to GCP
+        API->>GCP: Upload visitor photo<br/>(visitors/{visitorId}/photo.jpg)
+        GCP-->>API: Photo URL
+
+        opt Government ID provided
+            API->>GCP: Upload government ID<br/>(visitors/{visitorId}/government-id.pdf)
+            GCP-->>API: Government ID URL
+        end
+
+        opt Office ID provided
+            API->>GCP: Upload office ID<br/>(visitors/{visitorId}/office-id.pdf)
+            GCP-->>API: Office ID URL
+        end
+    end
+
+    API->>DB: UPDATE visitor with GCP URLs
+    API->>DB: Begin transaction
+
+    API->>DB: INSERT visit record
+    Note over DB: Visit Data:<br/>- visitorId: {visitorId}<br/>- branchId: {branchId}<br/>- visitCategory: MEETING<br/>- status: CHECKED_IN<br/>- checkInTime: now()<br/>- checkedInById: {securityUserId}<br/>- department: {department}<br/>- staffId: {staffId}<br/>- staffName: {staffName}<br/>- staffPhone: {staffPhone}<br/>- purpose: {purpose}
+
+    DB-->>API: Created visit with visitId
+
+    API->>DB: COMMIT transaction
+
+    API->>API: Generate 6-digit Check-In OTP
+    Note over API: TEST_MODE: '654321'<br/>Production: Random 6 digits
+
+    API->>DB: UPDATE visit SET checkInOtp={otp},<br/>checkInOtpExpiry={now() + 8 hours}
+
+    API->>API: Generate gate pass image (Canvas)
+    Note over API: Render PNG with:<br/>- Visitor photo<br/>- Visitor name & phone<br/>- Department & host<br/>- Check-In OTP (large)<br/>- Validity timestamp<br/>- Visit type badge
+
+    par Upload gate pass and send WhatsApp
+        API->>GCP: Upload gate pass image<br/>(gate-passes/{visitId}.png)
+        Note over GCP: Return signed URL<br/>with 7-day expiry
+        GCP-->>API: Signed gate pass URL
+
+        API->>DB: UPDATE visit SET gatePassUrl={url},<br/>gatePassUrlExpiry={expiry}
+    and Send via WhatsApp (non-blocking)
+        API->>WA: Send gate pass template<br/>to visitor phone
+        Note over WA: Template includes:<br/>- Branch name<br/>- Visitor name<br/>- Gate pass image (base64)
+        WA-->>API: Success / Failure
+        opt WhatsApp failed
+            API->>API: Log warning (non-blocking)
+            Note over API: Registration succeeds even<br/>if WhatsApp fails
+        end
+    end
+
+    API-->>Modal: 200 OK - Success response
+    Note over Modal: Response Body:<br/>- success: true<br/>- visitor: {id, firstName, lastName, photo, ...}<br/>- visit: {id, status: CHECKED_IN, checkInOtp, gatePassUrl, ...}<br/>- whatsappSent: true/false
+
+    Modal->>Modal: Hide loading state
+    Modal->>Modal: Show success screen
+
+    Note over Modal: Step 4: Success (Gate Pass Display)
+    Modal->>Modal: Render GatePassView component
+    Note over Modal: Display:<br/>- "Checked In" badge (not "Approved")<br/>- Visitor photo<br/>- Visitor name & phone<br/>- Department & host<br/>- Purpose<br/>- Check-In OTP (6-digit code)<br/>- Validity: Valid until {expiry}<br/>- Gate pass QR code placeholder
+
+    Security->>Security: View gate pass on screen
+    Security->>Security: Share gate pass with visitor<br/>(WhatsApp or print)
+
+    opt WhatsApp delivery failed
+        Modal->>Security: Show warning alert:<br/>"WhatsApp delivery failed.<br/>Please share manually."
+    end
+
+    Note over Modal: Auto-close after 5 seconds<br/>OR click "Done" / "Close" button
+
+    Modal->>Modal: Close modal / bottom sheet
+    Modal->>Security: Trigger onClose() callback
+
+    Security->>Security: Refresh dashboard
+    Security->>API: GET /api/security/visitors?status=CHECKED_IN
+    API->>DB: SELECT * FROM Visit WHERE status=CHECKED_IN
+    DB-->>API: Checked-in visitors list
+    API-->>Security: Visitors with newly registered visitor
+
+    Security->>Security: Display new visitor in "Checked In" list
+    Note over Security: Visitor shows "CHECKED_IN" status<br/>with check-in time and security user name
+
+    Note over Security: Walk-in visitor proceeds to host
+    Visitor->>Host: Present gate pass with OTP
+    Host->>Host: Verify visitor arrival

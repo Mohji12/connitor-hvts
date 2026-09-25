@@ -1,0 +1,50 @@
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+google-credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+python_backend/connitor/
+.pytest_cache/
+*.egg-info/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Backend env (explicit)
+python_backend/.env
+frontend/.env.local
+
+
+dist/
+frontend/dist/
+
+# Local deploy secrets / machine paths
+scripts/deploy/config.env
+
+.vercel
+.env*

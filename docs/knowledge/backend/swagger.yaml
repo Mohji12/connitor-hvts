@@ -1,0 +1,2549 @@
+openapi: 3.0.0
+paths:
+  /api:
+    get:
+      operationId: AppController_getHello
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags:
+        - App
+  /api/auth/login:
+    post:
+      operationId: AuthController_login
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginDto"
+      responses:
+        "201":
+          description: ""
+      summary: Request OTP for login (all roles)
+      tags: &a1
+        - Auth
+  /api/auth/verify-otp:
+    post:
+      operationId: AuthController_verifyOtp
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOtpDto"
+      responses:
+        "201":
+          description: ""
+      summary: Verify OTP and login (all roles)
+      tags: *a1
+  /api/auth/me:
+    get:
+      operationId: AuthController_getProfile
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security:
+        - access-token: []
+      summary: Get current user profile
+      tags: *a1
+  /api/hospital-chains:
+    post:
+      operationId: HospitalChainsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHospitalChainDto"
+      responses:
+        "201":
+          description: ""
+      security: &a2
+        - access-token: []
+      summary: Create a new hospital chain (SUPER_ADMIN only)
+      tags: &a3
+        - Hospital Chains
+    get:
+      operationId: HospitalChainsController_findAll
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: *a2
+      summary: List all hospital chains (SUPER_ADMIN only)
+      tags: *a3
+  /api/hospital-chains/{id}:
+    get:
+      operationId: HospitalChainsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a2
+      summary: Get a specific hospital chain (SUPER_ADMIN only)
+      tags: *a3
+    patch:
+      operationId: HospitalChainsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateHospitalChainDto"
+      responses:
+        "200":
+          description: ""
+      security: *a2
+      summary: Update a hospital chain (SUPER_ADMIN only)
+      tags: *a3
+    delete:
+      operationId: HospitalChainsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a2
+      summary: Delete a hospital chain (SUPER_ADMIN only)
+      tags: *a3
+  /api/chain/{chainId}/branches:
+    post:
+      operationId: BranchesController_create
+      parameters:
+        - name: chainId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBranchDto"
+      responses:
+        "201":
+          description: ""
+      security: &a4
+        - access-token: []
+      summary: Create a new branch in a chain
+      tags: &a5
+        - Branches
+    get:
+      operationId: BranchesController_findAll
+      parameters:
+        - name: chainId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a4
+      summary: List all branches for a chain
+      tags: *a5
+  /api/chain/{chainId}/branches/{branchId}:
+    get:
+      operationId: BranchesController_findOne
+      parameters:
+        - name: chainId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: branchId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a4
+      summary: Get a branch by ID
+      tags: *a5
+    patch:
+      operationId: BranchesController_update
+      parameters:
+        - name: chainId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: branchId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBranchDto"
+      responses:
+        "200":
+          description: ""
+      security: *a4
+      summary: Update a branch
+      tags: *a5
+    delete:
+      operationId: BranchesController_remove
+      parameters:
+        - name: chainId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: branchId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a4
+      summary: Delete a branch
+      tags: *a5
+  /api/chain/{chainId}/branches/{branchId}/generate-qr:
+    post:
+      operationId: BranchesController_generateQr
+      parameters:
+        - name: chainId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: branchId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      security: *a4
+      summary: Generate or regenerate QR code for a branch
+      tags: *a5
+  /api/users/staff/by-branch/{branchId}:
+    get:
+      operationId: UsersController_findStaffByBranch
+      parameters:
+        - name: branchId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Get all staff members for a specific branch
+      tags: &a6
+        - Users
+  /api/users/departments/by-branch/{branchId}:
+    get:
+      operationId: UsersController_getDepartmentsByBranch
+      parameters:
+        - name: branchId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Get all unique departments for a specific branch
+      tags: *a6
+  /api/users/staff/by-department/{branchId}/{department}:
+    get:
+      operationId: UsersController_findStaffByDepartment
+      parameters:
+        - name: branchId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: department
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Get staff members for a specific department in a branch
+      tags: *a6
+  /api/users/staff/search:
+    get:
+      operationId: UsersController_searchStaff
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: query
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: department
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Search staff members by name in a specific branch
+      tags: *a6
+  /api/users:
+    post:
+      description: "- SUPER_ADMIN can create any user.\\n- CHAIN_ADMIN can create
+        BRANCH_ADMIN, STAFF, and SECURITY in their chain.\\n- BRANCH_ADMIN can
+        create STAFF and SECURITY in their branch."
+      operationId: UsersController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserDto"
+      responses:
+        "201":
+          description: ""
+      security:
+        - access-token: []
+      summary: Create a new user (any role based on permissions)
+      tags: *a6
+    get:
+      operationId: UsersController_findAll
+      parameters:
+        - name: role
+          required: false
+          in: query
+          description: Filter users by a specific role (e.g., CHAIN_ADMIN).
+          schema:
+            type: string
+            enum:
+              - SUPER_ADMIN
+              - CHAIN_ADMIN
+              - BRANCH_ADMIN
+              - SECURITY_SUPERVISOR
+              - SECURITY
+              - STAFF
+        - name: isActive
+          required: false
+          in: query
+          description: Filter users by their active status (true or false).
+          schema:
+            default: true
+            type: boolean
+        - name: branchId
+          required: false
+          in: query
+          description: Filter users by a specific branch ID.
+          schema:
+            type: string
+        - name: chainId
+          required: false
+          in: query
+          description: Filter users by a specific hospital chain ID.
+          schema:
+            type: string
+        - name: department
+          required: false
+          in: query
+          description: Filter STAFF users by a specific department.
+          schema:
+            type: string
+            enum:
+              - GENERAL_MEDICINE
+              - CARDIOLOGY
+              - NEUROLOGY
+              - PULMONOLOGY
+              - NEPHROLOGY
+              - GASTROENTEROLOGY
+              - ENDOCRINOLOGY
+              - ONCOLOGY
+              - HEMATOLOGY
+              - DERMATOLOGY
+              - INFECTIOUS_DISEASE
+              - RHEUMATOLOGY
+              - OPHTHALMOLOGY
+              - DENTISTRY
+              - PAIN_MANAGEMENT
+              - GENERAL_SURGERY
+              - ORTHOPEDICS
+              - NEUROSURGERY
+              - CARDIOTHORACIC_SURGERY
+              - ENT_SURGERY
+              - PLASTIC_RECONSTRUCTIVE_SURGERY
+              - UROLOGY
+              - OBSTETRICS_GYNECOLOGY
+              - PEDIATRICS
+              - NEONATOLOGY
+              - EMERGENCY
+              - INTENSIVE_CARE_UNIT
+              - CRITICAL_CARE_UNIT
+              - TRAUMA_CENTER
+              - RADIOLOGY
+              - PATHOLOGY
+              - PHARMACY
+              - BLOOD_BANK
+              - ANESTHESIOLOGY
+              - RESPIRATORY_CARE
+              - CENTRAL_SUPPLY
+              - NUTRITION_AND_DIETETICS
+              - MEDICAL_RECORDS
+              - SECURITY
+              - ADMINISTRATION
+              - HUMAN_RESOURCES
+              - FINANCE
+              - IT_SUPPORT
+              - LEGAL_COMPLIANCE
+      responses:
+        "200":
+          description: ""
+      security:
+        - access-token: []
+      summary: List and filter all users based on permissions
+      tags: *a6
+  /api/users/{id}:
+    get:
+      operationId: UsersController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security:
+        - access-token: []
+      summary: Get a specific user by ID
+      tags: *a6
+    put:
+      operationId: UsersController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserDto"
+      responses:
+        "200":
+          description: ""
+      security:
+        - access-token: []
+      summary: Update a user by ID
+      tags: *a6
+    delete:
+      operationId: UsersController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security:
+        - access-token: []
+      summary: Delete a user by ID
+      tags: *a6
+  /api/branches/all-branches:
+    get:
+      operationId: AllBranchesController_findAllBranches
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security:
+        - access-token: []
+      summary: List all branches across chains (Super Admin only)
+      tags:
+        - Branches
+  /api/visitors/check-by-phone:
+    get:
+      operationId: VisitorsController_findVisitorByPhone
+      parameters:
+        - name: phone
+          required: true
+          in: query
+          description: Visitor's 10-digit phone number
+          schema:
+            type: string
+        - name: branchId
+          required: true
+          in: query
+          description: The ID of the branch being visited
+          schema:
+            type: number
+      responses:
+        "200":
+          description: ""
+      summary: Check if a visitor exists by phone number for a specific branch
+      tags: &a7
+        - Visitor
+  /api/visitors/register:
+    post:
+      operationId: VisitorsController_registerVisitor
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/RegisterVisitorDto"
+      responses:
+        "201":
+          description: ""
+      security:
+        - access-token: []
+      summary: Register a new visitor with optional documents
+      tags: *a7
+  /api/visitors/request-visit:
+    post:
+      operationId: VisitorsController_createVisitRequest
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CreateVisitRequestDto"
+      responses:
+        "201":
+          description: ""
+      security:
+        - access-token: []
+      summary: Create a visit request for a registered visitor (by Security)
+      tags: *a7
+  /api/visitors/verify-code:
+    post:
+      operationId: VisitorsController_verifyCode
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyVisitCodeDto"
+      responses:
+        "201":
+          description: ""
+      security:
+        - access-token: []
+      summary: Check-in visitor using visit code (by Security)
+      tags: *a7
+  /api/visitors/verify-checkin-otp:
+    post:
+      operationId: VisitorsController_verifyCheckInOtp
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyCheckInOtpDto"
+      responses:
+        "200":
+          description: OTP verified successfully
+        "400":
+          description: Invalid OTP or expired
+        "401":
+          description: Unauthorized
+        "404":
+          description: Visit not found
+      security:
+        - access-token: []
+      summary: Verify Check-In OTP for visitor at gate (Security only)
+      tags: *a7
+  /api/visitors/checkin/{visitId}:
+    post:
+      operationId: VisitorsController_checkInVisitor
+      parameters:
+        - name: visitId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Visitor checked in successfully
+        "400":
+          description: Invalid visit state for check-in
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden - Visit not in your branch
+        "404":
+          description: Visit not found
+      security:
+        - access-token: []
+      summary: Check-in visitor using visit ID (after OTP verification)
+      tags: *a7
+  /api/visitors/search:
+    get:
+      operationId: VisitorsController_searchVisitors
+      parameters:
+        - name: phone
+          required: true
+          in: query
+          description: 10-digit phone number to search for
+          schema:
+            minLength: 10
+            maxLength: 10
+            example: "9876543210"
+            type: string
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID to filter visitors
+          schema:
+            example: branch-uuid-123
+            type: string
+      responses:
+        "200":
+          description: Search completed successfully
+        "400":
+          description: Invalid request parameters
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - access-token: []
+      summary: Search for a visitor by phone number (Security only)
+      tags: *a7
+  /api/visitors/scan-qr:
+    post:
+      operationId: VisitorsController_scanQRCode
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyVisitCodeDto"
+      responses:
+        "201":
+          description: ""
+      summary: Check-in visitor by scanning QR code (by Security)
+      tags: *a7
+  /api/visitors/checkout/{visitId}:
+    patch:
+      operationId: VisitorsController_checkout
+      parameters:
+        - name: visitId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security:
+        - access-token: []
+      summary: Check-out visitor (by Security)
+      tags: *a7
+  /api/visitors/active:
+    get:
+      operationId: VisitorsController_listActive
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security:
+        - access-token: []
+      summary: List active (checked-in) visitors (for Security)
+      tags: *a7
+  /api/visitors/summary:
+    get:
+      operationId: VisitorsController_summary
+      parameters:
+        - name: date
+          required: false
+          in: query
+          description: Filter by a single date (YYYY-MM-DD)
+          schema:
+            type: string
+        - name: startDate
+          required: false
+          in: query
+          description: Start date for a date range (YYYY-MM-DD)
+          schema:
+            type: string
+        - name: endDate
+          required: false
+          in: query
+          description: End date for a date range (YYYY-MM-DD)
+          schema:
+            type: string
+        - name: status
+          required: false
+          in: query
+          description: Filter by visit status
+          schema:
+            type: string
+        - name: personToMeet
+          required: false
+          in: query
+          description: Filter by the staff member the visitor met
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: Search by visitor name or phone number
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          description: Page number for pagination
+          schema:
+            type: number
+        - name: limit
+          required: false
+          in: query
+          description: Number of items per page
+          schema:
+            type: number
+        - name: skip
+          required: false
+          in: query
+          description: Number of items to skip for pagination
+          schema:
+            type: number
+        - name: take
+          required: false
+          in: query
+          description: Number of items to take for pagination
+          schema:
+            type: number
+      responses:
+        "200":
+          description: ""
+      security:
+        - access-token: []
+      summary: Get visitor summary for the branch
+      tags: *a7
+  /api/visitors/update/{visitorId}:
+    patch:
+      operationId: VisitorsController_updateVisitor
+      parameters:
+        - name: visitorId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/RegisterVisitorDto"
+      responses:
+        "200":
+          description: ""
+      security:
+        - access-token: []
+      summary: Update visitor details and documents
+      tags: *a7
+  /api/visitors/download/{visitorId}/{documentType}:
+    get:
+      operationId: VisitorsController_downloadDocument
+      parameters:
+        - name: visitorId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: documentType
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File downloaded successfully
+        "403":
+          description: Access denied
+        "404":
+          description: Visitor or document not found
+      security:
+        - access-token: []
+      summary: Download visitor document
+      tags: *a7
+  /api/public/visitors/check-by-phone:
+    get:
+      operationId: PublicVisitorsController_findVisitorByPhone
+      parameters:
+        - name: phone
+          required: true
+          in: query
+          description: Visitor's 10-digit phone number
+          schema:
+            type: string
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID from QR code
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Check if a visitor exists by phone number for a specific branch
+      tags: &a8
+        - Public Visitor
+  /api/public/visitors/branch-info:
+    get:
+      operationId: PublicVisitorsController_getBranchInfo
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID from QR code
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Get branch information and available staff/departments
+      tags: *a8
+  /api/public/visitors/register:
+    post:
+      operationId: PublicVisitorsController_registerLegacyVisitor
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID from QR code
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PublicRegisterVisitorDto"
+      responses:
+        "201":
+          description: ""
+      summary: Register a new visitor via public form (full registration for meeting
+        visitors)
+      tags: *a8
+  /api/public/visitors/quick-register:
+    post:
+      operationId: PublicVisitorsController_quickRegisterVisitor
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID from QR code
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuickRegisterVisitorDto"
+      responses:
+        "201":
+          description: ""
+      summary: "Quick registration for delivery visitors (minimal fields: name + phone)"
+      tags: *a8
+  /api/public/visitors/complete-profile/{visitorId}:
+    patch:
+      operationId: PublicVisitorsController_completeProfile
+      parameters:
+        - name: visitorId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID from QR code
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CompleteProfileDto"
+      responses:
+        "200":
+          description: ""
+      summary: Complete visitor profile for meeting visits (upgrade from delivery
+        profile)
+      tags: *a8
+  /api/public/visitors/delivery-visit:
+    post:
+      operationId: PublicVisitorsController_createDeliveryVisit
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID from QR code
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeliveryVisitDto"
+      responses:
+        "201":
+          description: ""
+      summary: Create a delivery visit (auto-approved and checked in)
+      tags: *a8
+  /api/public/visitors/meeting-visit:
+    post:
+      operationId: PublicVisitorsController_createMeetingVisitRequest
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID from QR code
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMeetingVisitRequestDto"
+      responses:
+        "201":
+          description: ""
+      summary: Create a meeting visit request (requires staff approval)
+      tags: *a8
+  /api/public/visitors/request-visit:
+    post:
+      operationId: PublicVisitorsController_createVisitRequest
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID from QR code
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PublicCreateVisitRequestDto"
+      responses:
+        "201":
+          description: ""
+      summary: Create a visit request via public form (legacy endpoint)
+      tags: *a8
+  /api/public/visitors/update/{visitorId}:
+    patch:
+      operationId: PublicVisitorsController_updateVisitor
+      parameters:
+        - name: visitorId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID from QR code
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PublicRegisterVisitorDto"
+      responses:
+        "200":
+          description: ""
+      summary: Update visitor details via public form (from QR code)
+      tags: *a8
+  /api/public/visitors/send-otp:
+    post:
+      description: Initiates phone verification by sending a 6-digit OTP via SMS.
+        Works for both existing and new visitors.
+      operationId: PublicVisitorsController_sendOtp
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendOtpDto"
+      responses:
+        "201":
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendOtpResponseDto"
+        "400":
+          description: Bad request - validation failed, OTP locked, or SMS send failed
+        "429":
+          description: Too many requests - rate limit exceeded
+      summary: Send OTP to visitor phone for verification
+      tags: *a8
+  /api/public/visitors/verify-phone:
+    post:
+      description: Validates the OTP sent to the visitor phone. Returns visitor data
+        and indicates if visitor is existing or new.
+      operationId: PublicVisitorsController_verifyPhone
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyPhoneDto"
+      responses:
+        "200":
+          description: OTP verified successfully
+        "400":
+          description: Invalid OTP, expired OTP, or locked OTP
+        "404":
+          description: Visitor not found
+      summary: Verify visitor phone number using OTP
+      tags: *a8
+  /api/public/visitors:
+    post:
+      description: Creates or updates visitor record and creates a pending visit
+        request. Requires phone verification first.
+      operationId: PublicVisitorsController_registerVisitor
+      parameters: []
+      responses:
+        "201":
+          description: Visit created successfully
+        "400":
+          description: Validation failed or phone not verified
+        "404":
+          description: Visitor or branch not found
+        "500":
+          description: File upload or database error
+      summary: Register visitor and create visit request
+      tags: *a8
+  /api/public/visits/{visitId}/status:
+    get:
+      description: Returns current visit status with visitor details and gate pass
+        data (if approved).
+      operationId: PublicVisitsController_getVisitStatus
+      parameters:
+        - name: visitId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Visit status retrieved successfully
+        "400":
+          description: Invalid visit ID format
+        "404":
+          description: Visit not found
+      summary: Get visit status by visit ID (public endpoint)
+      tags: &a9
+        - Public Visits
+  /api/public/visits/{visitId}/gate-pass:
+    get:
+      description: Returns gate pass URL, OTP, and visitor details for approved
+        visits. Auto-regenerates expired URLs.
+      operationId: PublicVisitsController_getGatePass
+      parameters:
+        - name: visitId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gate pass retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GatePassResponse"
+        "400":
+          description: Invalid visit ID format
+        "404":
+          description: Gate pass not found
+        "500":
+          description: URL regeneration failed
+      summary: Get gate pass by visit ID (public endpoint)
+      tags: *a9
+  /api/notifications/unread:
+    get:
+      operationId: NotificationsController_getUnreadNotifications
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: &a10
+        - access-token: []
+      tags: &a11
+        - Notifications
+  /api/notifications/{id}/read:
+    patch:
+      operationId: NotificationsController_markAsRead
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a10
+      tags: *a11
+  /api/staff/pending-visits:
+    get:
+      operationId: StaffController_getPendingVisits
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: &a12
+        - access-token: []
+      summary: Get all of current staff member's pending visitor requests
+      tags: &a13
+        - Staff Dashboard
+  /api/staff/history:
+    get:
+      operationId: StaffController_getVisitorHistory
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: *a12
+      summary: Get all of current staff member's recent visitor history
+      tags: *a13
+  /api/staff/visits/{visitId}/approve:
+    patch:
+      operationId: StaffController_approveVisit
+      parameters:
+        - name: visitId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a12
+      summary: Approve a visitor request
+      tags: *a13
+  /api/staff/visits/{visitId}/reject:
+    patch:
+      operationId: StaffController_rejectVisit
+      parameters:
+        - name: visitId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectVisitDto"
+      responses:
+        "200":
+          description: ""
+      security: *a12
+      summary: Reject a visitor request
+      tags: *a13
+  /api/security/visits/{visitId}/approve:
+    patch:
+      operationId: SecurityController_approveVisit
+      parameters:
+        - name: visitId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: &a14
+        - access-token: []
+      summary: Approve a visitor request (by Security)
+      tags: &a15
+        - Security Dashboard
+  /api/security/visits/{visitId}/reject:
+    patch:
+      operationId: SecurityController_rejectVisit
+      parameters:
+        - name: visitId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectVisitDto"
+      responses:
+        "200":
+          description: ""
+      security: *a14
+      summary: Reject a visitor request (by Security)
+      tags: *a15
+  /api/security/visitors/counts:
+    get:
+      operationId: SecurityController_getVisitorCounts
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID to filter visitors
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a14
+      summary: Get visitor counts by status for security dashboard
+      tags: *a15
+  /api/security/visitors:
+    get:
+      operationId: SecurityController_getVisitorsByStatus
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          description: Branch ID to filter visitors
+          schema:
+            type: string
+        - name: status
+          required: true
+          in: query
+          description: Status values to filter by
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: ""
+      security: *a14
+      summary: Get visitors filtered by status for security dashboard
+      tags: *a15
+  /api/security/visits/{visitId}/details:
+    get:
+      description: Returns full visitor details including unmasked phone, email,
+        company, designation, and all timestamps
+      operationId: SecurityController_getVisitorDetails
+      parameters:
+        - name: visitId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Visitor details retrieved successfully
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Visit not found
+      security: *a14
+      summary: Get complete visitor details for security dashboard
+      tags: *a15
+  /api/analytics/super-admin/overview:
+    get:
+      operationId: AnalyticsController_getSystemOverview
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: &a16
+        - access-token: []
+      summary: Get system-wide overview metrics for Super Admin
+      tags: &a17
+        - Analytics
+  /api/analytics/super-admin/visitor-trends:
+    get:
+      operationId: AnalyticsController_getVisitorTrends
+      parameters:
+        - name: period
+          required: false
+          in: query
+          schema:
+            enum:
+              - daily
+              - weekly
+              - monthly
+              - yearly
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get visitor trends (daily/weekly/monthly/yearly)
+      tags: *a17
+  /api/analytics/super-admin/visit-status-distribution:
+    get:
+      operationId: AnalyticsController_getVisitStatusDistribution
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get visit status distribution
+      tags: *a17
+  /api/analytics/super-admin/visit-category-distribution:
+    get:
+      operationId: AnalyticsController_getVisitCategoryDistribution
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get visit category distribution (Meeting vs Delivery)
+      tags: *a17
+  /api/analytics/super-admin/user-role-distribution:
+    get:
+      operationId: AnalyticsController_getUserRoleDistribution
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get user role distribution
+      tags: *a17
+  /api/analytics/super-admin/chains/stats:
+    get:
+      operationId: AnalyticsController_getAllChainsWithStats
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get all chains with their statistics
+      tags: *a17
+  /api/analytics/super-admin/branches/stats:
+    get:
+      operationId: AnalyticsController_getAllBranchesWithStats
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get all branches with their statistics
+      tags: *a17
+  /api/analytics/super-admin/chain/{chainId}/stats:
+    get:
+      operationId: AnalyticsController_getChainStats
+      parameters:
+        - name: chainId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get statistics for a specific chain
+      tags: *a17
+  /api/analytics/super-admin/branch/{branchId}/stats:
+    get:
+      operationId: AnalyticsController_getBranchStats
+      parameters:
+        - name: branchId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get statistics for a specific branch
+      tags: *a17
+  /api/analytics/super-admin/chains/growth:
+    get:
+      operationId: AnalyticsController_getChainGrowth
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get chain growth over time
+      tags: *a17
+  /api/analytics/super-admin/branches/growth:
+    get:
+      operationId: AnalyticsController_getBranchGrowth
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get branch growth over time
+      tags: *a17
+  /api/analytics/chain-admin/overview:
+    get:
+      operationId: AnalyticsController_getChainAdminOverview
+      parameters:
+        - name: chainId
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get chain overview metrics for Chain Admin
+      tags: *a17
+  /api/analytics/chain-admin/visitor-trends:
+    get:
+      operationId: AnalyticsController_getChainVisitorTrends
+      parameters:
+        - name: chainId
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: period
+          required: false
+          in: query
+          schema:
+            enum:
+              - daily
+              - weekly
+              - monthly
+              - yearly
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get visitor trends for a specific chain
+      tags: *a17
+  /api/analytics/chain-admin/branches/stats:
+    get:
+      operationId: AnalyticsController_getChainBranchesStats
+      parameters:
+        - name: chainId
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get all branches with stats for a specific chain
+      tags: *a17
+  /api/analytics/branch-admin/visitor-trends:
+    get:
+      operationId: AnalyticsController_getBranchVisitorTrends
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: period
+          required: false
+          in: query
+          schema:
+            enum:
+              - hourly
+              - daily
+              - weekly
+              - monthly
+              - yearly
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get visitor trends for a specific branch
+      tags: *a17
+  /api/analytics/security/visitor-trends:
+    get:
+      operationId: AnalyticsController_getSecurityVisitorTrends
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: period
+          required: false
+          in: query
+          schema:
+            enum:
+              - hourly
+              - daily
+              - weekly
+              - monthly
+              - yearly
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get visitor trends for security personnel
+      tags: *a17
+  /api/analytics/staff/visitor-trends:
+    get:
+      operationId: AnalyticsController_getStaffVisitorTrends
+      parameters:
+        - name: branchId
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: period
+          required: false
+          in: query
+          schema:
+            enum:
+              - hourly
+              - daily
+              - weekly
+              - monthly
+              - yearly
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a16
+      summary: Get visitor trends for staff personnel
+      tags: *a17
+info:
+  title: Hospital Visitor Tracking System
+  description: API documentation for the Hospital Visitor Tracking System
+  version: "1.0"
+  contact: {}
+tags: []
+servers: []
+components:
+  securitySchemes:
+    access-token:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas:
+    LoginDto:
+      type: object
+      properties:
+        phone:
+          type: string
+          example: "6987456321"
+      required:
+        - phone
+    VerifyOtpDto:
+      type: object
+      properties:
+        phone:
+          type: string
+          example: "6987456321"
+        otp:
+          type: string
+          example: "123456"
+      required:
+        - phone
+        - otp
+    CreateHospitalChainDto:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        pinCode:
+          type: string
+        country:
+          type: string
+      required:
+        - name
+        - phone
+        - email
+        - street
+        - city
+        - state
+        - pinCode
+        - country
+    UpdateHospitalChainDto:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        pinCode:
+          type: string
+        country:
+          type: string
+    CreateBranchDto:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        pinCode:
+          type: string
+        country:
+          type: string
+      required:
+        - name
+        - email
+        - phone
+        - street
+        - city
+        - state
+        - pinCode
+        - country
+    UpdateBranchDto:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        pinCode:
+          type: string
+        country:
+          type: string
+    CreateUserDto:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+            - SUPER_ADMIN
+            - CHAIN_ADMIN
+            - BRANCH_ADMIN
+            - SECURITY_SUPERVISOR
+            - SECURITY
+            - STAFF
+          description: The role of the user to be created.
+        userType:
+          type: string
+          enum:
+            - DOCTOR
+            - NURSE
+            - SURGEON
+            - PHYSICIAN_ASSISTANT
+            - RESIDENT
+            - INTERN
+            - CONSULTANT
+            - CLINICAL_RESEARCHER
+            - SPECIALIST
+            - ANESTHESIOLOGIST
+            - RADIOLOGIST
+            - PATHOLOGIST
+            - PSYCHIATRIST
+            - PHYSIOTHERAPIST
+            - HEAD_NURSE
+            - STAFF_NURSE
+            - NURSE_PRACTITIONER
+            - MIDWIFE
+            - NURSING_ASSISTANT
+            - EMERGENCY_PHYSICIAN
+            - PARAMEDIC
+            - EMT
+            - ICU_SPECIALIST
+            - TRAUMA_SURGEON
+            - PHARMACIST
+            - LAB_TECHNICIAN
+            - LAB_ASSISTANT
+            - DIETICIAN
+            - NUTRITIONIST
+            - OCCUPATIONAL_THERAPIST
+            - SPEECH_THERAPIST
+            - RESPIRATORY_THERAPIST
+            - HOSPITAL_ADMINISTRATOR
+            - DEPARTMENT_HEAD
+            - MEDICAL_RECORDS_STAFF
+            - BILLING_STAFF
+            - RECEPTIONIST
+            - RADIOLOGY_TECHNICIAN
+            - ECG_TECHNICIAN
+            - MEDICAL_TECHNOLOGIST
+            - BIOMEDICAL_ENGINEER
+            - SECURITY_CHIEF
+            - SECURITY_GUARD
+            - FACILITY_MANAGER
+            - HOUSEKEEPING_STAFF
+            - CLEANING_STAFF
+            - MAINTENANCE_STAFF
+            - IT_SUPPORT
+            - PHARMACY_TECHNICIAN
+            - VOLUNTEER_COORDINATOR
+            - PATIENT_COORDINATOR
+        department:
+          type: string
+          enum:
+            - GENERAL_MEDICINE
+            - CARDIOLOGY
+            - NEUROLOGY
+            - PULMONOLOGY
+            - NEPHROLOGY
+            - GASTROENTEROLOGY
+            - ENDOCRINOLOGY
+            - ONCOLOGY
+            - HEMATOLOGY
+            - DERMATOLOGY
+            - INFECTIOUS_DISEASE
+            - RHEUMATOLOGY
+            - OPHTHALMOLOGY
+            - DENTISTRY
+            - PAIN_MANAGEMENT
+            - GENERAL_SURGERY
+            - ORTHOPEDICS
+            - NEUROSURGERY
+            - CARDIOTHORACIC_SURGERY
+            - ENT_SURGERY
+            - PLASTIC_RECONSTRUCTIVE_SURGERY
+            - UROLOGY
+            - OBSTETRICS_GYNECOLOGY
+            - PEDIATRICS
+            - NEONATOLOGY
+            - EMERGENCY
+            - INTENSIVE_CARE_UNIT
+            - CRITICAL_CARE_UNIT
+            - TRAUMA_CENTER
+            - RADIOLOGY
+            - PATHOLOGY
+            - PHARMACY
+            - BLOOD_BANK
+            - ANESTHESIOLOGY
+            - RESPIRATORY_CARE
+            - CENTRAL_SUPPLY
+            - NUTRITION_AND_DIETETICS
+            - MEDICAL_RECORDS
+            - SECURITY
+            - ADMINISTRATION
+            - HUMAN_RESOURCES
+            - FINANCE
+            - IT_SUPPORT
+            - LEGAL_COMPLIANCE
+        location:
+          type: string
+        hospitalChainId:
+          type: string
+          description: Required for all roles except SUPER_ADMIN.
+        branchId:
+          type: string
+          description: Required for all roles that belong to a branch (e.g., STAFF,
+            BRANCH_ADMIN).
+      required:
+        - name
+        - phone
+        - role
+        - hospitalChainId
+    UpdateUserDto:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+            - SUPER_ADMIN
+            - CHAIN_ADMIN
+            - BRANCH_ADMIN
+            - SECURITY_SUPERVISOR
+            - SECURITY
+            - STAFF
+        userType:
+          type: string
+          enum:
+            - DOCTOR
+            - NURSE
+            - SURGEON
+            - PHYSICIAN_ASSISTANT
+            - RESIDENT
+            - INTERN
+            - CONSULTANT
+            - CLINICAL_RESEARCHER
+            - SPECIALIST
+            - ANESTHESIOLOGIST
+            - RADIOLOGIST
+            - PATHOLOGIST
+            - PSYCHIATRIST
+            - PHYSIOTHERAPIST
+            - HEAD_NURSE
+            - STAFF_NURSE
+            - NURSE_PRACTITIONER
+            - MIDWIFE
+            - NURSING_ASSISTANT
+            - EMERGENCY_PHYSICIAN
+            - PARAMEDIC
+            - EMT
+            - ICU_SPECIALIST
+            - TRAUMA_SURGEON
+            - PHARMACIST
+            - LAB_TECHNICIAN
+            - LAB_ASSISTANT
+            - DIETICIAN
+            - NUTRITIONIST
+            - OCCUPATIONAL_THERAPIST
+            - SPEECH_THERAPIST
+            - RESPIRATORY_THERAPIST
+            - HOSPITAL_ADMINISTRATOR
+            - DEPARTMENT_HEAD
+            - MEDICAL_RECORDS_STAFF
+            - BILLING_STAFF
+            - RECEPTIONIST
+            - RADIOLOGY_TECHNICIAN
+            - ECG_TECHNICIAN
+            - MEDICAL_TECHNOLOGIST
+            - BIOMEDICAL_ENGINEER
+            - SECURITY_CHIEF
+            - SECURITY_GUARD
+            - FACILITY_MANAGER
+            - HOUSEKEEPING_STAFF
+            - CLEANING_STAFF
+            - MAINTENANCE_STAFF
+            - IT_SUPPORT
+            - PHARMACY_TECHNICIAN
+            - VOLUNTEER_COORDINATOR
+            - PATIENT_COORDINATOR
+        department:
+          type: string
+          enum:
+            - GENERAL_MEDICINE
+            - CARDIOLOGY
+            - NEUROLOGY
+            - PULMONOLOGY
+            - NEPHROLOGY
+            - GASTROENTEROLOGY
+            - ENDOCRINOLOGY
+            - ONCOLOGY
+            - HEMATOLOGY
+            - DERMATOLOGY
+            - INFECTIOUS_DISEASE
+            - RHEUMATOLOGY
+            - OPHTHALMOLOGY
+            - DENTISTRY
+            - PAIN_MANAGEMENT
+            - GENERAL_SURGERY
+            - ORTHOPEDICS
+            - NEUROSURGERY
+            - CARDIOTHORACIC_SURGERY
+            - ENT_SURGERY
+            - PLASTIC_RECONSTRUCTIVE_SURGERY
+            - UROLOGY
+            - OBSTETRICS_GYNECOLOGY
+            - PEDIATRICS
+            - NEONATOLOGY
+            - EMERGENCY
+            - INTENSIVE_CARE_UNIT
+            - CRITICAL_CARE_UNIT
+            - TRAUMA_CENTER
+            - RADIOLOGY
+            - PATHOLOGY
+            - PHARMACY
+            - BLOOD_BANK
+            - ANESTHESIOLOGY
+            - RESPIRATORY_CARE
+            - CENTRAL_SUPPLY
+            - NUTRITION_AND_DIETETICS
+            - MEDICAL_RECORDS
+            - SECURITY
+            - ADMINISTRATION
+            - HUMAN_RESOURCES
+            - FINANCE
+            - IT_SUPPORT
+            - LEGAL_COMPLIANCE
+        location:
+          type: string
+        hospitalChainId:
+          type: string
+        branchId:
+          type: string
+        isActive:
+          type: boolean
+    RegisterVisitorDto:
+      type: object
+      properties:
+        phone:
+          type: string
+        branchId:
+          type: string
+        firstName:
+          type: string
+        middleName:
+          type: string
+        lastName:
+          type: string
+        alternatePhone:
+          type: string
+        email:
+          type: string
+        alternateEmail:
+          type: string
+        address:
+          type: string
+        company:
+          type: string
+        companyWebsite:
+          type: string
+        designation:
+          type: string
+        photo:
+          type: string
+          format: binary
+          description: Visitor photo (.jpg, .png)
+        governmentIdDocument:
+          type: string
+          format: binary
+          description: Government ID Document (.jpg, .png, .pdf)
+        officeIdDocument:
+          type: string
+          format: binary
+          description: Office ID Document (.jpg, .png, .pdf)
+        reportingManagerName:
+          type: string
+          description: Reporting Manager name
+        reportingManagerPhone:
+          type: string
+          description: Reporting Manager phone
+      required:
+        - phone
+        - branchId
+        - firstName
+        - lastName
+    CreateVisitRequestDto:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: Visitor's registered phone number
+        purpose:
+          type: string
+        department:
+          type: string
+          enum:
+            - GENERAL_MEDICINE
+            - CARDIOLOGY
+            - NEUROLOGY
+            - PULMONOLOGY
+            - NEPHROLOGY
+            - GASTROENTEROLOGY
+            - ENDOCRINOLOGY
+            - ONCOLOGY
+            - HEMATOLOGY
+            - DERMATOLOGY
+            - INFECTIOUS_DISEASE
+            - RHEUMATOLOGY
+            - OPHTHALMOLOGY
+            - DENTISTRY
+            - PAIN_MANAGEMENT
+            - GENERAL_SURGERY
+            - ORTHOPEDICS
+            - NEUROSURGERY
+            - CARDIOTHORACIC_SURGERY
+            - ENT_SURGERY
+            - PLASTIC_RECONSTRUCTIVE_SURGERY
+            - UROLOGY
+            - OBSTETRICS_GYNECOLOGY
+            - PEDIATRICS
+            - NEONATOLOGY
+            - EMERGENCY
+            - INTENSIVE_CARE_UNIT
+            - CRITICAL_CARE_UNIT
+            - TRAUMA_CENTER
+            - RADIOLOGY
+            - PATHOLOGY
+            - PHARMACY
+            - BLOOD_BANK
+            - ANESTHESIOLOGY
+            - RESPIRATORY_CARE
+            - CENTRAL_SUPPLY
+            - NUTRITION_AND_DIETETICS
+            - MEDICAL_RECORDS
+            - SECURITY
+            - ADMINISTRATION
+            - HUMAN_RESOURCES
+            - FINANCE
+            - IT_SUPPORT
+            - LEGAL_COMPLIANCE
+        personToMeet:
+          type: string
+          description: ID of the staff member to meet, or "other" for unlisted staff.
+            Required if staffName and staffPhone are not provided.
+        staffName:
+          type: string
+          description: Name of the staff to meet. Required if personToMeet is "other" or
+            not provided.
+        staffPhone:
+          type: string
+          description: Phone of the staff to meet. Required if personToMeet is "other" or
+            not provided.
+        visitingCardPhoto:
+          type: string
+          description: Base64 encoded visiting card photo
+      required:
+        - phone
+        - purpose
+    VerifyVisitCodeDto:
+      type: object
+      properties:
+        phone:
+          type: string
+        visitCode:
+          type: string
+      required:
+        - phone
+        - visitCode
+    VerifyCheckInOtpDto:
+      type: object
+      properties:
+        otp:
+          type: string
+          description: 6-digit Check-In OTP provided by visitor
+          example: "654321"
+          minLength: 6
+          maxLength: 6
+        branchId:
+          type: string
+          description: Branch ID where the visit is taking place
+          example: branch-uuid-123
+      required:
+        - otp
+        - branchId
+    PublicRegisterVisitorDto:
+      type: object
+      properties:
+        phone:
+          type: string
+        firstName:
+          type: string
+        middleName:
+          type: string
+        lastName:
+          type: string
+        alternatePhone:
+          type: string
+        email:
+          type: string
+        alternateEmail:
+          type: string
+        address:
+          type: string
+        company:
+          type: string
+        companyWebsite:
+          type: string
+        designation:
+          type: string
+        reportingManagerName:
+          type: string
+          description: Reporting Manager name
+        reportingManagerPhone:
+          type: string
+          description: Reporting Manager phone
+        photo:
+          type: string
+          format: binary
+          description: Visitor photo (.jpg, .png)
+        governmentIdDocument:
+          type: string
+          format: binary
+          description: Government ID Document (.jpg, .png, .pdf)
+        officeIdDocument:
+          type: string
+          format: binary
+          description: Office ID Document (.jpg, .png, .pdf)
+      required:
+        - phone
+        - firstName
+        - lastName
+    QuickRegisterVisitorDto:
+      type: object
+      properties:
+        phone:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+      required:
+        - phone
+        - firstName
+        - lastName
+    CompleteProfileDto:
+      type: object
+      properties:
+        email:
+          type: string
+          description: Email address (required for meeting visits)
+        company:
+          type: string
+          description: Company name (required for meeting visits)
+        designation:
+          type: string
+          description: Designation (required for meeting visits)
+        middleName:
+          type: string
+        alternatePhone:
+          type: string
+        alternateEmail:
+          type: string
+        companyWebsite:
+          type: string
+        address:
+          type: string
+        reportingManagerName:
+          type: string
+        reportingManagerPhone:
+          type: string
+      required:
+        - email
+        - company
+        - designation
+    CreateDeliveryVisitDto:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: Visitor's registered phone number
+        visitSubType:
+          type: string
+          description: Delivery sub-type (PROFESSIONAL_GOODS, PACKAGE_COURIER,
+            FOOD_DELIVERY)
+        deliveryPlatform:
+          type: string
+          description: Delivery platform/company (e.g., Swiggy, Amazon, Blue Dart)
+        deliveryRecipient:
+          type: string
+          description: Who the delivery is for (name, room, or department)
+        orderReference:
+          type: string
+          description: Order ID / AWB number
+      required:
+        - phone
+        - visitSubType
+        - deliveryPlatform
+    CreateMeetingVisitRequestDto:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: Visitor's registered phone number
+        visitSubType:
+          type: string
+          description: Meeting sub-type (MEDICAL_REPRESENTATIVE, SALES_MARKETING, etc.)
+        purpose:
+          type: string
+        department:
+          type: string
+          enum:
+            - GENERAL_MEDICINE
+            - CARDIOLOGY
+            - NEUROLOGY
+            - PULMONOLOGY
+            - NEPHROLOGY
+            - GASTROENTEROLOGY
+            - ENDOCRINOLOGY
+            - ONCOLOGY
+            - HEMATOLOGY
+            - DERMATOLOGY
+            - INFECTIOUS_DISEASE
+            - RHEUMATOLOGY
+            - OPHTHALMOLOGY
+            - DENTISTRY
+            - PAIN_MANAGEMENT
+            - GENERAL_SURGERY
+            - ORTHOPEDICS
+            - NEUROSURGERY
+            - CARDIOTHORACIC_SURGERY
+            - ENT_SURGERY
+            - PLASTIC_RECONSTRUCTIVE_SURGERY
+            - UROLOGY
+            - OBSTETRICS_GYNECOLOGY
+            - PEDIATRICS
+            - NEONATOLOGY
+            - EMERGENCY
+            - INTENSIVE_CARE_UNIT
+            - CRITICAL_CARE_UNIT
+            - TRAUMA_CENTER
+            - RADIOLOGY
+            - PATHOLOGY
+            - PHARMACY
+            - BLOOD_BANK
+            - ANESTHESIOLOGY
+            - RESPIRATORY_CARE
+            - CENTRAL_SUPPLY
+            - NUTRITION_AND_DIETETICS
+            - MEDICAL_RECORDS
+            - SECURITY
+            - ADMINISTRATION
+            - HUMAN_RESOURCES
+            - FINANCE
+            - IT_SUPPORT
+            - LEGAL_COMPLIANCE
+        personToMeet:
+          type: string
+          description: ID of the staff member to meet, or "other" for unlisted staff.
+        staffName:
+          type: string
+          description: Name of the staff to meet (if personToMeet is "other").
+        staffPhone:
+          type: string
+          description: Phone of the staff to meet (if personToMeet is "other").
+        visitingCardPhoto:
+          type: string
+          description: Base64 encoded visiting card photo
+      required:
+        - phone
+        - visitSubType
+        - purpose
+    PublicCreateVisitRequestDto:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: Visitor's registered phone number
+        purpose:
+          type: string
+        department:
+          type: string
+          enum:
+            - GENERAL_MEDICINE
+            - CARDIOLOGY
+            - NEUROLOGY
+            - PULMONOLOGY
+            - NEPHROLOGY
+            - GASTROENTEROLOGY
+            - ENDOCRINOLOGY
+            - ONCOLOGY
+            - HEMATOLOGY
+            - DERMATOLOGY
+            - INFECTIOUS_DISEASE
+            - RHEUMATOLOGY
+            - OPHTHALMOLOGY
+            - DENTISTRY
+            - PAIN_MANAGEMENT
+            - GENERAL_SURGERY
+            - ORTHOPEDICS
+            - NEUROSURGERY
+            - CARDIOTHORACIC_SURGERY
+            - ENT_SURGERY
+            - PLASTIC_RECONSTRUCTIVE_SURGERY
+            - UROLOGY
+            - OBSTETRICS_GYNECOLOGY
+            - PEDIATRICS
+            - NEONATOLOGY
+            - EMERGENCY
+            - INTENSIVE_CARE_UNIT
+            - CRITICAL_CARE_UNIT
+            - TRAUMA_CENTER
+            - RADIOLOGY
+            - PATHOLOGY
+            - PHARMACY
+            - BLOOD_BANK
+            - ANESTHESIOLOGY
+            - RESPIRATORY_CARE
+            - CENTRAL_SUPPLY
+            - NUTRITION_AND_DIETETICS
+            - MEDICAL_RECORDS
+            - SECURITY
+            - ADMINISTRATION
+            - HUMAN_RESOURCES
+            - FINANCE
+            - IT_SUPPORT
+            - LEGAL_COMPLIANCE
+        personToMeet:
+          type: string
+          description: ID of the staff member to meet, or "other" for unlisted staff.
+            Required if staffName and staffPhone are not provided.
+        staffName:
+          type: string
+          description: Name of the staff to meet. Required if personToMeet is "other" or
+            not provided.
+        staffPhone:
+          type: string
+          description: Phone of the staff to meet. Required if personToMeet is "other" or
+            not provided.
+        visitingCardPhoto:
+          type: string
+          description: Base64 encoded visiting card photo
+      required:
+        - phone
+        - purpose
+    SendOtpDto:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: Visitor's 10-digit phone number
+          example: "9999999999"
+        branchId:
+          type: string
+          description: Branch ID from QR code (UUID v4 format)
+          example: 550e8400-e29b-41d4-a716-446655440000
+      required:
+        - phone
+        - branchId
+    SendOtpResponseDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success flag
+          example: true
+        message:
+          type: string
+          description: User-friendly message
+          example: A 6-digit code has been sent to your mobile via SMS.
+        isNewVisitor:
+          type: boolean
+          description: Indicates if this is a new visitor (first time at this branch)
+          example: false
+        testOtp:
+          type: string
+          description: Test OTP value (only included when TEST_MODE=true)
+          example: "123456"
+      required:
+        - success
+        - message
+        - isNewVisitor
+    VerifyPhoneDto:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: Visitor's 10-digit phone number
+          example: "9876543210"
+        otp:
+          type: string
+          description: 6-digit OTP received via SMS
+          example: "123456"
+        branchId:
+          type: string
+          description: Branch ID from QR code (UUID v4 format)
+          example: 550e8400-e29b-41d4-a716-446655440000
+      required:
+        - phone
+        - otp
+        - branchId
+    GatePassVisitorDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Visitor UUID
+        firstName:
+          type: string
+          description: Visitor's first name
+        lastName:
+          type: string
+          description: Visitor's last name
+        fullName:
+          type: string
+          description: Computed full name
+        phone:
+          type: string
+          description: Masked phone number
+      required:
+        - id
+        - firstName
+        - lastName
+        - fullName
+        - phone
+    GatePassDataDto:
+      type: object
+      properties:
+        checkInOtp:
+          type: string
+          description: 6-digit Check-In OTP
+        validUntil:
+          type: string
+          description: ISO 8601 timestamp (checkInOtpExpiry)
+        gatePassUrl:
+          type: string
+          description: Signed GCP URL to gate pass image
+        urlExpiry:
+          type: string
+          description: ISO 8601 timestamp (gatePassUrlExpiry)
+        generatedAt:
+          type: string
+          description: ISO 8601 timestamp (gatePassGeneratedAt)
+        sentViaWhatsApp:
+          type: boolean
+          description: Boolean flag for WhatsApp delivery
+      required:
+        - checkInOtp
+        - validUntil
+        - gatePassUrl
+        - urlExpiry
+        - generatedAt
+        - sentViaWhatsApp
+    GatePassBranchDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Branch UUID
+        name:
+          type: string
+          description: Branch name
+      required:
+        - id
+        - name
+    GatePassResponseDataDto:
+      type: object
+      properties:
+        visitId:
+          type: string
+          description: UUID of the visit
+        status:
+          type: string
+          enum:
+            - PENDING
+            - REQUEST_SENT
+            - APPROVED
+            - REJECTED
+            - CHECKED_IN
+            - CHECKED_OUT
+          description: Visit status (APPROVED or CHECKED_IN)
+        visitor:
+          description: Visitor information
+          allOf:
+            - $ref: "#/components/schemas/GatePassVisitorDto"
+        visitCategory:
+          type: string
+          enum:
+            - MEETING
+            - DELIVERY
+          nullable: true
+          description: Visit category (MEETING or DELIVERY)
+        gatePass:
+          description: Gate pass data
+          allOf:
+            - $ref: "#/components/schemas/GatePassDataDto"
+        branch:
+          description: Branch information
+          allOf:
+            - $ref: "#/components/schemas/GatePassBranchDto"
+      required:
+        - visitId
+        - status
+        - visitor
+        - visitCategory
+        - gatePass
+        - branch
+    GatePassResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success flag
+        data:
+          description: Gate pass response data
+          allOf:
+            - $ref: "#/components/schemas/GatePassResponseDataDto"
+      required:
+        - success
+        - data
+    RejectVisitDto:
+      type: object
+      properties:
+        rejectionReason:
+          type: string
+          description: The reason for rejecting the visitor request.
+          example: Meeting has been rescheduled.
+      required:
+        - rejectionReason

@@ -1,0 +1,27 @@
+graph TD
+    subgraph "Test Environment"
+        PR[Playwright Runner]
+        FE[Frontend: Next.js]
+        BE[Backend: NestJS]
+        DB[(PostgreSQL)]
+    end
+
+    PR -->|Interacts| FE
+    FE -->|API Calls| BE
+    BE -->|Query/Mutate| DB
+
+    subgraph "External Services (Bypassed in TEST_MODE)"
+        AWS[AWS SNS]
+        META[Meta WhatsApp API]
+    end
+
+    BE -.->|Skipped| AWS
+    BE -.->|Skipped| META
+
+    subgraph "Configuration"
+        ENV[".env (TEST_MODE=true)"]
+        SEED["Seed Data (Fixed UUIDs)"]
+    end
+
+    ENV -.-> BE
+    SEED -.-> DB

@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant Visitor
+    participant Frontend
+    participant API
+    participant DB
+    participant SMS as AWS SNS
+
+    Visitor->>Frontend: Enter Phone Number
+    Frontend->>API: POST /public/visitors/send-otp
+    API->>DB: Store OTP (expiry 5m)
+    API->>SMS: Send OTP
+    SMS-->>Visitor: Receive SMS (e.g. "123456")
+    
+    Visitor->>Frontend: Enter OTP
+    Frontend->>API: POST /public/visitors/verify-phone
+    API->>DB: Validate OTP & Attempt Count
+    
+    alt OTP Valid
+        API-->>Frontend: Success + Visitor Profile (if exists)
+        Frontend->>Visitor: Show Registration Form (Prefilled/Empty)
+    else OTP Invalid
+        API-->>Frontend: Error (Invalid/Expired)
+        Frontend->>Visitor: Retry Message
+    end

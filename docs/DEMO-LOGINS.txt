@@ -1,0 +1,117 @@
+Connitor — Demo / seed login credentials
+=========================================
+All emails below are from seed scripts in this repo.
+Staff sign-in: /auth/login  (or /auth/login?role=SECURITY etc.)
+Default password for email+password login (after ensure_user_passwords.py):
+
+  Connitor@123
+
+========================================================================
+1) ELECTRONIC CITY (Connitor) — primary demo set
+========================================================================
+Sources: seed_electronic_city_hierarchy.py + seed_ai_profile_users.py
+
+Role / type           | Email                              | Password
+----------------------|------------------------------------|-------------
+SUPER_ADMIN           | superadmin@hvts.com                | Connitor@123
+HOSPITAL_ADMIN        | hospital.admin@connitor-elcity.com | Connitor@123
+DEPARTMENT_ADMIN      | dept.admin@connitor-elcity.com     | Connitor@123
+SUB_DEPARTMENT_ADMIN  | subdept.admin@connitor-elcity.com  | Connitor@123
+STAFF / DOCTOR        | priya.nair@connitor-elcity.com     | Connitor@123
+                      | After login: My Visitors → Schedule (publish slots)
+                      | Urgent passcode: My Visitors → Urgent passcode (bypasses calendar)
+STAFF / NURSE         | lakshmi.devi@connitor-elcity.com   | Connitor@123
+STAFF / RECEPTIONIST  | manoj.kumar@connitor-elcity.com    | Connitor@123
+SECURITY              | security@connitor-elcity.com       | Connitor@123
+WARD_ADMIN            | ward.admin@connitor-elcity.com     | Connitor@123
+RECEIVING             | receiving@connitor-elcity.com      | Connitor@123
+PURCHASE              | purchase@connitor-elcity.com       | Connitor@123
+DISTRIBUTOR           | distributor@citygen.demo           | Connitor@123
+
+Distributor login: /auth/login?role=DISTRIBUTOR → /vendor/deliveries
+
+Chain / branch contact emails (not user logins):
+  info@connitorhealth.com
+  electroniccity@connitorhealth.com
+
+========================================================================
+2) APOLLO / FORTIS / MAX — multi-chain dummy seed (real-looking hospital emails)
+========================================================================
+Source: seed_dummy_data.py
+Password after ensure_user_passwords.py: Connitor@123
+(OTP login also works with the phone numbers shown.)
+
+--- Super Admin ---
+SUPER_ADMIN     | superadmin@hvts.com                 | phone 6987456321
+
+--- Apollo Hospitals ---
+CHAIN_ADMIN     | rajesh.kumar@apollohospitals.com    | phone 8482022111
+CHAIN_ADMIN     | priya.sharma@apollohospitals.com    | phone 8482022112
+BRANCH_ADMIN    | anil.patel@apollochennai.com        | phone 7980427511  (Chennai)
+BRANCH_ADMIN    | sneha.reddy@apollobangalore.com     | phone 7980427512  (Bangalore)
+STAFF / DOCTOR  | arjun.desai@apollochennai.com       | phone 7003636111
+STAFF / DOCTOR  | sunita.rao@apollochennai.com        | phone 7003636112
+SECURITY        | rameshwar.tiwari@apollochennai.com  | phone 9883578111
+SECURITY        | ravi.shankar@apollochennai.com      | phone 9883578112
+
+Hospital Admin (department hierarchy seed):
+HOSPITAL_ADMIN  | hospital.admin@apollochennai.com    | Connitor@123
+                | (also listed in docs as phone 9123456780)
+
+Chain / branch contact emails (not user logins):
+  info@apollohospitals.com
+  chennai@apollohospitals.com
+  bangalore@apollohospitals.com
+
+--- Fortis Healthcare ---
+CHAIN_ADMIN     | vikram.singh@fortishealthcare.com   | phone 8482022113
+CHAIN_ADMIN     | meera.gupta@fortishealthcare.com    | phone 8482022114
+BRANCH_ADMIN    | rahul.malhotra@fortismohali.com     | phone 7980427513  (Mohali)
+BRANCH_ADMIN    | neha.kapoor@fortisgurgaon.com       | phone 7980427514  (Gurgaon)
+
+Chain / branch contact emails (not user logins):
+  info@fortishealthcare.com
+  mohali@fortishealthcare.com
+  gurgaon@fortishealthcare.com
+
+--- Max Healthcare ---
+CHAIN_ADMIN     | amit.verma@maxhealthcare.com        | phone 8482022115
+CHAIN_ADMIN     | divya.joshi@maxhealthcare.com       | phone 8482022116
+BRANCH_ADMIN    | sanjay.mehta@maxsaket.com           | phone 7980427515  (Saket)
+BRANCH_ADMIN    | kavita.singh@maxgurgaon.com         | phone 7980427516  (Gurgaon)
+
+Chain / branch contact emails (not user logins):
+  info@maxhealthcare.com
+  saket@maxhealthcare.com
+  gurgaon@maxhealthcare.com
+
+========================================================================
+3) DELIVERY / VENDOR seeds (older scripts)
+========================================================================
+Prefer distributor@citygen.demo + Connitor@123 after seed_ai_profile_users.py.
+
+If you ran seed_delivery_full.py / seed_distributor_electronic_city.py:
+  vendor1@citygen.demo       | Demo@123 (or Connitor@123 after password reset)
+  receiving@citygen.demo     | Demo@123
+  distributor@citygen.demo   | Demo@123 or Connitor@123
+
+========================================================================
+4) PUBLIC VISITORS
+========================================================================
+URL: /visitor/login
+No shared seed password — visitors register their own account
+(password, Google, LinkedIn, or email OTP).
+
+========================================================================
+5) HOW TO SEED / RESET PASSWORDS (from python_backend/)
+========================================================================
+  set PYTHONPATH=.
+  python scripts/seed_dummy_data.py
+  python scripts/seed_electronic_city_hierarchy.py --yes
+  python scripts/seed_ai_profile_users.py --yes
+  python scripts/ensure_user_passwords.py
+
+ensure_user_passwords.py sets Connitor@123 (or DEFAULT_USER_PASSWORD from .env)
+for every User that has an email.
+
+Demo / seed use only. Do not put real production passwords in this file.

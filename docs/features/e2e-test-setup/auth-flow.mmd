@@ -1,0 +1,32 @@
+sequenceDiagram
+    participant P as Playwright (Test)
+    participant F as Frontend (Next.js)
+    participant B as Backend (NestJS)
+    participant DB as Database (Prisma)
+    participant SMS as SmsService (SNS)
+
+    Note over P, SMS: Standard Flow (TEST_MODE=false)
+    P->>F: Input Phone Number
+    F->>B: POST /auth/login
+    B->>B: Generate Random OTP
+    B->>DB: Save OTP Hash
+    B->>SMS: sendOtp(phone, otp)
+    SMS-->>B: Success
+    B-->>F: OK
+    P->>F: Input OTP (from SMS/Logs)
+    F->>B: POST /auth/verify
+    B->>DB: Verify OTP
+    B-->>F: JWT Token
+    F-->>P: Redirect to Dashboard
+
+    Note over P, SMS: Test Flow (TEST_MODE=true)
+    P->>F: Input Phone Number
+    F->>B: POST /auth/login
+    B->>B: Use E2E_FIXED_OTP (123456)
+    B->>DB: Save OTP Hash
+    B-->>F: OK (Skip SMS)
+    P->>F: Input "123456"
+    F->>B: POST /auth/verify
+    B->>DB: Verify OTP
+    B-->>F: JWT Token
+    F-->>P: Redirect to Dashboard

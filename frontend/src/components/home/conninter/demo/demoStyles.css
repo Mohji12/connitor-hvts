@@ -1,0 +1,52 @@
+.demo-flow-root {
+  min-height: 100vh;
+  background: #f4f5f7;
+  color: #0f172a;
+}
+
+.demo-flow-root .demo-hero {
+  background: linear-gradient(160deg, #0f766e 0%, #115e59 45%, #0a2524 100%);
+  color: #fff;
+}
+
+.demo-flow-root .demo-card {
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.demo-flow-root .demo-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.demo-flow-root .demo-sidebar {
+  background: linear-gradient(180deg, #0f3433 0%, #0a2524 100%);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.demo-flow-root .demo-main {
+  min-width: 0;
+}
+
+.demo-flow-root .demo-soft {
+  background: #f8fafc;
+}
+
+.demo-flow-root .demo-pill {
+  border-radius: 9999px;
+}
+
+.demo-flow-root .demo-otp {
+  letter-spacing: 0.35rem;
+}
+
+@media (max-width: 1024px) {
+  .demo-flow-root .demo-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-flow-root .demo-sidebar {
+    display: none;
+  }
+}
