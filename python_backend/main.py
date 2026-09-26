@@ -86,9 +86,18 @@ app = FastAPI(
 
 settings = get_settings()
 
+# Regex covers production/staging frontends even before CORS_ALLOWED_ORIGINS is updated on the server.
+_CORS_ORIGIN_REGEX = (
+    r"https://([\w-]+\.)*conninter\.com"
+    r"|https://[\w-]+\.vercel\.app"
+    r"|http://localhost:\d+"
+    r"|http://127\.0\.0\.1:\d+"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_cors_origins(settings),
+    allow_origin_regex=_CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
