@@ -8,12 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuthSession } from '@/hooks/useAuthSession';
 
 export default function DriverDeliveriesPage() {
-  const { user, ready } = useAuthSession<{ name?: string; email?: string }>({
+  const user = useAuthSession<{ name?: string; email?: string }>({
     requiredRole: 'DELIVERY_AGENT',
     redirectTo: '/delivery/driver/login',
   });
 
-  if (!ready || !user) {
+  if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin" />
