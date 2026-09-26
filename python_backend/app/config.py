@@ -477,6 +477,8 @@ def get_cors_origins(settings: Settings | None = None) -> list[str]:
         s.frontend_url.rstrip("/"),
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://conninter.com",
+        "https://www.conninter.com",
     ]
     if s.public_frontend_url:
         origins.append(s.public_frontend_url.rstrip("/"))
