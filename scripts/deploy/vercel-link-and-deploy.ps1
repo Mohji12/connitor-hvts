@@ -8,7 +8,7 @@
 [CmdletBinding()]
 param(
   [string]$ProjectName = 'coninter-main',
-  [string]$ApiUrl = 'https://connitor.bengalurutechcommunity.com'
+  [string]$ApiUrl = 'https://api.conninter.com'
 )
 
 $ErrorActionPreference = 'Stop'
