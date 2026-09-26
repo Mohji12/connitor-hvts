@@ -30,6 +30,7 @@ const ICONS: Record<PortalRole, LucideIcon> = {
   HOSPITAL_ADMIN: Hospital,
   DEPARTMENT_ADMIN: Building2,
   SUB_DEPARTMENT_ADMIN: Users,
+  WARD_ADMIN: Users,
   STAFF: Stethoscope,
   SECURITY: Shield,
 };
