@@ -27,13 +27,8 @@ function trimUrl(url: string | undefined): string {
  */
 export function getBackendBaseUrl(): string {
   if (typeof window !== 'undefined') {
-    if (isKnownProductionHost(window.location.hostname)) {
-      return '';
-    }
-    const fromEnv = trimUrl(process.env.NEXT_PUBLIC_BACKEND_API_URL);
-    if (fromEnv) {
-      return fromEnv;
-    }
+    // Always same-origin /api in the browser (Next dev rewrite or Vercel/nginx proxy).
+    // Never call api.conninter.com directly from the client — CORS preflight fails in production.
     return '';
   }
 
