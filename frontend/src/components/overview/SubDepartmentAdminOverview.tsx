@@ -8,7 +8,7 @@ import { useOverviewSessionUser } from '@/hooks/useOverviewSessionUser';
 import { AppointmentService } from '@/lib/services/appointmentService';
 import { AnalyticsService } from '@/lib/services/analyticsService';
 import { HierarchyOverviewCharts } from '@/components/overview/HierarchyOverviewCharts';
-import { ANALYTICS_OVERVIEW_REFRESH_MS } from '@/lib/dashboard-refresh';
+import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
 import { Users, Stethoscope, Calendar, Clock, CheckCircle2, UserCheck } from 'lucide-react';
 
 export default function SubDepartmentAdminOverview() {
@@ -17,13 +17,13 @@ export default function SubDepartmentAdminOverview() {
   const { data: overview, isLoading } = useSWR(
     user?.subDepartmentId ? '/api/analytics/sub-department-admin/overview' : null,
     () => AnalyticsService.getSubDepartmentAdminOverview(),
-    { refreshInterval: ANALYTICS_OVERVIEW_REFRESH_MS },
+    { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
   const { data: appointments } = useSWR(
     user ? '/api/appointments/subdept' : null,
     () => AppointmentService.list(),
-    { refreshInterval: ANALYTICS_OVERVIEW_REFRESH_MS },
+    { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
   const stats = [

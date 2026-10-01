@@ -105,6 +105,7 @@ class SmsServiceTests(unittest.TestCase):
             mock_settings.return_value.sms_default_country_code = "91"
             self.assertEqual(service._normalize_phone("9876543210"), "+919876543210")
             self.assertEqual(service._normalize_phone("+14155552671"), "+14155552671")
+            self.assertEqual(service._normalize_phone("918625877312"), "+918625877312")
 
 
 if __name__ == "__main__":

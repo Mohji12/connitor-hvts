@@ -1,7 +1,7 @@
 # Module-by-module test report for Connitor frontend + API
 $ErrorActionPreference = "Continue"
 $baseUrl = "http://localhost:3000"
-$apiUrl = "https://api.conninter.com"
+$apiUrl = "https://connitor.bengalurutechcommunity.com"
 
 $routes = @(
     @{ Module = "Home"; Path = "/" },

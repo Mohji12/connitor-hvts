@@ -115,18 +115,43 @@ class NotificationsService:
         self.db.add(Notification(recipientId=recipient_id, visitId=visit_id, message=message))
 
     def _email_user(self, user: User, subject: str, message: str) -> None:
-        if user.email:
+        """Prefer WhatsApp/SMS; email only when EMAIL_NOTIFICATIONS_ENABLED=true."""
+        body = f"{subject}\n\n{message}"
+        if user.phone:
+            try:
+                self.sms.send_message(user.phone, body)
+            except Exception as exc:
+                logger.error("Failed to WhatsApp/SMS user %s: %s", user.phone, exc)
+        if get_settings().email_notifications_enabled and user.email:
             try:
                 self.email.send_notification(user.email, subject, message)
             except Exception as exc:
                 logger.error("Failed to email user %s: %s", user.email, exc)
 
     def _email_users(self, users: list[User], subject: str, message: str) -> None:
-        seen: set[str] = set()
+        seen_phones: set[str] = set()
+        seen_emails: set[str] = set()
         for user in users:
-            if user.email and user.email not in seen:
-                seen.add(user.email)
-                self._email_user(user, subject, message)
+            if user.phone and user.phone not in seen_phones:
+                seen_phones.add(user.phone)
+                try:
+                    self.sms.send_message(user.phone, f"{subject}\n\n{message}")
+                except Exception as exc:
+                    logger.error("Failed to WhatsApp/SMS user %s: %s", user.phone, exc)
+            if (
+                get_settings().email_notifications_enabled
+                and user.email
+                and user.email not in seen_emails
+            ):
+                seen_emails.add(user.email)
+                self._email_user_email_only(user, subject, message)
+
+    def _email_user_email_only(self, user: User, subject: str, message: str) -> None:
+        if user.email:
+            try:
+                self.email.send_notification(user.email, subject, message)
+            except Exception as exc:
+                logger.error("Failed to email user %s: %s", user.email, exc)
 
     def _format_appt(self, visit: Visit) -> str:
         if not visit.appointmentDate:
@@ -165,7 +190,13 @@ class NotificationsService:
                 self._sms_user(user, message)
 
     def _email_visitor(self, visitor: Visitor, subject: str, message: str) -> None:
-        if visitor.email:
+        body = f"{subject}\n\n{message}"
+        if visitor.phone:
+            try:
+                self.sms.send_message(visitor.phone, body)
+            except Exception as exc:
+                logger.error("Failed to WhatsApp/SMS visitor %s: %s", visitor.phone, exc)
+        if get_settings().email_notifications_enabled and visitor.email:
             try:
                 self.email.send_notification(visitor.email, subject, message)
             except Exception as exc:
@@ -228,19 +259,33 @@ class NotificationsService:
                 logger.error("Failed to send booking confirmation email to %s: %s", visitor.email, exc)
 
         if is_open:
+            if visitor.phone:
+                try:
+                    self.sms.send_message(
+                        visitor.phone,
+                        (
+                            f"Conninter: Visit slot request received at {hospital_name} with "
+                            f"Dr. {doctor.name}. Doctor will decide the time. Booking ID: {visit.id}"
+                        ),
+                    )
+                except Exception as exc:
+                    logger.error("Failed to WhatsApp open-slot booking to %s: %s", visitor.phone, exc)
             return
 
         if self._is_online(visit):
             sms_text = (
-                f"Connitor: Online appointment request sent to Dr. {doctor.name} for {appt}. "
-                "Awaiting doctor approval. Your video consultation link will be sent once approved."
+                f"Conninter: Online appointment request at {hospital_name} with Dr. {doctor.name} "
+                f"for {appt}. Awaiting approval. Booking ID: {visit.id}. "
+                "Your video link will be sent once approved."
             )
         else:
             sms_text = (
-                f"Connitor: Appointment request sent to Dr. {doctor.name} for {appt}. "
-                "Awaiting doctor approval. You will receive a QR code once approved."
+                f"Conninter: Appointment request at {hospital_name} with Dr. {doctor.name} "
+                f"for {appt}. Awaiting approval. Booking ID: {visit.id}. "
+                "You will receive check-in details on WhatsApp once approved."
             )
-        self.sms.send_message(visitor.phone, sms_text)
+        if visitor.phone:
+            self.sms.send_message(visitor.phone, sms_text)
 
     def _ensure_sms_approval_code(self, visit: Visit) -> str:
         if visit.smsApprovalCode:
@@ -264,18 +309,18 @@ class NotificationsService:
         if is_open:
             dashboard_message = (
                 f"Visit slot request from {name}. Date and time to be decided by the doctor. "
-                f"Purpose: {purpose}. Approval link sent by email."
+                f"Purpose: {purpose}. Approval link sent by WhatsApp/SMS."
             )
         else:
             dashboard_message = (
                 f"{'Custom slot request' if is_custom else 'New appointment'} from {name} on {appt} "
                 f"({self._meeting_mode_label(visit)}). "
                 f"Purpose: {purpose}. "
-                "Approval link sent to doctor via email."
+                "Approval link sent to doctor via WhatsApp/SMS."
             )
         self._add_notification(staff.id, visit.id, dashboard_message)
 
-        if staff.email:
+        if get_settings().email_notifications_enabled and staff.email:
             try:
                 self.email.send_doctor_approval_request_email(
                     staff.email,
@@ -291,26 +336,31 @@ class NotificationsService:
                 logger.error(
                     "Failed to email doctor approval link to %s: %s", staff.email, exc
                 )
-        else:
+        elif not staff.phone:
             logger.warning(
-                "Doctor %s has no email — cannot send approval link by mail (visit %s)",
+                "Doctor %s has no phone — cannot send approval link by WhatsApp (visit %s)",
                 staff.id,
                 visit.id,
             )
 
-        from app.config import get_settings, is_wapblaster_configured
+        from app.config import is_wapblaster_configured
 
         settings = get_settings()
-        if staff.phone and settings.doctor_approval_whatsapp_enabled:
+        # WhatsApp is primary for doctor approval when email is off, or when WA is explicitly enabled.
+        send_doctor_whatsapp = bool(staff.phone) and (
+            settings.doctor_approval_whatsapp_enabled
+            or not settings.email_notifications_enabled
+        )
+        if send_doctor_whatsapp and staff.phone:
             mode_label = self._meeting_mode_label(visit)
             if is_open:
                 sms_message = (
-                    f"Connitor: {name} wants a visiting slot. Purpose: {purpose}. "
+                    f"Conninter: {name} wants a visiting slot. Purpose: {purpose}. "
                     f"Approve or decline: {approval_url}"
                 )
             else:
                 sms_message = (
-                    f"Connitor: {'Visit slot request' if is_custom else 'New appointment'} from {name} "
+                    f"Conninter: {'Visit slot request' if is_custom else 'New appointment'} from {name} "
                     f"on {appt} ({mode_label}). Purpose: {purpose}. Approve or decline: {approval_url}"
                 )
             try:
@@ -325,16 +375,9 @@ class NotificationsService:
                         reschedule_url=reschedule_url,
                     )
                 else:
-                    self.sms.send_sms_only(staff.phone, sms_message)
+                    self.sms.send_message(staff.phone, sms_message)
             except Exception as exc:
-                logger.error("Failed to notify doctor %s by phone: %s", staff.phone, exc)
-        elif staff.phone and not staff.email:
-            logger.warning(
-                "Doctor %s has phone but no email — enable DOCTOR_APPROVAL_WHATSAPP_ENABLED "
-                "or add an email for mail-based approval (visit %s)",
-                staff.id,
-                visit.id,
-            )
+                logger.error("Failed to notify doctor %s by WhatsApp/SMS: %s", staff.phone, exc)
         self.db.commit()
 
     def notify_security_on_delivery_visit(self, visit: Visit, visitor: Visitor) -> None:
@@ -498,19 +541,60 @@ class NotificationsService:
                 msg += f"\n\nMessage from your doctor:\n{feedback}"
             self.email.send_notification(visitor.email, "Appointment Approved", msg)
 
-        if check_in_otp:
-            sms_text = (
-                f"Connitor: Appointment approved with Dr. {doctor.name}. "
-            )
-            if visit.visitorPassId:
-                sms_text += f"Pass ID: {visit.visitorPassId}. "
-            sms_text += f"Check-in OTP: {check_in_otp}. Show QR from your email at security."
-            self.sms.send_message(visitor.phone, sms_text)
-        else:
-            self.sms.send_message(
+        if visitor.phone:
+            try:
+                if check_in_otp:
+                    sms_text = f"Connitor: Appointment approved with Dr. {doctor.name}. "
+                    if visit.visitorPassId:
+                        sms_text += f"Pass ID: {visit.visitorPassId}. "
+                    sms_text += f"Check-in OTP: {check_in_otp}. Show this OTP/QR at security."
+                    self.sms.send_message(visitor.phone, sms_text)
+                else:
+                    self.sms.send_message(
+                        visitor.phone,
+                        f"Your appointment with Dr. {doctor.name} on {appt} has been approved.",
+                    )
+            except Exception as exc:
+                logger.error("Failed to WhatsApp approval text to %s: %s", visitor.phone, exc)
+        self._send_approval_qr_whatsapp(visit, visitor, name)
+
+    def _public_gate_pass_image_url(self, visit_id: str) -> str | None:
+        """HTTPS image WhatsApp can download. S3 is preferred when it is configured."""
+        from app.config import get_public_api_base_url, get_settings
+
+        settings = get_settings()
+        base = (settings.whatsapp_media_base_url or get_public_api_base_url(settings) or "").rstrip("/")
+        if not base:
+            return None
+        return f"{base}/api/public/visits/{visit_id}/gate-pass.png"
+
+    def _send_approval_qr_whatsapp(self, visit: Visit, visitor: Visitor, visitor_name: str) -> None:
+        """Publish the check-in QR and send it on WhatsApp after doctor approval."""
+        if not visitor.phone or not visit.visitQRCode:
+            return
+        try:
+            import base64
+
+            raw = visit.visitQRCode
+            if "," in raw:
+                raw = raw.split(",", 1)[1]
+            image_bytes = base64.b64decode(raw)
+            from app.services.s3_storage_service import S3StorageService
+
+            image_url = S3StorageService().publish_gate_pass_png(visit.id, image_bytes)
+            if not image_url:
+                image_url = self._public_gate_pass_image_url(visit.id)
+            if not image_url:
+                logger.warning("No public QR URL for visit %s; WhatsApp QR skipped", visit.id)
+                return
+            self.whatsapp.send_gate_pass(
                 visitor.phone,
-                f"Your appointment with Dr. {doctor.name} on {appt} has been approved.",
+                visitor_name,
+                image_url,
+                image_url=image_url,
             )
+        except Exception as exc:
+            logger.error("Failed to WhatsApp gate-pass QR to %s: %s", visitor.phone, exc)
 
     def notify_visitor_online_approval(self, visit: Visit, visitor: Visitor, doctor: User) -> None:
         name = self._visitor_name(visitor)
@@ -749,26 +833,32 @@ class NotificationsService:
         from app.services.visit_slot_extension_service import VisitSlotExtensionService
 
         doctor = visit.staff
-        if not doctor or not doctor.email:
+        if not doctor:
             return
         visitor_name = self._visitor_name(visit.visitor) if visit.visitor else "your visitor"
         expected_end = format_ist_datetime(visit.expectedEndTime)
         url = VisitSlotExtensionService(self.db).build_extend_url(visit.id, token)
         msg = (
             f"Your visit with {visitor_name} is due to end at {expected_end}. "
-            "Open the email link if you need to extend. Security should hold the next visitor."
+            f"Extend here if needed: {url}. Security should hold the next visitor."
         )
         self._add_notification(doctor.id, visit.id, msg)
-        try:
-            self.email.send_visit_extension_email(
-                doctor.email,
-                doctor_name=doctor.name or "Doctor",
-                visitor_name=visitor_name,
-                expected_end=expected_end,
-                extend_url=url,
-            )
-        except Exception as exc:
-            logger.error("Failed to send visit extension email to %s: %s", doctor.email, exc)
+        if doctor.phone:
+            try:
+                self.sms.send_message(doctor.phone, f"Conninter: {msg}")
+            except Exception as exc:
+                logger.error("Failed to WhatsApp visit extension to %s: %s", doctor.phone, exc)
+        if get_settings().email_notifications_enabled and doctor.email:
+            try:
+                self.email.send_visit_extension_email(
+                    doctor.email,
+                    doctor_name=doctor.name or "Doctor",
+                    visitor_name=visitor_name,
+                    expected_end=expected_end,
+                    extend_url=url,
+                )
+            except Exception as exc:
+                logger.error("Failed to send visit extension email to %s: %s", doctor.email, exc)
 
     def notify_security_visit_extended(self, visit: Visit, extra_minutes: int) -> None:
         visitor_name = self._visitor_name(visit.visitor) if visit.visitor else "Visitor"
@@ -781,19 +871,23 @@ class NotificationsService:
         security = self._security_users(visit.branchId)
         for user in security:
             self._add_notification(user.id, visit.id, msg)
-        for user in security:
-            if not user.email:
-                continue
-            try:
-                self.email.send_visit_extended_security_email(
-                    user.email,
-                    doctor_name=doctor_name,
-                    visitor_name=visitor_name,
-                    extra_minutes=extra_minutes,
-                    expected_end=expected_end,
-                )
-            except Exception as exc:
-                logger.error("Failed to email security %s: %s", user.email, exc)
+        self._email_users(security, "Visit Extended — Hold Next Visitor", msg)
+        if get_settings().email_notifications_enabled:
+            for user in security:
+                if not user.email:
+                    continue
+                try:
+                    self.email.send_visit_extended_security_email(
+                        user.email,
+                        visitor_name=visitor_name,
+                        doctor_name=doctor_name,
+                        extra_minutes=extra_minutes,
+                        expected_end=expected_end,
+                    )
+                except Exception as exc:
+                    logger.error(
+                        "Failed to email security visit-extended to %s: %s", user.email, exc
+                    )
 
     def notify_next_visitor_delayed(
         self,

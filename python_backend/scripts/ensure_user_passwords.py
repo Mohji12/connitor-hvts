@@ -4,7 +4,7 @@ Run from python_backend:
   $env:PYTHONPATH="."
   python scripts/ensure_user_passwords.py
 
-Default password: Connitor@123 (override with DEFAULT_USER_PASSWORD in .env)
+Password comes from DEFAULT_USER_PASSWORD in .env (falls back to Conninter123@).
 """
 from sqlalchemy import inspect, text
 
@@ -13,7 +13,13 @@ from app.database import SessionLocal, engine
 from app.models import User
 from app.utils.passwords import hash_password
 
-DEFAULT_PASSWORD = "Connitor@123"
+FALLBACK_PASSWORD = "Conninter123@"
+
+
+def resolve_default_password() -> str:
+    settings = get_settings()
+    value = (settings.default_user_password or "").strip()
+    return value or FALLBACK_PASSWORD
 
 
 def ensure_column() -> None:
@@ -46,11 +52,12 @@ def set_passwords(plain_password: str) -> None:
 
 
 def main() -> None:
-    get_settings()
+    password = resolve_default_password()
     ensure_column()
-    set_passwords(DEFAULT_PASSWORD)
-    print(f"Default password: {DEFAULT_PASSWORD}")
-    print("Users sign in at /auth/login with their work email + this password.")
+    set_passwords(password)
+    print(f"Default password: {password}")
+    print("Source: DEFAULT_USER_PASSWORD in python_backend/.env (optional; falls back to Conninter123@).")
+    print("Users sign in at /staff/login/ with their work email + this password.")
 
 
 if __name__ == "__main__":

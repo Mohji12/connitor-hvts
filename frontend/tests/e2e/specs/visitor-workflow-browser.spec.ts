@@ -12,8 +12,8 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-const PASSWORD = 'Connitor@123';
-const VISITOR_PASSWORD = 'Connitor@123';
+const PASSWORD = 'Conninter123@';
+const VISITOR_PASSWORD = 'Conninter123@';
 const DOCTOR_EMAIL = 'priya.nair@connitor-elcity.com';
 const SECURITY_EMAIL = 'security@connitor-elcity.com';
 const BRANCH_ID = '11000000-0000-4000-8000-000000000002';

@@ -44,8 +44,15 @@ from app.models import (  # noqa: E402
 )
 from app.utils.passwords import hash_password  # noqa: E402
 from app.utils.timezone import now_ist  # noqa: E402
+from app.config import get_settings  # noqa: E402
 
-DEFAULT_PASSWORD = "Connitor@123"
+
+def _default_password() -> str:
+    value = (get_settings().default_user_password or "").strip()
+    return value or "Conninter123@"
+
+
+DEFAULT_PASSWORD = _default_password()
 
 CHAIN = {
     "id": CONNITOR_CHAIN_ID,

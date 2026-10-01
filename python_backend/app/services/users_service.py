@@ -17,6 +17,59 @@ ADMIN_ROLES = (
     Role.SUB_DEPARTMENT_ADMIN.value,
 )
 
+# Who may create which roles (target → still subject to branch/dept/sub-dept scope checks).
+CREATABLE_ROLES: dict[str, frozenset[str]] = {
+    Role.SUPER_ADMIN.value: frozenset(
+        {
+            Role.CHAIN_ADMIN.value,
+            Role.HOSPITAL_ADMIN.value,
+            Role.DEPARTMENT_ADMIN.value,
+            Role.SUB_DEPARTMENT_ADMIN.value,
+            Role.STAFF.value,
+            Role.SECURITY.value,
+            Role.SECURITY_SUPERVISOR.value,
+        }
+    ),
+    Role.CHAIN_ADMIN.value: frozenset(
+        {
+            Role.BRANCH_ADMIN.value,
+            Role.STAFF.value,
+            Role.SECURITY.value,
+        }
+    ),
+    Role.HOSPITAL_ADMIN.value: frozenset(
+        {
+            Role.DEPARTMENT_ADMIN.value,
+            Role.SUB_DEPARTMENT_ADMIN.value,
+            Role.STAFF.value,
+            Role.SECURITY.value,
+            Role.SECURITY_SUPERVISOR.value,
+        }
+    ),
+    Role.BRANCH_ADMIN.value: frozenset(
+        {
+            Role.DEPARTMENT_ADMIN.value,
+            Role.SUB_DEPARTMENT_ADMIN.value,
+            Role.STAFF.value,
+            Role.SECURITY.value,
+            Role.SECURITY_SUPERVISOR.value,
+        }
+    ),
+    Role.DEPARTMENT_ADMIN.value: frozenset(
+        {
+            Role.SUB_DEPARTMENT_ADMIN.value,
+            Role.STAFF.value,
+            Role.SECURITY.value,
+        }
+    ),
+    Role.SUB_DEPARTMENT_ADMIN.value: frozenset(
+        {
+            Role.STAFF.value,
+            Role.SECURITY.value,
+        }
+    ),
+}
+
 
 class UsersService:
     def __init__(self, db: Session) -> None:
@@ -143,38 +196,35 @@ class UsersService:
 
     def _validate_create_permissions(self, role: str, data: dict, req_user: dict) -> None:
         creator = req_user["role"]
-        if role == Role.CHAIN_ADMIN.value and creator != Role.SUPER_ADMIN.value:
-            raise HTTPException(status_code=403, detail="Only SUPER_ADMIN can create CHAIN_ADMIN.")
-        if role == Role.BRANCH_ADMIN.value and creator not in (Role.SUPER_ADMIN.value, Role.CHAIN_ADMIN.value):
-            raise HTTPException(status_code=403, detail="Only SUPER_ADMIN or CHAIN_ADMIN can create BRANCH_ADMIN.")
-        if role == Role.HOSPITAL_ADMIN.value and creator != Role.SUPER_ADMIN.value:
-            raise HTTPException(status_code=403, detail="Only SUPER_ADMIN can create HOSPITAL_ADMIN.")
-        if role == Role.DEPARTMENT_ADMIN.value and creator not in (
-            Role.SUPER_ADMIN.value,
-            Role.HOSPITAL_ADMIN.value,
+        allowed = CREATABLE_ROLES.get(creator, frozenset())
+        if role not in allowed:
+            raise HTTPException(
+                status_code=403,
+                detail=f"{creator} cannot create users with role {role}.",
+            )
+
+        # Scope: creators may only attach users within their org unit.
+        if creator == Role.CHAIN_ADMIN.value and data.get("hospitalChainId") != req_user.get(
+            "hospitalChainId"
+        ):
+            raise HTTPException(status_code=403, detail="You can only create users in your own chain.")
+        if creator in (Role.BRANCH_ADMIN.value, Role.HOSPITAL_ADMIN.value) and data.get(
+            "branchId"
+        ) != req_user.get("branchId"):
+            raise HTTPException(status_code=403, detail="You can only create users in your own branch.")
+        if creator == Role.DEPARTMENT_ADMIN.value and data.get("departmentId") != req_user.get(
+            "departmentId"
+        ):
+            raise HTTPException(
+                status_code=403, detail="You can only create users in your own department."
+            )
+        if creator == Role.SUB_DEPARTMENT_ADMIN.value and data.get("subDepartmentId") != req_user.get(
+            "subDepartmentId"
         ):
             raise HTTPException(
                 status_code=403,
-                detail="Only SUPER_ADMIN or HOSPITAL_ADMIN can create DEPARTMENT_ADMIN.",
+                detail="You can only create users in your own sub-department.",
             )
-        if role == Role.SUB_DEPARTMENT_ADMIN.value and creator not in (
-            Role.SUPER_ADMIN.value,
-            Role.HOSPITAL_ADMIN.value,
-            Role.DEPARTMENT_ADMIN.value,
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="Only SUPER_ADMIN, HOSPITAL_ADMIN, or DEPARTMENT_ADMIN can create SUB_DEPARTMENT_ADMIN.",
-            )
-        if role in (Role.STAFF.value, Role.SECURITY.value, Role.SECURITY_SUPERVISOR.value):
-            if creator == Role.CHAIN_ADMIN.value and data.get("hospitalChainId") != req_user.get("hospitalChainId"):
-                raise HTTPException(status_code=403, detail="You can only create users in your own chain.")
-            if creator in (Role.BRANCH_ADMIN.value, Role.HOSPITAL_ADMIN.value) and data.get("branchId") != req_user.get("branchId"):
-                raise HTTPException(status_code=403, detail="You can only create users in your own branch.")
-            if creator == Role.DEPARTMENT_ADMIN.value and data.get("departmentId") != req_user.get("departmentId"):
-                raise HTTPException(status_code=403, detail="You can only create users in your own department.")
-            if creator == Role.SUB_DEPARTMENT_ADMIN.value and data.get("subDepartmentId") != req_user.get("subDepartmentId"):
-                raise HTTPException(status_code=403, detail="You can only create users in your own sub-department.")
 
         if role == Role.HOSPITAL_ADMIN.value:
             if not data.get("hospitalChainId") or not data.get("branchId"):
@@ -188,27 +238,41 @@ class UsersService:
                     detail="HOSPITAL_ADMIN must not have departmentId or subDepartmentId.",
                 )
         if role == Role.DEPARTMENT_ADMIN.value:
-            if creator == Role.HOSPITAL_ADMIN.value and data.get("branchId") != req_user.get("branchId"):
+            if creator in (Role.HOSPITAL_ADMIN.value, Role.BRANCH_ADMIN.value) and data.get(
+                "branchId"
+            ) != req_user.get("branchId"):
                 raise HTTPException(
                     status_code=403,
                     detail="You can only create department admins in your own branch.",
                 )
             if not data.get("departmentId"):
                 raise HTTPException(status_code=400, detail="DEPARTMENT_ADMIN must have departmentId.")
-        if role == Role.SUB_DEPARTMENT_ADMIN.value and creator == Role.HOSPITAL_ADMIN.value:
-            dept_id = data.get("departmentId")
-            if dept_id:
-                dept = self.db.get(Department, dept_id)
-                if not dept or dept.branchId != req_user.get("branchId"):
-                    raise HTTPException(
-                        status_code=403,
-                        detail="Sub-department must belong to your branch.",
-                    )
-        if role == Role.SUB_DEPARTMENT_ADMIN.value and not data.get("subDepartmentId"):
-            raise HTTPException(status_code=400, detail="SUB_DEPARTMENT_ADMIN must have subDepartmentId.")
+        if role == Role.SUB_DEPARTMENT_ADMIN.value:
+            if creator in (Role.HOSPITAL_ADMIN.value, Role.BRANCH_ADMIN.value):
+                dept_id = data.get("departmentId")
+                if dept_id:
+                    dept = self.db.get(Department, dept_id)
+                    if not dept or dept.branchId != req_user.get("branchId"):
+                        raise HTTPException(
+                            status_code=403,
+                            detail="Sub-department must belong to your branch.",
+                        )
+            if creator == Role.DEPARTMENT_ADMIN.value and data.get("departmentId") != req_user.get(
+                "departmentId"
+            ):
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can only create sub-department admins in your own department.",
+                )
+            if not data.get("subDepartmentId"):
+                raise HTTPException(
+                    status_code=400, detail="SUB_DEPARTMENT_ADMIN must have subDepartmentId."
+                )
         if role in (Role.STAFF.value, Role.SECURITY.value, Role.SECURITY_SUPERVISOR.value):
             if not data.get("departmentId") or not data.get("subDepartmentId"):
-                raise HTTPException(status_code=400, detail="Staff/Security must have departmentId and subDepartmentId.")
+                raise HTTPException(
+                    status_code=400, detail="Staff/Security must have departmentId and subDepartmentId."
+                )
 
     def create(self, data: dict, req_user: dict) -> dict:
         role = data["role"]

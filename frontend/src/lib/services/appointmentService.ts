@@ -52,8 +52,10 @@ export const AppointmentService = {
     return response.data;
   },
 
-  async listPublicHospitals(): Promise<PublicHospital[]> {
-    const response = await apiClient.get('/api/public/appointments/hospitals');
+  async listPublicHospitals(params?: { hospitalChainId?: string }): Promise<PublicHospital[]> {
+    const response = await apiClient.get('/api/public/appointments/hospitals', {
+      params: params?.hospitalChainId ? { hospitalChainId: params.hospitalChainId } : undefined,
+    });
     return ensureArray<PublicHospital>(response.data);
   },
 

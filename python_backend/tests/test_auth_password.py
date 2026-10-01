@@ -15,7 +15,7 @@ class AuthPasswordLoginTests(unittest.TestCase):
     def test_login_with_password_success(self) -> None:
         user = MagicMock()
         user.isActive = True
-        user.passwordHash = hash_password("Connitor@123")
+        user.passwordHash = hash_password("Conninter123@")
         user.id = "user-1"
         user.name = "Dr. Test"
         user.phone = "9000000001"
@@ -38,14 +38,14 @@ class AuthPasswordLoginTests(unittest.TestCase):
         self.db.query.return_value = query
 
         with patch("app.services.auth_service.jwt.encode", return_value="signed-token"):
-            result = self.service.login_with_password("doctor@hospital.com", "Connitor@123")
+            result = self.service.login_with_password("doctor@hospital.com", "Conninter123@")
 
         self.assertEqual(result["access_token"], "signed-token")
 
     def test_login_with_password_rejects_invalid(self) -> None:
         user = MagicMock()
         user.isActive = True
-        user.passwordHash = hash_password("Connitor@123")
+        user.passwordHash = hash_password("Conninter123@")
 
         query = MagicMock()
         query.options.return_value = query

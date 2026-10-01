@@ -93,6 +93,11 @@ class Settings(BaseSettings):
 
     jwt_secret: str = Field(default="change-me", validation_alias="JWT_SECRET")
     jwt_expires_in: str = Field(default="1d", validation_alias="JWT_EXPIRES_IN")
+    default_user_password: str = Field(
+        default="Conninter123@",
+        validation_alias="DEFAULT_USER_PASSWORD",
+        description="Optional demo/seed password for hospital staff logins (ensure_user_passwords + seeds).",
+    )
 
     visitor_form_url: str = Field(
         default="http://localhost:3000/visit/on-spot",
@@ -106,6 +111,11 @@ class Settings(BaseSettings):
         description="Comma-separated extra browser origins allowed for CORS (e.g. Amplify staging URL)",
     )
     public_api_base_url: str | None = Field(default=None, validation_alias="PUBLIC_API_BASE_URL")
+    whatsapp_media_base_url: str | None = Field(
+        default=None,
+        validation_alias="WHATSAPP_MEDIA_BASE_URL",
+        description="Public origin WhatsApp uses to download the check-in QR image.",
+    )
     doctor_approval_link_url: str | None = Field(
         default=None, validation_alias="DOCTOR_APPROVAL_LINK_URL"
     )
@@ -144,10 +154,18 @@ class Settings(BaseSettings):
         default="whatsapp",
         validation_alias="NOTIFICATION_CHANNEL",
     )
-    doctor_approval_whatsapp_enabled: bool = Field(
+    email_notifications_enabled: bool = Field(
         default=False,
+        validation_alias="EMAIL_NOTIFICATIONS_ENABLED",
+        description=(
+            "When false, operational emails (approvals, gate pass, allotments) are skipped; "
+            "use WhatsApp/SMS instead. Auth OTPs may still use email when force=True."
+        ),
+    )
+    doctor_approval_whatsapp_enabled: bool = Field(
+        default=True,
         validation_alias="DOCTOR_APPROVAL_WHATSAPP_ENABLED",
-        description="When false, doctor visit approval is email-only; WapBlaster stays configured for other flows",
+        description="Send doctor visit approval via WhatsApp/SMS (in addition to email when email is enabled).",
     )
     twilio_account_sid: str | None = Field(default=None, validation_alias="TWILIO_ACCOUNT_SID")
     twilio_auth_token: str | None = Field(default=None, validation_alias="TWILIO_AUTH_TOKEN")
@@ -199,16 +217,21 @@ class Settings(BaseSettings):
         default="gate_pass_approved",
         validation_alias="WHATSAPP_TEMPLATE_GATE_PASS",
     )
+    whatsapp_template_gate_pass_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_GATE_PASS_LANGUAGE",
+        description="Meta language for gate_pass_approved (approved as en_US, not en_GB).",
+    )
     whatsapp_template_notification: str = Field(
-        default="connitor_notification",
+        default="conninter_notification",
         validation_alias="WHATSAPP_TEMPLATE_NOTIFICATION",
     )
     whatsapp_template_appointment_approval: str = Field(
-        default="confirmation_template",
+        default="approval_doctor",
         validation_alias="WHATSAPP_TEMPLATE_APPOINTMENT_APPROVAL",
     )
     whatsapp_template_language: str = Field(
-        default="en_US",
+        default="en_GB",
         validation_alias="WHATSAPP_TEMPLATE_LANGUAGE",
     )
     whatsapp_webhook_verify_token: str | None = Field(
@@ -234,7 +257,7 @@ class Settings(BaseSettings):
     wapblaster_template_field_count: int = Field(
         default=5,
         validation_alias="WAPBLASTER_TEMPLATE_FIELD_COUNT",
-        description="Body variable count for WapBlaster templates (e.g. confirmation_template uses 5)",
+        description="Body variable count for WapBlaster templates (e.g. approval_doctor / conninter_notification use 5)",
     )
     wapblaster_webhook_secret: str | None = Field(
         default=None,
@@ -522,6 +545,8 @@ def settings_summary(settings: Settings | None = None) -> dict[str, object]:
         "frontend_url": s.frontend_url,
         "twilio_configured": is_twilio_configured(s),
         "notification_channel": s.notification_channel,
+        "email_notifications_enabled": s.email_notifications_enabled,
+        "doctor_approval_whatsapp_enabled": s.doctor_approval_whatsapp_enabled,
         "whatsapp_provider": s.whatsapp_provider,
         "meta_whatsapp_configured": is_meta_whatsapp_configured(s),
         "meta_whatsapp_valid": check_meta_whatsapp_health(s).get("valid"),

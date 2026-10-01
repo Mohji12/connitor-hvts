@@ -36,7 +36,7 @@ Screenshots:
 
 ## 2. Login matrix (all Electronic City accounts)
 
-**Password for all:** `Connitor@123`  
+**Password for all:** `Conninter123@`  
 **UI:** `/auth/login` (add `?role=…` for role-targeted entry)
 
 | Role | Email | API login | Browser login (e2e) | Landing |
@@ -191,7 +191,7 @@ Full list: [`docs/DEMO-LOGINS.txt`](DEMO-LOGINS.txt)
 
 ## 5. Observations
 
-1. All Electronic City demo passwords work after `ensure_user_passwords.py` (`Connitor@123`).
+1. All Electronic City demo passwords work after `ensure_user_passwords.py` (`Conninter123@`).
 2. AMS is the live attendant UI; legacy “Attendant Passes” heading must not be asserted.
 3. Distributor book wizard is Details → dummy Payment; UPI and Card both complete bookings.
 4. Attendant checkout QR is returned on the scan API (`exitQrPayload` / `exitQrSignature`); pass closes as `USED`.

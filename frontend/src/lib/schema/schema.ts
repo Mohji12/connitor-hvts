@@ -342,14 +342,15 @@ export const UserUpdateSchema = UserBaseSchema.extend({
 
 export const UserResponseSchema = UserBaseSchema.extend({
   id: z.string(),
+  phone: z.string().min(1),
   role: z.enum(Roles),
   isActive: z.boolean(),
   hospitalChainId: z.string().nullable(),
   branchId: z.string().nullable(),
   departmentId: z.string().nullable(),
   subDepartmentId: z.string().nullable(),
-  userType: z.enum(UserTypes).nullable(),
-  department: z.enum(Departments).nullable(),
+  userType: z.string().nullable().optional(),
+  department: z.string().nullable().optional(),
   location: z.string().nullable(),
   createdAt: ApiDateTimeSchema,
 });

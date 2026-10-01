@@ -15,9 +15,10 @@ import apiClient from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getDashboardPathForRole,
+  getDashboardPrefetchPath,
   type DecodedUser,
 } from '@/lib/auth-routing';
-import { findRolePortal, resolveDeliveryPortal } from '@/lib/role-portals';
+import { findDeliveryPortal, findRolePortal, isPortalRole } from '@/lib/role-portals';
 import { Badge } from '@/components/ui/badge';
 
 import {
@@ -73,8 +74,8 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
   const router = useRouter();
   const searchParams = useSearchParams();
   const roleParam = forcedRole ?? searchParams.get('role');
-  const rolePortal = findRolePortal(roleParam);
-  const deliveryPortal = !rolePortal ? resolveDeliveryPortal(roleParam) : undefined;
+  const rolePortal = isPortalRole(roleParam) ? findRolePortal(roleParam) : undefined;
+  const deliveryPortal = !rolePortal ? findDeliveryPortal(roleParam) : undefined;
   const portalLabel = rolePortal?.label ?? deliveryPortal?.label;
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +83,10 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    router.prefetch(getDashboardPrefetchPath(roleParam));
+  }, [router, roleParam]);
 
   const form = useForm<z.infer<typeof LoginFormSchema>>({
     resolver: zodResolver(LoginFormSchema),
@@ -112,7 +117,9 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
       login(accessToken);
 
       const decodedUser = jwtDecode<DecodedUser>(accessToken);
-      router.push(getDashboardPathForRole(decodedUser.role));
+      const dashboardPath = getDashboardPathForRole(decodedUser.role);
+      router.prefetch(getDashboardPrefetchPath(decodedUser.role));
+      router.push(dashboardPath);
       toast.success('Login successful');
     } catch (err: unknown) {
       let errorMessage = 'Invalid login ID or password.';

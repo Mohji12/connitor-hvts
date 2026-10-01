@@ -21,9 +21,9 @@ from app.models.attendant_entities import Attendant, AttendantPass, AttendantPas
 
 API_BASE = os.environ.get("CONNITOR_API_BASE", "http://127.0.0.1:8002/api")
 WARD_EMAIL = "ward.admin@connitor-elcity.com"
-WARD_PASSWORD = "Connitor@123"
+WARD_PASSWORD = "Conninter123@"
 SECURITY_EMAIL = "security@connitor-elcity.com"
-SECURITY_PASSWORD = "Connitor@123"
+SECURITY_PASSWORD = "Conninter123@"
 BRANCH_ID = ELECTRONIC_CITY_BRANCH_ID
 
 # Minimal valid JPEG (1x1 pixel)

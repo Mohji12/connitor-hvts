@@ -256,8 +256,11 @@ class AppointmentNotificationsTests(unittest.TestCase):
         self.assertIn("Pending doctor approval", sms_text)
         self.db.commit.assert_called_once()
 
+    @patch.object(NotificationsService, "_send_approval_qr_whatsapp")
     @patch.object(NotificationsService, "_send_calendar_invite")
-    def test_approval_sends_gate_pass_email_with_qr(self, _mock_calendar: MagicMock) -> None:
+    def test_approval_sends_gate_pass_email_with_qr(
+        self, _mock_calendar: MagicMock, _mock_qr: MagicMock
+    ) -> None:
         visit = _visit()
         doctor = _doctor()
         visitor = _visitor()

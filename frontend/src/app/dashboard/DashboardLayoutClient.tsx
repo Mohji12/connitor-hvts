@@ -10,6 +10,9 @@ import { RoleSidebar } from '@/components/sidebar/RoleSidebar';
 import { useResponsive } from '@/hooks/use-mobile';
 import { TeamSwitcher } from '@/components/sidebar/team-switcher';
 import { Hospital, Maximize, Shrink } from 'lucide-react';
+import { OvumHospitalLogo } from '@/components/brand/OvumHospitalLogo';
+import { buildDashboardTeamEntry } from '@/lib/ovum-dashboard-branding';
+import { isOvumHospitalUser } from '@/lib/constants/ovum';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -22,8 +25,11 @@ interface User {
   email: string;
   phone: string;
   role: string;
+  hospitalChainId?: string | null;
   departmentName?: string;
   subDepartmentName?: string;
+  hospitalChainName?: string;
+  branchName?: string;
   hospitalChain: { name: string } | null;
   branch: { name: string } | null;
 }
@@ -56,19 +62,12 @@ export default function DashboardLayoutClient({
       document.removeEventListener('fullscreenchange', onFullScreenChange);
   }, []);
 
-  const teamsData = [
-    {
-      name: user.name,
-      logo: Hospital,
-      role: user.role,
-      hospitalChainName: user.hospitalChain?.name ?? '',
-      branchName:
-        user.subDepartmentName ??
-        user.departmentName ??
-        user.branch?.name ??
-        '',
-    },
-  ];
+  const teamsData = [buildDashboardTeamEntry(user, Hospital)];
+  const showOvumBrand = isOvumHospitalUser({
+    hospitalChainId: user.hospitalChainId,
+    email: user.email,
+    hospitalChainName: user.hospitalChainName ?? user.hospitalChain?.name,
+  });
 
   return (
     <SidebarProvider>
@@ -77,9 +76,12 @@ export default function DashboardLayoutClient({
         <RoleSidebar user={user} />
       </Suspense>
       <SidebarInset data-testid="dashboard-container" className="min-w-0">
-        <header className="flex items-center gap-1 sm:gap-2 h-14 min-h-14 px-2 sm:px-4 border-b border-[#001B71]/08 bg-white shrink-0 overflow-hidden">
+        <header className="flex items-center gap-1 sm:gap-2 min-h-14 h-auto px-2 sm:px-4 py-1 border-b border-[#001B71]/08 bg-white shrink-0">
           {!isCompactHeader ? <SidebarTrigger className="mr-2 shrink-0" /> : null}
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 flex items-center gap-3">
+            {showOvumBrand && !isCompactHeader ? (
+              <OvumHospitalLogo href="/dashboard/" size="sm" />
+            ) : null}
             {isCompactHeader ? <TeamSwitcher teams={teamsData} /> : null}
           </div>
           <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">

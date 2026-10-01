@@ -1,7 +1,15 @@
-import { redirect } from 'next/navigation';
+'use client';
 
-import { PORTAL_DELIVERY_LOGIN_PATH } from '@/lib/role-portals';
+import { Suspense } from 'react';
+import { AuthPasswordLoginForm } from '@/components/auth/AuthPasswordLoginForm';
+import { AuthPageShell } from '@/components/auth/AuthPageShell';
 
 export default function DeliveryLoginPage() {
-  redirect(PORTAL_DELIVERY_LOGIN_PATH);
+  return (
+    <AuthPageShell>
+      <Suspense fallback={null}>
+        <AuthPasswordLoginForm forcedRole="DISTRIBUTOR" />
+      </Suspense>
+    </AuthPageShell>
+  );
 }

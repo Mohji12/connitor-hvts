@@ -85,6 +85,43 @@ class S3StorageService:
         )
         return key
 
+    def publish_gate_pass_png(self, visit_id: str, content: bytes) -> str | None:
+        """Upload a gate-pass QR and return an HTTPS URL WhatsApp can fetch."""
+        if not content:
+            return None
+        if not self._client or not self.settings.aws_s3_bucket:
+            logger.warning("S3 not configured; cannot publish gate-pass QR for visit %s", visit_id)
+            return None
+        key = f"gate-passes/{visit_id}/{int(time.time())}.png"
+        bucket = self.settings.aws_s3_bucket
+        region = self.settings.aws_region or "ap-south-1"
+        try:
+            self._client.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=content,
+                ContentType="image/png",
+                ACL="public-read",
+            )
+            return f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+        except Exception:
+            logger.warning("Public gate-pass upload failed; using a time-limited URL", exc_info=True)
+            try:
+                self._client.put_object(
+                    Bucket=bucket,
+                    Key=key,
+                    Body=content,
+                    ContentType="image/png",
+                )
+                return self._client.generate_presigned_url(
+                    "get_object",
+                    Params={"Bucket": bucket, "Key": key},
+                    ExpiresIn=7 * 24 * 3600,
+                )
+            except Exception:
+                logger.warning("S3 gate-pass upload failed for visit %s", visit_id, exc_info=True)
+                return None
+
     async def upload_from_upload_file(
         self,
         account_id: str,

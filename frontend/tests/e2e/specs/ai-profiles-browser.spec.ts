@@ -8,7 +8,7 @@ import { test, expect, type Page } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
 
-const PASSWORD = 'Connitor@123';
+const PASSWORD = 'Conninter123@';
 const SCREENSHOT_DIR = path.join(__dirname, '../../../test-results/ai-profiles');
 
 type Profile = {

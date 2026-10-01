@@ -96,7 +96,7 @@ def main() -> None:
         print("smsApprovalCode:", visit_row["smsApprovalCode"] if visit_row else None)
         print("Doctor notify phone:", visit_row["staffPhone"] if visit_row else doctor["phone"])
         code = visit_row["smsApprovalCode"] if visit_row else ""
-        print(f"\nDoctor (+91{DOCTOR_PHONE}): check WhatsApp/email for confirmation_template.")
+        print(f"\nDoctor (+91{DOCTOR_PHONE}): check WhatsApp/email for approval_doctor template.")
         print(f"To approve via API test: POST /api/webhooks/whatsapp/reply with CONFIRM {code}")
     finally:
         db.close()

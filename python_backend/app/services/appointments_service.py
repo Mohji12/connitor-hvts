@@ -89,14 +89,19 @@ class AppointmentsService:
         )
         return doctor is not None
 
-    def list_public_hospitals(self) -> list[dict]:
-        branches = self.db.query(Branch).all()
+    def list_public_hospitals(self, hospital_chain_id: str | None = None) -> list[dict]:
+        query = self.db.query(Branch)
+        if hospital_chain_id:
+            query = query.filter(Branch.hospitalChainId == hospital_chain_id)
+        branches = query.all()
         return [
             {
                 "id": b.id,
                 "name": b.name,
                 "city": b.city,
                 "state": b.state,
+                "street": b.street,
+                "pinCode": b.pinCode,
                 "hospitalChainId": b.hospitalChainId,
             }
             for b in branches

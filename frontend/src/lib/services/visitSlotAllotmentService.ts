@@ -63,7 +63,9 @@ export interface VisitSlotImportResult {
 }
 
 export const VisitSlotAllotmentService = {
-  async getPolicy(branchId: string): Promise<{ branchId: string; dailyQuota: number }> {
+  async getPolicy(
+    branchId: string,
+  ): Promise<{ branchId: string; dailyQuota: number; gapMinutes?: number }> {
     const response = await apiClient.get(`/api/branches/${branchId}/visit-slot-policy`);
     return response.data;
   },
@@ -71,9 +73,11 @@ export const VisitSlotAllotmentService = {
   async updatePolicy(
     branchId: string,
     dailyQuota: number,
-  ): Promise<{ branchId: string; dailyQuota: number }> {
+    gapMinutes?: number,
+  ): Promise<{ branchId: string; dailyQuota: number; gapMinutes?: number }> {
     const response = await apiClient.put(`/api/branches/${branchId}/visit-slot-policy`, {
       dailyQuota,
+      ...(gapMinutes === undefined ? {} : { gapMinutes }),
     });
     return response.data;
   },

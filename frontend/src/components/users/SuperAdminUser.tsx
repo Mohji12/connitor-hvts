@@ -403,9 +403,6 @@ const AddEditUserDialog = ({
                         <SelectItem value="CHAIN_ADMIN">
                           Chain Admin (Legacy)
                         </SelectItem>
-                        <SelectItem value="BRANCH_ADMIN">
-                          Branch Admin (Legacy)
-                        </SelectItem>
                         <SelectItem value="STAFF">Staff</SelectItem>
                         <SelectItem value="SECURITY_SUPERVISOR">
                           Security Supervisor

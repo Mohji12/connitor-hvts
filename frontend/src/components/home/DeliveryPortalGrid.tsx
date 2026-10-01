@@ -14,7 +14,6 @@ import { DELIVERY_PORTALS } from '@/lib/role-portals';
 
 const ICONS = {
   DISTRIBUTOR: Truck,
-  DRIVER: Truck,
 } as const;
 
 export function DeliveryPortalGrid() {

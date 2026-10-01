@@ -15,5 +15,8 @@ export function clearVisitorToken(): void {
 
 export function isVisitorPortalApiPath(url: string | undefined): boolean {
   if (!url) return false;
-  return url.includes('/api/public/visitor-portal');
+  return (
+    url.includes('/api/public/visitor-portal') ||
+    url.includes('/api/public/visitor-accounts')
+  );
 }

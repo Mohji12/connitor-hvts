@@ -42,7 +42,7 @@ import {
 } from '@/components/ui/input-otp';
 import { jwtDecode } from 'jwt-decode';
 import Image from 'next/image';
-import { getDashboardPathForRole } from '@/lib/auth-routing';
+import { getDashboardPathForRole, getDashboardPrefetchPath } from '@/lib/auth-routing';
 
 // Validation
 const OtpFormSchema = z.object({
@@ -86,6 +86,11 @@ export function AuthOtpForm() {
       toast.error('Email not found. Please sign in again.');
       router.push('/auth/login');
     }
+  }, [router]);
+
+  useEffect(() => {
+    router.prefetch(getDashboardPrefetchPath());
+    router.prefetch(getDashboardPrefetchPath('SECURITY'));
   }, [router]);
 
   useEffect(() => {
@@ -166,7 +171,9 @@ export function AuthOtpForm() {
       login(accessToken);
 
       const decodedUser = jwtDecode<DecodedUser>(accessToken);
-      router.push(getDashboardPathForRole(decodedUser.role));
+      const dashboardPath = getDashboardPathForRole(decodedUser.role);
+      router.prefetch(getDashboardPrefetchPath(decodedUser.role));
+      router.push(dashboardPath);
       toast.success('Login successful');
     } catch (err: unknown) {
       let errorMessage = 'Invalid OTP';

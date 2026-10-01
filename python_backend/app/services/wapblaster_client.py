@@ -16,12 +16,20 @@ logger = logging.getLogger(__name__)
 WAPBLASTER_UTILITY_PARAM_MAX_LEN = 30
 
 # Templates using only body {{1}}..{{N}} (no dynamic URL button in API payload).
-WAPBLASTER_BODY_ONLY_TEMPLATES = frozenset({"confirmation_template"})
+# Meta Utility body params are truncated to 30 chars for these names.
+WAPBLASTER_BODY_ONLY_TEMPLATES = frozenset(
+    {
+        "approval_doctor",
+        "conninter_notification",
+        "confirmation_template",  # legacy alias
+    }
+)
 
 
 def truncate_utility_param(value: str, max_len: int = WAPBLASTER_UTILITY_PARAM_MAX_LEN) -> str:
-    text = (value or "").strip() or "—"
-    return text[:max_len]
+    text = (value or "").replace("\r", " ").replace("\n", " ").replace("\t", " ")
+    text = " ".join(text.split())
+    return (text or "—")[:max_len]
 
 
 def template_fields_from_values(
@@ -162,7 +170,7 @@ def send_wapblaster_template(
     payload: dict[str, str] = {
         "phone_number": _digits(phone),
         "template_name": name,
-        "template_language": (template_language or "en_US").strip(),
+        "template_language": (template_language or "en_GB").strip(),
         **field_map,
     }
     if extra:
@@ -206,9 +214,9 @@ def send_wapblaster_appointment_approval(
     """
     Doctor visit approval on WhatsApp — no web links (those open a browser).
 
-    Uses confirmation_template body vars (max 30 chars each) plus quick-reply payload
-    confirm_{code} when the approved Meta template has a Confirm quick-reply button.
-    Falls back to plain text: reply CONFIRM {code} to approve in-chat.
+    Uses approval_doctor (or legacy confirmation_template) body vars (max 30 chars each)
+    plus quick-reply payload confirm_{code} when the approved Meta template has a Confirm
+    quick-reply button. Falls back to plain text: reply CONFIRM {code} to approve in-chat.
     """
     code = (approval_code or "").strip()
     confirm_payload = f"confirm_{code}" if code else "confirm"

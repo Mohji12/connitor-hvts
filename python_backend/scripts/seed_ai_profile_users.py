@@ -1,7 +1,7 @@
 """
 Seed AI demo users for every Connitor role profile at Electronic City.
 
-Password for all: Connitor@123
+Password for all: DEFAULT_USER_PASSWORD from .env (default Conninter123@)
 
 Usage:
   python scripts/seed_ai_profile_users.py --yes
@@ -26,8 +26,15 @@ from app.delivery.distributor_service import DistributorService
 from app.models import Branch, User
 from app.models.delivery_entities import Distributor, VendorBranchMapping
 from app.utils.passwords import hash_password
+from app.config import get_settings
 
-PASSWORD = "Connitor@123"
+
+def _default_password() -> str:
+    value = (get_settings().default_user_password or "").strip()
+    return value or "Conninter123@"
+
+
+PASSWORD = _default_password()
 BRANCH_ID = ELECTRONIC_CITY_BRANCH_ID
 CHAIN_ID = CONNITOR_CHAIN_ID
 
@@ -245,7 +252,7 @@ def run() -> None:
         _ensure_distributor_user(db)
         db.commit()
 
-        print("\n=== AI profile logins (password: Connitor@123) ===")
+        print("\n=== AI profile logins (password: Conninter123@) ===")
         print("SUPER_ADMIN          superadmin@hvts.com")
         print("HOSPITAL_ADMIN       hospital.admin@connitor-elcity.com")
         print("DEPARTMENT_ADMIN     dept.admin@connitor-elcity.com")

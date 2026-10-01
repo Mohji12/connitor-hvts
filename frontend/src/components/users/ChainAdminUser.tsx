@@ -294,9 +294,6 @@ const AddEditUserDialog = ({
                             Branch Admin
                           </SelectItem>
                           <SelectItem value="STAFF">Staff</SelectItem>
-                          <SelectItem value="SECURITY_SUPERVISOR">
-                            Security Supervisor
-                          </SelectItem>
                           <SelectItem value="SECURITY">Security</SelectItem>
                         </SelectContent>
                       </Select>

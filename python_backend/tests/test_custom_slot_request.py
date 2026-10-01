@@ -82,7 +82,7 @@ def db():
         branchId=branch.id,
         departmentId=dept.id,
         subDepartmentId=sub.id,
-        passwordHash=hash_password("Connitor@123"),
+        passwordHash=hash_password("Conninter123@"),
         isActive=True,
     )
     session.add_all([chain, branch, dept, sub, doctor])

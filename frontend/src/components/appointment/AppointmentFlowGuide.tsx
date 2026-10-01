@@ -81,7 +81,6 @@ const PORTAL_ICONS: Record<PortalRole, typeof Stethoscope> = {
   HOSPITAL_ADMIN: Hospital,
   DEPARTMENT_ADMIN: Building2,
   SUB_DEPARTMENT_ADMIN: Users,
-  WARD_ADMIN: Users,
   SUPER_ADMIN: ClipboardList,
 };
 

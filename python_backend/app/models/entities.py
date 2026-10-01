@@ -376,6 +376,7 @@ class BranchVisitSlotPolicy(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     branchId: Mapped[str] = mapped_column(String(36), ForeignKey("Branch.id"), unique=True, index=True)
     dailyQuota: Mapped[int] = mapped_column(Integer, default=50)
+    gapMinutes: Mapped[int] = mapped_column(Integer, default=5)
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist)
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist, onupdate=now_ist)
 

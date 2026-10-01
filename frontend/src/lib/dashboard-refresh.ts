@@ -1,10 +1,7 @@
 import { useEffect } from 'react';
 
-/** Security / AMS / delivery boards — balance freshness vs API load. */
-export const DASHBOARD_REFRESH_MS = 15_000;
-
-/** Analytics overview charts (remote DB); avoid hammering the API every few seconds. */
-export const ANALYTICS_OVERVIEW_REFRESH_MS = 60_000;
+/** Operational dashboards refetch this often so slot extensions and check-ins appear live. */
+export const DASHBOARD_REFRESH_MS = 5_000;
 
 export function useDashboardRefresh(callback: () => void, enabled = true): void {
   useEffect(() => {

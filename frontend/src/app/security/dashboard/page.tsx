@@ -1,20 +1,14 @@
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CheckInTab } from './components/CheckInTab';
-import { TodayAppointmentsTab } from './components/TodayAppointmentsTab';
-import { TodayDeliveriesTab } from './components/TodayDeliveriesTab';
-import { OnSpotQrPanel } from './components/OnSpotQrPanel';
-import { VisitorPassesTab } from './components/VisitorPassesTab';
-import { LogsTab } from '@/components/security/logs-tab/logs-tab';
-import { DeliveryScanTab } from '@/features/delivery-management/DeliveryScanTab';
-import { AttendantPassScanTab } from '@/features/attendant-passes/AttendantPassScanTab';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { getDashboardPathForRole } from '@/lib/auth-routing';
 import { DEMO_BRANCH_ID, IS_DEMO_MODE } from '@/lib/demo-config';
 import { getStoredAuthToken } from '@/lib/auth-storage';
 import { useResponsive } from '@/hooks/use-mobile';
+import { ConnitorLoader } from '@/components/ConnitorLoader';
 
 interface User {
   sub: string;
@@ -40,6 +34,44 @@ type SecurityTab =
   | 'deliveries'
   | 'attendant-scan';
 
+function PanelFallback(): React.ReactElement {
+  return <div className="h-28 animate-pulse rounded-md bg-muted" aria-hidden="true" />;
+}
+
+const CheckInTab = dynamic(
+  () => import('./components/CheckInTab').then((mod) => mod.CheckInTab),
+  { loading: () => <PanelFallback /> },
+);
+const TodayAppointmentsTab = dynamic(
+  () => import('./components/TodayAppointmentsTab').then((mod) => mod.TodayAppointmentsTab),
+  { loading: () => <PanelFallback /> },
+);
+const TodayDeliveriesTab = dynamic(
+  () => import('./components/TodayDeliveriesTab').then((mod) => mod.TodayDeliveriesTab),
+  { loading: () => <PanelFallback /> },
+);
+const OnSpotQrPanel = dynamic(
+  () => import('./components/OnSpotQrPanel').then((mod) => mod.OnSpotQrPanel),
+  { loading: () => <PanelFallback /> },
+);
+const VisitorPassesTab = dynamic(
+  () => import('./components/VisitorPassesTab').then((mod) => mod.VisitorPassesTab),
+  { loading: () => <PanelFallback /> },
+);
+const LogsTab = dynamic(
+  () => import('@/components/security/logs-tab/logs-tab').then((mod) => mod.LogsTab),
+  { loading: () => <PanelFallback /> },
+);
+const DeliveryScanTab = dynamic(
+  () => import('@/features/delivery-management/DeliveryScanTab').then((mod) => mod.DeliveryScanTab),
+  { loading: () => <PanelFallback /> },
+);
+const AttendantPassScanTab = dynamic(
+  () =>
+    import('@/features/attendant-passes/AttendantPassScanTab').then((mod) => mod.AttendantPassScanTab),
+  { loading: () => <PanelFallback /> },
+);
+
 function parseTab(value: string | null): SecurityTab {
   if (
     value === 'appointments' ||
@@ -57,7 +89,9 @@ function parseTab(value: string | null): SecurityTab {
 
 export default function SecurityDashboardPage(): React.ReactElement {
   return (
-    <React.Suspense fallback={null}>
+    <React.Suspense
+      fallback={<ConnitorLoader variant="section" message="Opening your dashboard…" />}
+    >
       <SecurityDashboard />
     </React.Suspense>
   );

@@ -11,7 +11,7 @@ import { test, expect, type Page, type APIRequestContext } from '@playwright/tes
 import path from 'path';
 import fs from 'fs';
 
-const PASSWORD = 'Connitor@123';
+const PASSWORD = 'Conninter123@';
 const WARD_EMAIL = 'ward.admin@connitor-elcity.com';
 const SECURITY_EMAIL = 'security@connitor-elcity.com';
 const BRANCH_ID = '11000000-0000-4000-8000-000000000002';

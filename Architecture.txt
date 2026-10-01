@@ -10,7 +10,7 @@ Frontend: A Next.js 15 web application (runs on port 3000 in development).
 Backend: A Python FastAPI API (runs on port 8001 in development).
 Older documentation still mentions NestJS and PostgreSQL, but the live system uses Python, SQLAlchemy, and MySQL. The old Nest backend folder is no longer in the project.
 
-In production, the frontend is built as static files and deployed to AWS Amplify. The API runs on a separate server (for example https://app.bengalurutechcommunity.in). The database is MySQL. Files such as visitor photos and ID documents go to AWS S3; gate pass images may use GCP storage.
+In production, the frontend is built as static files and deployed to AWS Amplify. The API runs on a separate server (https://connitor.bengalurutechcommunity.com). The database is MySQL. Files such as visitor photos and ID documents go to AWS S3; gate pass images may use GCP storage.
 
 High-Level Picture
 Think of Connitor as three kinds of users talking to one web app, which talks to one API, which talks to a database and external services (SMS, WhatsApp, email, Zoom).

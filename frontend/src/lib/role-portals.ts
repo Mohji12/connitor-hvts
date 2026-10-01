@@ -6,8 +6,7 @@ export type PortalRole =
   | 'DEPARTMENT_ADMIN'
   | 'SUB_DEPARTMENT_ADMIN'
   | 'SECURITY'
-  | 'STAFF'
-  | 'WARD_ADMIN';
+  | 'STAFF';
 
 export interface RolePortal {
   role: PortalRole;
@@ -63,129 +62,13 @@ export const HOSPITAL_ROLE_PORTALS: RolePortal[] = [
   },
 ];
 
-/** Attendant Management System (AMS) — not listed under general hospital staff tile */
-export const WARD_ADMIN_PORTAL: RolePortal = {
-  role: 'WARD_ADMIN',
-  label: 'Ward / AMS staff',
-  description: 'Issue attendant passes, register family visitors, and manage ward access.',
-  dashboardPath: getDashboardPathForRole('WARD_ADMIN'),
-  demoEmail: 'ward.admin@connitor-elcity.com',
-};
-
 export function getLoginPathForRole(role: PortalRole): string {
   if (role === 'SECURITY') return '/security/login';
-  return `/auth/login?role=${role}`;
+  return '/staff/login';
 }
-
-/** Shareable URLs — no role picker on the hub */
-export const PORTAL_HOSPITAL_STAFF_LOGIN_PATH = '/portal/hospital-staff';
-export const PORTAL_DELIVERY_LOGIN_PATH = '/portal/delivery';
-export const PORTAL_DELIVERY_DRIVER_LOGIN_PATH = '/portal/delivery/driver';
-export const PORTAL_SECURITY_LOGIN_PATH = '/security/login';
-
-export interface AttendantHubLink {
-  id: 'attendant-apply' | 'attendant-ams-login';
-  label: string;
-  description: string;
-  href: string;
-}
-
-export const ATTENDANT_HUB_LINKS: AttendantHubLink[] = [
-  {
-    id: 'attendant-apply',
-    label: 'Apply for family visit pass',
-    description: 'Public flow for attendants visiting an admitted patient (MRN required).',
-    href: '/attendant-pass',
-  },
-  {
-    id: 'attendant-ams-login',
-    label: 'Hospital AMS staff login',
-    description: 'Ward staff sign-in to register attendants and manage visit passes.',
-    href: '/auth/login?role=WARD_ADMIN',
-  },
-];
-
-export interface DeliveryHubLink {
-  id: 'distributor-login' | 'distributor-register' | 'driver-login';
-  label: string;
-  description: string;
-  href: string;
-}
-
-export interface VisitorHubLink {
-  id: string;
-  label: string;
-  description: string;
-  href: string;
-  /** OAuth and other full-page redirects */
-  external?: boolean;
-}
-
-export const VISITOR_HUB_LINKS: VisitorHubLink[] = [
-  {
-    id: 'visitor-sign-in',
-    label: 'Sign in to your profile',
-    description: 'Email or mobile + password; Google and LinkedIn also on the sign-in page.',
-    href: '/visitor/login',
-  },
-  {
-    id: 'visitor-register',
-    label: 'Create visitor account',
-    description: 'Register a Conninter visitor profile to book and track visits.',
-    href: '/visitor/register',
-  },
-  {
-    id: 'visitor-book',
-    label: 'Book an appointment',
-    description: 'Public booking flow for hospital visits.',
-    href: '/book-appointment',
-  },
-  {
-    id: 'visitor-legacy-otp',
-    label: 'Email OTP (booked without a profile)',
-    description: 'Legacy sign-in after booking without creating an account.',
-    href: '/visitor/login?mode=legacy-otp',
-  },
-  {
-    id: 'visitor-google',
-    label: 'Continue with Google',
-    description: 'OAuth sign-in with your Google account.',
-    href: '/api/public/visitor-auth/google',
-    external: true,
-  },
-  {
-    id: 'visitor-linkedin',
-    label: 'Continue with LinkedIn',
-    description: 'OAuth sign-in with your LinkedIn account.',
-    href: '/api/public/visitor-auth/linkedin',
-    external: true,
-  },
-];
-
-export const DELIVERY_HUB_LINKS: DeliveryHubLink[] = [
-  {
-    id: 'distributor-login',
-    label: 'Distributor sign in',
-    description: 'Book hospital deliveries, manage fleet, and track gate status.',
-    href: '/delivery/login',
-  },
-  {
-    id: 'distributor-register',
-    label: 'Create distributor account',
-    description: 'Apply to onboard as a delivery partner with a hospital.',
-    href: '/vendor/register',
-  },
-  {
-    id: 'driver-login',
-    label: 'Driver sign in',
-    description: 'View assigned runs, gate QR, and delivery instructions.',
-    href: '/delivery/driver/login',
-  },
-];
 
 export function findRolePortal(role: string | null | undefined): RolePortal | undefined {
   if (!role) return undefined;
-  if (role === 'WARD_ADMIN') return WARD_ADMIN_PORTAL;
   return HOSPITAL_ROLE_PORTALS.find((portal) => portal.role === role);
 }
 
@@ -194,7 +77,7 @@ export function isPortalRole(value: string | null): value is PortalRole {
 }
 
 export interface DeliveryPortal {
-  id: 'DISTRIBUTOR' | 'DRIVER';
+  id: 'DISTRIBUTOR';
   label: string;
   description: string;
   loginPath: string;
@@ -211,22 +94,7 @@ export const DELIVERY_PORTALS: DeliveryPortal[] = [
     dashboardPath: '/vendor/deliveries',
     demoEmail: 'distributor@citygen.demo',
   },
-  {
-    id: 'DRIVER',
-    label: 'Driver',
-    description: 'See today’s assigned deliveries, gate QR, and route instructions.',
-    loginPath: '/delivery/driver/login',
-    dashboardPath: '/driver/deliveries',
-    demoEmail: 'driver@citygen.demo',
-  },
 ];
-
-/** Maps auth role or portal id to delivery portal metadata (login form chrome). */
-export function resolveDeliveryPortal(roleOrId: string | null | undefined): DeliveryPortal | undefined {
-  if (!roleOrId) return undefined;
-  if (roleOrId === 'DELIVERY_AGENT') return findDeliveryPortal('DRIVER');
-  return findDeliveryPortal(roleOrId);
-}
 
 export function findDeliveryPortal(id: string | null | undefined): DeliveryPortal | undefined {
   if (!id) return undefined;

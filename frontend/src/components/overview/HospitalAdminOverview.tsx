@@ -25,7 +25,7 @@ import { UserService } from '@/lib/services/userService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Building2, Users, Activity, Layers, Calendar } from 'lucide-react';
-import { ANALYTICS_OVERVIEW_REFRESH_MS } from '@/lib/dashboard-refresh';
+import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
 
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Legend, Filler);
 
@@ -43,25 +43,24 @@ export default function HospitalAdminOverview() {
   const { data: overview } = useSWR<BranchStats>(
     user?.branchId ? '/api/analytics/hospital-admin/overview' : null,
     () => AnalyticsService.getHospitalAdminOverview(),
-    { refreshInterval: ANALYTICS_OVERVIEW_REFRESH_MS },
+    { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
   const { data: visitorTrends } = useSWR<VisitorTrends>(
     user?.branchId ? [`/api/analytics/hospital-admin/visitor-trends`, trendPeriod] : null,
     () => AnalyticsService.getHospitalAdminVisitorTrends(trendPeriod),
-    { refreshInterval: ANALYTICS_OVERVIEW_REFRESH_MS },
+    { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
   const { data: departmentStats } = useSWR<HierarchyOverview[]>(
     user?.branchId ? '/api/analytics/hospital-admin/departments/stats' : null,
     () => AnalyticsService.getHospitalAdminDepartmentStats(),
-    { refreshInterval: ANALYTICS_OVERVIEW_REFRESH_MS },
+    { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
   const { data: users } = useSWR<User[]>(
     user?.branchId ? `/api/users/branch-${user.branchId}` : null,
     () => UserService.getAll({ branchId: user!.branchId }),
-    { revalidateOnFocus: false, dedupingInterval: 30_000 },
   );
 
   const deptAdminCount = users?.filter((u) => u.role === 'DEPARTMENT_ADMIN').length ?? 0;

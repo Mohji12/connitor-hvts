@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 
 const navLinks = [
   { label: 'Hospitals', href: '#hospitals' },
@@ -30,17 +31,8 @@ export default function Navbar() {
         scrolled ? 'bg-background/95 backdrop-blur-sm shadow-sm' : 'bg-transparent'
       }`}
     >
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
-        <Link href="/" className="flex items-center gap-1">
-          <span className="text-xl font-extrabold tracking-tight text-primary">
-            CONN
-            <span className="relative inline-block">
-              I
-              <span className="absolute -top-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#4A90E2]" />
-            </span>
-            NTER
-          </span>
-        </Link>
+      <div className="container mx-auto flex h-[4.5rem] items-center justify-between px-4 lg:h-20 lg:px-8">
+        <ConninterWordmark size="lg" />
 
         <div className="hidden items-center gap-8 md:flex">
           {navLinks.map((l) =>

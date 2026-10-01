@@ -11,12 +11,21 @@ export const ROLE_DASHBOARD_PATHS: Record<string, string> = {
   RECEIVING: '/dashboard/receiving',
   PURCHASE: '/dashboard/delivery',
   DISTRIBUTOR: '/vendor/deliveries',
-  DELIVERY_AGENT: '/driver/deliveries',
   WARD_ADMIN: '/dashboard/ams',
 };
 
 export function getDashboardPathForRole(role: string): string {
   return ROLE_DASHBOARD_PATHS[role] ?? '/dashboard/';
+}
+
+/** Path without query, with the trailing slash Next expects. Used to warm the route before navigation. */
+export function getDashboardPrefetchPath(role?: string | null): string {
+  const raw = role ? getDashboardPathForRole(role) : '/dashboard/';
+  const path = raw.split('?')[0] || '/dashboard/';
+  if (path.length > 1 && !path.endsWith('/')) {
+    return `${path}/`;
+  }
+  return path;
 }
 
 export interface DecodedUser {

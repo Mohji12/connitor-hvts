@@ -24,7 +24,7 @@ from app.utils.passwords import hash_password
 WARD_ADMIN_ID = "11000000-0000-4000-8000-000000000021"
 WARD_ADMIN_EMAIL = "ward.admin@connitor-elcity.com"
 WARD_ADMIN_PHONE = "9100100021"
-WARD_ADMIN_PASSWORD = "Connitor@123"
+WARD_ADMIN_PASSWORD = "Conninter123@"
 
 BRANCH_ID = ELECTRONIC_CITY_BRANCH_ID
 CHAIN_ID = CONNITOR_CHAIN_ID
@@ -241,7 +241,7 @@ def run() -> None:
         for row in SEED_PATIENTS:
             print(f"  MRN={row['mrn']}  ward={row['wardName']}")
         print(f"\nWard login: {WARD_ADMIN_EMAIL} / {WARD_ADMIN_PASSWORD}")
-        print("Hospital admin: hospital.admin@connitor-elcity.com / Connitor@123")
+        print("Hospital admin: hospital.admin@connitor-elcity.com / Conninter123@")
         print("Dashboard: /dashboard/ams")
         print("Public apply: /attendant-pass/apply")
     finally:

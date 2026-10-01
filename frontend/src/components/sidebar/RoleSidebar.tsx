@@ -13,6 +13,7 @@ import {
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import { TeamSwitcher } from './team-switcher';
+import { buildDashboardTeamEntry } from '@/lib/ovum-dashboard-branding';
 import { NavUser } from './nav-user';
 import Link from 'next/link';
 import {
@@ -59,6 +60,7 @@ interface UserProfile {
   email: string;
   phone: string;
   role: string;
+  hospitalChainId?: string | null;
   hospitalChainName?: string;
   branchName?: string;
   departmentName?: string;
@@ -123,21 +125,7 @@ export function RoleSidebar(props: RoleSidebarProps) {
   ];
 
   // Dynamic teamsData based on user info
-  const teamsData = [
-    {
-      name: user.name,
-      logo: Hospital,
-      role: user.role,
-      hospitalChainName:
-        user.hospitalChainName ?? user.hospitalChain?.name ?? '',
-      branchName:
-        user.subDepartmentName ??
-        user.departmentName ??
-        user.branchName ??
-        user.branch?.name ??
-        '',
-    },
-  ];
+  const teamsData = [buildDashboardTeamEntry(user, Hospital)];
 
   // Only show sidebar on desktop
   if (!(isMobile || isTablet)) {

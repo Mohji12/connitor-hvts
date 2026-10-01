@@ -3,7 +3,6 @@
 import type { ReactElement } from 'react';
 import { motion } from 'framer-motion';
 import { Truck, Users, type LucideIcon } from 'lucide-react';
-import { ClientButton } from '@/components/home/conninter/ClientButton';
 import { cn } from '@/lib/utils';
 
 export type ShowcaseModule = 'visitor' | 'delivery';
@@ -45,13 +44,15 @@ export function ModuleToggle({
         const Icon = meta.icon;
         const isActive = module === active;
         return (
-          <ClientButton
+          <button
             key={module}
+            type="button"
             role="tab"
             aria-selected={isActive}
+            suppressHydrationWarning
             onClick={() => onSelect(module)}
             className={cn(
-              'relative inline-flex items-center gap-1.5 overflow-hidden rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors',
+              'relative inline-flex items-center gap-1.5 overflow-hidden rounded-full px-3.5 py-1.5 font-sans text-xs font-medium transition-colors',
               isActive ? meta.active : 'text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
           >
@@ -67,7 +68,7 @@ export function ModuleToggle({
                 className={cn('absolute bottom-0 left-0 h-[2px] w-full origin-left', meta.bar)}
               />
             )}
-          </ClientButton>
+          </button>
         );
       })}
     </div>

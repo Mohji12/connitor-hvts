@@ -13,6 +13,13 @@ def test_is_wapblaster_configured_when_base_vendor_token_set() -> None:
     assert is_wapblaster_configured(s) is True
 
 
+def test_template_param_strips_newlines() -> None:
+    from app.services.wapblaster_client import truncate_utility_param
+
+    assert "\n" not in truncate_utility_param("Approved.\n\nVisitor is ready.")
+    assert truncate_utility_param("Approved.\n\nVisitor is ready.").startswith("Approved.")
+
+
 @patch("app.services.wapblaster_client.httpx.post")
 def test_send_wapblaster_text_uses_bearer_and_documented_body(mock_post: MagicMock) -> None:
     from app.services.wapblaster_client import send_wapblaster_text
@@ -59,16 +66,16 @@ def test_send_wapblaster_template_uses_field_placeholders(mock_post: MagicMock) 
         )
         send_wapblaster_template(
             "+918625877312",
-            template_name="confirmation_template",
-            template_language="en_US",
+            template_name="conninter_notification",
+            template_language="en_GB",
             fields=["Connitor", "Visitor", "26 Sep", "10:00", "Approved"],
         )
 
     mock_post.assert_called_once()
     args, kwargs = mock_post.call_args
     assert args[0].endswith("/vendor-uid/contact/send-template-message")
-    assert kwargs["json"]["template_name"] == "confirmation_template"
-    assert kwargs["json"]["template_language"] == "en_US"
+    assert kwargs["json"]["template_name"] == "conninter_notification"
+    assert kwargs["json"]["template_language"] == "en_GB"
     assert kwargs["json"]["field_1"] == "Connitor"
     assert kwargs["json"]["field_5"] == "Approved"
 
@@ -91,8 +98,8 @@ def test_appointment_approval_confirmation_template_body_only(mock_post: MagicMo
         )
         send_wapblaster_appointment_approval(
             "+918625877312",
-            template_name="confirmation_template",
-            template_language="en_US",
+            template_name="approval_doctor",
+            template_language="en_GB",
             visitor_name="Visitor",
             appointment_label="26 Sep 10:00",
             purpose="Checkup",
@@ -100,7 +107,8 @@ def test_appointment_approval_confirmation_template_body_only(mock_post: MagicMo
         )
 
     payload = mock_post.call_args.kwargs["json"]
-    assert payload["template_name"] == "confirmation_template"
+    assert payload["template_name"] == "approval_doctor"
+    assert payload["template_language"] == "en_GB"
     assert payload["field_5"] == "Reply CONFIRM 482901"
     assert len(payload["field_2"]) <= 30
     assert payload["button_payload"] == "confirm_482901"

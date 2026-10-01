@@ -22,6 +22,7 @@ ACTION_ONLY_PATTERN = re.compile(r"^(YES|NO|Y|N|CONFIRM)$", re.IGNORECASE)
 BUTTON_ID_PATTERN = re.compile(r"^(yes|no|confirm)_(\d{6})$", re.IGNORECASE)
 RESCHEDULE_BUTTON_PATTERN = re.compile(r"^reschedule_(\d{6})$", re.IGNORECASE)
 RESCHEDULE_TEXT_PATTERN = re.compile(r"^RESCHEDULE\s*(\d{6})$", re.IGNORECASE)
+BUTTON_LABEL_PATTERN = re.compile(r"^(yes|y|no|n|confirm|reschedule)$", re.IGNORECASE)
 
 REJECT_REASON = "Declined via WhatsApp"
 
@@ -51,20 +52,29 @@ def parse_approval_reply(body: str) -> tuple[str, str | None] | None:
     return None
 
 
-def parse_button_reply(button_id: str) -> tuple[str, str] | None:
-    """Parse button id: confirm_482901, yes_482901, no_482901, reschedule_482901."""
+def parse_button_reply(button_id: str) -> tuple[str, str | None] | None:
+    """Parse button id or label: confirm_482901, Confirm, Reschedule, yes_482901."""
     stripped = button_id.strip()
     match = RESCHEDULE_BUTTON_PATTERN.match(stripped)
     if match:
         return "reschedule", match.group(1)
 
     match = BUTTON_ID_PATTERN.match(stripped)
-    if not match:
+    if match:
+        keyword = match.group(1).lower()
+        if keyword in ("yes", "confirm"):
+            return "approve", match.group(2)
+        return "reject", match.group(2)
+
+    label = BUTTON_LABEL_PATTERN.match(stripped)
+    if not label:
         return None
-    keyword = match.group(1).lower()
-    if keyword in ("yes", "confirm"):
-        return "approve", match.group(2)
-    return "reject", match.group(2)
+    keyword = label.group(1).lower()
+    if keyword == "reschedule":
+        return "reschedule", None
+    if keyword in ("no", "n"):
+        return "reject", None
+    return "approve", None
 
 
 class VisitApprovalReplyService:
@@ -107,12 +117,14 @@ class VisitApprovalReplyService:
                 Visit.staffId == doctor.id,
                 Visit.status == VisitStatus.REQUEST_SENT.value,
             )
-            .order_by(Visit.createdAt.asc())
+            .order_by(Visit.createdAt.desc())
             .all()
         )
-        if len(pending) == 1:
-            return pending[0]
-        return None
+        if not pending:
+            return None
+        # The WhatsApp Confirm button is a fixed label and does not include the code.
+        # Approve the newest request waiting on this doctor.
+        return pending[0]
 
     def _reschedule_link_message(self, visit: Visit) -> str:
         token, _approve, reschedule_url = VisitApprovalLinkService(self.db).create_link(visit)
@@ -146,8 +158,8 @@ class VisitApprovalReplyService:
                     "Check the code in your WhatsApp or use My Visitors."
                 )
             return (
-                "You have multiple pending requests. Use Confirm or Reschedule on the "
-                "appointment message, or reply CONFIRM {code}."
+                "No visit is waiting for your approval. "
+                "If you meant an older request, reply CONFIRM and the 6-digit code."
             )
 
         if action == "reschedule":
@@ -165,7 +177,10 @@ class VisitApprovalReplyService:
             return "Rejected. The visitor has been notified."
         except HTTPException as exc:
             if exc.status_code == 409:
-                return "This appointment was already processed."
+                detail = exc.detail if isinstance(exc.detail, str) else ""
+                if "already in" in detail.lower():
+                    return "This appointment was already processed."
+                return detail or "This appointment was already processed."
             if exc.status_code == 404:
                 return "Appointment not found. It may have been cancelled."
             if exc.status_code == 403:

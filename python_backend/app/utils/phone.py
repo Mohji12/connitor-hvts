@@ -14,6 +14,10 @@ def normalize_phone(phone: str, *, country_code: str | None = None) -> str:
     cc = (country_code or settings.sms_default_country_code).lstrip("+")
     if cleaned.startswith("0"):
         cleaned = cleaned.lstrip("0")
+    # WhatsApp sends the country code without '+', e.g. 918625877312.
+    # A 10-digit local number must still be prefixed.
+    if cleaned.startswith(cc) and len(cleaned) >= len(cc) + 10:
+        return f"+{cleaned}"
     return f"+{cc}{cleaned}"
 
 

@@ -179,11 +179,26 @@ class VisitorPortalService:
                 }
             )
 
-        primary = visits[0].visitor if visits else self._visitors_for_email(normalized)[0]
+        if visits:
+            primary = visits[0].visitor
+            phone = primary.phone
+            visitor_name = f"{primary.firstName} {primary.lastName}".strip()
+            email = primary.email
+        else:
+            matches = self._visitors_for_email(normalized)
+            if matches:
+                primary = matches[0]
+                phone = primary.phone
+                visitor_name = f"{primary.firstName} {primary.lastName}".strip()
+                email = primary.email
+            else:
+                phone = None
+                visitor_name = ""
+                email = normalized
         return {
-            "phone": primary.phone,
-            "visitorName": f"{primary.firstName} {primary.lastName}".strip(),
-            "email": primary.email,
+            "phone": phone,
+            "visitorName": visitor_name,
+            "email": email,
             "totalAppointments": len(items),
             "appointments": items,
         }

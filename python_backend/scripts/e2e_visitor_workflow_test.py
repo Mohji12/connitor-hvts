@@ -27,7 +27,7 @@ from app.services.visit_approval_link_service import VisitApprovalLinkService
 
 API_BASE = "http://127.0.0.1:8001/api"
 SECURITY_EMAIL = "rameshwar.tiwari@apollochennai.com"
-SECURITY_PASSWORD = "Connitor@123"
+SECURITY_PASSWORD = "Conninter123@"
 
 
 def step(num: int, title: str) -> None:

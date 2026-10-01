@@ -23,6 +23,7 @@ ADMIN_ROLES = (
 
 class PolicyBody(BaseModel):
     dailyQuota: int = Field(ge=1, le=5000)
+    gapMinutes: int | None = Field(default=None, ge=0, le=60)
 
 
 class AllotmentCreateBody(BaseModel):
@@ -82,7 +83,9 @@ def update_policy(
     user: Annotated[dict, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    return VisitSlotAllotmentService(db).update_policy(user, branch_id, body.dailyQuota)
+    return VisitSlotAllotmentService(db).update_policy(
+        user, branch_id, body.dailyQuota, gap_minutes=body.gapMinutes
+    )
 
 
 @router.get(

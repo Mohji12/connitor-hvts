@@ -51,6 +51,19 @@ class WapBlasterInboundParserTests(unittest.TestCase):
         self.assertEqual(phone, "919999999999")
         self.assertEqual(button, "confirm_111111")
 
+    def test_confirm_button_label(self) -> None:
+        phone, body, button = parse_wapblaster_inbound(
+            {
+                "from": "918625877312",
+                "type": "button",
+                "message": "Confirm",
+                "button": {"text": "Confirm", "payload": "Confirm"},
+            }
+        )
+        self.assertEqual(phone, "918625877312")
+        self.assertEqual(button, "Confirm")
+        self.assertEqual(body, "Confirm")
+
 
 if __name__ == "__main__":
     unittest.main()

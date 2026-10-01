@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Linkedin, Twitter, Instagram } from 'lucide-react';
+import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 
 const productLinks = [
   { label: 'Hospitals', href: '#hospitals' },
@@ -54,15 +55,9 @@ export default function Footer() {
       <div className="container mx-auto px-4 lg:px-8">
         <div className="mb-8 grid gap-8 md:grid-cols-2 lg:grid-cols-5">
           <div>
-            <h3 className="mb-2 text-lg font-extrabold">
-              CONN
-              <span className="relative inline-block">
-                I
-                <span className="absolute -top-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#4A90E2]" />
-              </span>
-              NTER
-            </h3>
-            <p className="mb-2 text-sm font-medium text-white/85">Meetings Made Easy</p>
+            <div className="mb-3">
+              <ConninterWordmark href="/" size="md" variant="full" className="brightness-0 invert" />
+            </div>
             <p className="text-sm text-white/65">
               India&apos;s most advanced platform for medical rep scheduling and hospital visitor
               management.

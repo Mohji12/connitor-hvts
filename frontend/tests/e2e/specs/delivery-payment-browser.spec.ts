@@ -8,7 +8,7 @@ import { test, expect, type Page, type APIRequestContext } from '@playwright/tes
 import path from 'path';
 import fs from 'fs';
 
-const PASSWORD = 'Connitor@123';
+const PASSWORD = 'Conninter123@';
 const DISTRIBUTOR_EMAIL = 'distributor@citygen.demo';
 const HOSPITAL_ADMIN_EMAIL = 'hospital.admin@connitor-elcity.com';
 const API = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:8002';

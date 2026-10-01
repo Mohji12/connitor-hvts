@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -42,12 +43,13 @@ export default function VisitSlotsPage(): React.ReactElement {
   const branchId = user?.branchId ?? '';
   const [date, setDate] = React.useState(todayIstDateIso());
   const [quota, setQuota] = React.useState(50);
+  const [gapMinutes, setGapMinutes] = React.useState(5);
   const [summary, setSummary] = React.useState<VisitSlotDaySummary | null>(null);
   const [staff, setStaff] = React.useState<VisitSlotStaff[]>([]);
   const [routines, setRoutines] = React.useState<VisitSlotRoutineRow[]>([]);
   const [loading, setLoading] = React.useState(false);
 
-  const [staffId, setStaffId] = React.useState('');
+  const [selectedStaffIds, setSelectedStaffIds] = React.useState<string[]>([]);
   const [startTime, setStartTime] = React.useState('09:00');
   const [endTime, setEndTime] = React.useState('10:00');
   const [slotCount, setSlotCount] = React.useState(3);
@@ -71,10 +73,13 @@ export default function VisitSlotsPage(): React.ReactElement {
         VisitSlotAllotmentService.listRoutines(branchId),
       ]);
       setQuota(policy.dailyQuota);
+      setGapMinutes(policy.gapMinutes ?? 5);
       setSummary(day);
       setStaff(staffRes.items);
       setRoutines(routineRes.items);
-      setStaffId((prev) => prev || staffRes.items[0]?.id || '');
+      setSelectedStaffIds((prev) =>
+        prev.filter((id) => staffRes.items.some((s) => s.id === id)),
+      );
       setRoutineStaffId((prev) => prev || staffRes.items[0]?.id || '');
     } catch {
       setSummary(null);
@@ -89,30 +94,60 @@ export default function VisitSlotsPage(): React.ReactElement {
   const saveQuota = async () => {
     if (!branchId) return;
     try {
-      const res = await VisitSlotAllotmentService.updatePolicy(branchId, quota);
+      const res = await VisitSlotAllotmentService.updatePolicy(branchId, quota, gapMinutes);
       setQuota(res.dailyQuota);
-      toast.success('Daily quota saved');
+      setGapMinutes(res.gapMinutes ?? gapMinutes);
+      toast.success('Visit slot settings saved');
       await load();
     } catch (e: unknown) {
       toast.error(apiErrorDetail(e) || 'Could not save quota');
     }
   };
 
+  const toggleStaffSelection = (id: string, checked: boolean) => {
+    setSelectedStaffIds((prev) => {
+      if (checked) return prev.includes(id) ? prev : [...prev, id];
+      return prev.filter((x) => x !== id);
+    });
+  };
+
   const createAllotment = async () => {
-    if (!branchId || !staffId) return;
+    if (!branchId || selectedStaffIds.length === 0) {
+      toast.error('Select at least one staff member');
+      return;
+    }
     setLoading(true);
+    let ok = 0;
+    const errors: string[] = [];
     try {
-      const row = await VisitSlotAllotmentService.createAllotment(branchId, {
-        staffId,
-        date,
-        startTime,
-        endTime,
-        slotCount,
-      });
-      toast.success(`Allotted ${row.slotCount} slots (${row.previewTimes.join(', ')})`);
-      await load();
-    } catch (e: unknown) {
-      toast.error(apiErrorDetail(e) || 'Could not create allotment');
+      for (const id of selectedStaffIds) {
+        try {
+          await VisitSlotAllotmentService.createAllotment(branchId, {
+            staffId: id,
+            date,
+            startTime,
+            endTime,
+            slotCount,
+          });
+          ok += 1;
+        } catch (e: unknown) {
+          const label = staff.find((s) => s.id === id)?.name ?? id;
+          errors.push(`${label}: ${apiErrorDetail(e) || 'failed'}`);
+        }
+      }
+      if (ok > 0) await load();
+      if (ok > 0 && errors.length === 0) {
+        toast.success(
+          ok === 1
+            ? `Allotted ${slotCount} slot${slotCount === 1 ? '' : 's'} for 1 staff member`
+            : `Allotted ${slotCount} slot${slotCount === 1 ? '' : 's'} each for ${ok} staff members`,
+        );
+      } else if (ok > 0 && errors.length > 0) {
+        toast.warning(`${ok} succeeded, ${errors.length} failed`);
+      }
+      if (errors.length) {
+        toast.error(errors.slice(0, 3).join(' · ') + (errors.length > 3 ? '…' : ''));
+      }
     } finally {
       setLoading(false);
     }
@@ -223,18 +258,19 @@ export default function VisitSlotsPage(): React.ReactElement {
           Visit slots
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Allot daily visit slots to staff within the hospital pool. Times are split evenly inside
-          each window. Unused allotted slots still count toward the daily quota.
+          Allot daily visit slots to staff within the hospital pool. Visits are split inside
+          each window, with a gap between one visit ending and the next starting. Unused allotted
+          slots still count toward the daily quota.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Daily quota</CardTitle>
+          <CardTitle>Daily quota and visit gap</CardTitle>
           <CardDescription>
             {summary
               ? `${summary.used} allotted / ${summary.dailyQuota} pool — ${summary.remaining} remaining on ${summary.date}`
-              : 'Set how many visit slots this branch may allot per day.'}
+              : 'Set how many visit slots this branch may allot per day, and the free minutes between visits.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
@@ -250,8 +286,20 @@ export default function VisitSlotsPage(): React.ReactElement {
               className="w-32"
             />
           </div>
+          <div className="space-y-1">
+            <Label htmlFor="gap">Gap between visits (minutes)</Label>
+            <Input
+              id="gap"
+              type="number"
+              min={0}
+              max={60}
+              value={gapMinutes}
+              onChange={(e) => setGapMinutes(Math.max(0, Number(e.target.value) || 0))}
+              className="w-32"
+            />
+          </div>
           <Button type="button" onClick={() => void saveQuota()}>
-            Save quota
+            Save
           </Button>
         </CardContent>
       </Card>
@@ -267,7 +315,8 @@ export default function VisitSlotsPage(): React.ReactElement {
             <CardHeader>
               <CardTitle>Allot for a day</CardTitle>
               <CardDescription>
-                Pick staff, date, hours, and how many slots to place evenly in that window.
+                Pick one or more staff, date, hours, and how many slots to place evenly in that
+                window (same settings for each selected person).
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -275,21 +324,59 @@ export default function VisitSlotsPage(): React.ReactElement {
                 <Label htmlFor="date">Date</Label>
                 <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
               </div>
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="staff">Staff</Label>
-                <select
-                  id="staff"
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                  value={staffId}
-                  onChange={(e) => setStaffId(e.target.value)}
-                >
-                  {staff.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name ?? s.email}
-                      {s.userType ? ` (${s.userType})` : ''}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>Staff (select multiple)</Label>
+                  <div className="flex gap-2 text-xs">
+                    <button
+                      type="button"
+                      className="text-primary underline-offset-4 hover:underline"
+                      onClick={() => setSelectedStaffIds(staff.map((s) => s.id))}
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      className="text-muted-foreground underline-offset-4 hover:underline"
+                      onClick={() => setSelectedStaffIds([])}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border border-input p-3">
+                  {staff.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No visit-capable staff for this branch.</p>
+                  )}
+                  {staff.map((s) => {
+                    const checked = selectedStaffIds.includes(s.id);
+                    return (
+                      <label
+                        key={s.id}
+                        className="flex cursor-pointer items-start gap-2 rounded-md px-1 py-0.5 hover:bg-muted/50"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(value) => toggleStaffSelection(s.id, value === true)}
+                          aria-label={s.name ?? s.email ?? s.id}
+                        />
+                        <span className="text-sm leading-tight">
+                          {s.name ?? s.email}
+                          {s.userType ? (
+                            <span className="text-muted-foreground"> ({s.userType})</span>
+                          ) : null}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {selectedStaffIds.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {selectedStaffIds.length} selected — each gets {slotCount} slot
+                    {slotCount === 1 ? '' : 's'} between {startTime} and {endTime}
+                    {slotCount > 1 ? `, with ${gapMinutes} min between visits` : ''}.
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="start">Start</Label>
@@ -321,8 +408,13 @@ export default function VisitSlotsPage(): React.ReactElement {
                 />
               </div>
               <div className="md:col-span-2 lg:col-span-3">
-                <Button type="button" disabled={loading} onClick={() => void createAllotment()}>
+                <Button
+                  type="button"
+                  disabled={loading || selectedStaffIds.length === 0}
+                  onClick={() => void createAllotment()}
+                >
                   Allot slots
+                  {selectedStaffIds.length > 1 ? ` (${selectedStaffIds.length} staff)` : ''}
                 </Button>
               </div>
             </CardContent>

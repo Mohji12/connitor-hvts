@@ -9,10 +9,7 @@ import {
   type PublicDoctor,
 } from '@/lib/services/appointmentService';
 import { todayIstDateIso } from '@/lib/datetime';
-import { VisitorAuthService } from '@/lib/services/visitorAuthService';
-import { getVisitorToken } from '@/lib/services/visitorPortalService';
-import { VisitorAccountApi } from '@/features/visitor-pre-registration/api/visitorAccountService';
-import type { VisitorPreviewData } from '@/features/visitor-pre-registration/schemas/visitorAccountSchema';
+import { fetchVisitorBookingIdentity } from '@/lib/visitor-booking-profile';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -129,28 +126,49 @@ export function BookAppointmentWizard({
   /** Shown while a click waits on the next API response */
   const [fetchingNext, setFetchingNext] = React.useState<string | null>(null);
   const [isRegisteredVisitor, setIsRegisteredVisitor] = React.useState(false);
-  const [visitorProfile, setVisitorProfile] = React.useState<VisitorPreviewData | null>(null);
+  const [loadingVisitorProfile, setLoadingVisitorProfile] = React.useState(false);
 
   const displayStep = initialBranchId ? step - 1 : step;
 
-  React.useEffect(() => {
-    if (!VisitorAuthService.isAccountSession()) return;
-    const token = getVisitorToken();
-    if (!token) return;
-
-    VisitorAccountApi.getMyProfile(token)
-      .then((profile) => {
-        if (profile.profileStatus !== 'ACTIVE') return;
-        const parts = profile.fullName?.split(' ') ?? [];
-        setFirstName(profile.firstName ?? parts[0] ?? '');
-        setLastName(profile.lastName ?? parts.slice(1).join(' ') ?? '');
-        setPhone(profile.phone ?? '');
-        setEmail(profile.email ?? '');
-        setVisitorProfile(profile);
-        setIsRegisteredVisitor(true);
-      })
-      .catch(() => undefined);
+  const applyVisitorIdentity = React.useCallback((identity: Awaited<ReturnType<typeof fetchVisitorBookingIdentity>>) => {
+    if (!identity) return;
+    setFirstName(identity.firstName);
+    setLastName(identity.lastName);
+    setPhone(identity.phone);
+    setEmail(identity.email);
+    const complete =
+      Boolean(identity.firstName.trim()) &&
+      Boolean(identity.lastName.trim()) &&
+      identity.phone.length === 10 &&
+      identity.email.includes('@');
+    setIsRegisteredVisitor(complete);
   }, []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoadingVisitorProfile(true);
+    fetchVisitorBookingIdentity()
+      .then((identity) => {
+        if (!cancelled) applyVisitorIdentity(identity);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingVisitorProfile(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyVisitorIdentity]);
+
+  React.useEffect(() => {
+    if (step !== 5 || isRegisteredVisitor) return;
+    let cancelled = false;
+    fetchVisitorBookingIdentity().then((identity) => {
+      if (!cancelled) applyVisitorIdentity(identity);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, isRegisteredVisitor, applyVisitorIdentity]);
 
   React.useEffect(() => {
     if (initialBranchId) return;
@@ -526,59 +544,71 @@ export function BookAppointmentWizard({
             <div className="space-y-4">
               <DoctorDetailCard doctor={selectedDoctor} />
 
-              {isRegisteredVisitor ? (
-                <div className="rounded-lg border bg-muted/40 p-4 text-sm space-y-1">
-                  <p className="font-medium">
-                    Booking as{' '}
-                    {visitorProfile?.fullName ||
-                      [firstName, lastName].filter(Boolean).join(' ') ||
-                      'your profile'}
-                  </p>
-                  {phone && email && (
-                    <p className="text-muted-foreground">
-                      +91 {phone} · {email}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground pt-1">
-                    Your saved profile is used for this booking. The doctor will receive your name
-                    and visit purpose.
-                  </p>
-                  <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
-                    <Link href="/visitor/dashboard">Manage profile</Link>
-                  </Button>
+              {loadingVisitorProfile && (
+                <ConnitorLoader variant="inline" message="Loading your profile…" />
+              )}
+
+              {isRegisteredVisitor && !loadingVisitorProfile && (
+                <div className="rounded-lg border border-[#4A90E2]/25 bg-[#4A90E2]/5 p-3 text-sm text-muted-foreground">
+                  Signed in — your details are filled from your visitor profile.{' '}
+                  <Link href="/visitor/dashboard" className="font-medium text-primary underline-offset-4 hover:underline">
+                    Manage profile
+                  </Link>
                 </div>
-              ) : (
-                <>
-                  <div>
-                    <Label>First Name</Label>
-                    <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-                  </div>
-                  <div>
-                    <Label>Last Name</Label>
-                    <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-                  </div>
-                  <div>
-                    <Label>Phone (10 digits)</Label>
-                    <Input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={10} required />
-                  </div>
-                  <div>
-                    <Label>Email</Label>
-                    <Input
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      type="email"
-                      required
-                      placeholder="Required for dashboard login"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Already registered?{' '}
-                    <Link href="/visitor/login?returnTo=/book-appointment" className="underline">
-                      Sign in
-                    </Link>{' '}
-                    to skip entering your details.
-                  </p>
-                </>
+              )}
+
+              <div>
+                <Label>First Name</Label>
+                <Input
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  readOnly={isRegisteredVisitor}
+                  className={isRegisteredVisitor ? 'bg-muted/50' : undefined}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Last Name</Label>
+                <Input
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  readOnly={isRegisteredVisitor}
+                  className={isRegisteredVisitor ? 'bg-muted/50' : undefined}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Phone (10 digits)</Label>
+                <Input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  maxLength={10}
+                  readOnly={isRegisteredVisitor}
+                  className={isRegisteredVisitor ? 'bg-muted/50' : undefined}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                  readOnly={isRegisteredVisitor}
+                  className={isRegisteredVisitor ? 'bg-muted/50' : undefined}
+                  required
+                  placeholder={isRegisteredVisitor ? undefined : 'Required for dashboard login'}
+                />
+              </div>
+
+              {!isRegisteredVisitor && !loadingVisitorProfile && (
+                <p className="text-xs text-muted-foreground">
+                  Already registered?{' '}
+                  <Link href="/visitor/login?returnTo=/book-appointment/" className="underline">
+                    Sign in
+                  </Link>{' '}
+                  to auto-fill your details.
+                </p>
               )}
 
               <div>

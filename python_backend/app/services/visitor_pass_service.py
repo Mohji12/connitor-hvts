@@ -264,15 +264,41 @@ class VisitorPassService:
         if not row:
             allotted, _unused, _assigned = self._counts(visit.branchId, day)
             if allotted == 0:
+                row = self._mint_pass(visit.branchId, day, created_by_id=assigned_by_id)
+            if not row:
+                if allotted == 0:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Today's visitor pass pool has not been issued by hospital management.",
+                    )
                 raise HTTPException(
                     status_code=409,
-                    detail="Today's visitor pass pool has not been issued by hospital management.",
+                    detail="Daily visitor pass quota exhausted for this date.",
                 )
-            raise HTTPException(
-                status_code=409,
-                detail="Daily visitor pass quota exhausted for this date.",
-            )
         self._bind_pass(row, visit, assigned_by_id)
+        return row
+
+    def _mint_pass(self, branch_id: str, day: date, *, created_by_id: str | None) -> VisitorPass | None:
+        """Create one pass from the daily quota so doctor approval can finish."""
+        policy = self.get_or_create_policy(branch_id)
+        allotted, _unused, _assigned = self._counts(branch_id, day)
+        if allotted >= policy.dailyQuota:
+            return None
+        branch = self.db.get(Branch, branch_id)
+        if not branch:
+            return None
+        seq = self._max_sequence(branch_id, day) + 1
+        row = VisitorPass(
+            passId=f"{branch_prefix(branch.name)}-{day.strftime('%y%m%d')}-{seq:04d}",
+            branchId=branch_id,
+            passDate=day,
+            sequence=seq,
+            status=VisitorPassStatus.UNASSIGNED.value,
+            source=VisitorPassSource.HOSPITAL_POOL.value,
+            createdById=created_by_id,
+        )
+        self.db.add(row)
+        self.db.flush()
         return row
 
     def attach_missing_passes(self, branch_id: str, pass_date: date) -> int:

@@ -39,28 +39,51 @@ def parse_wapblaster_inbound(payload: dict[str, Any]) -> tuple[str | None, str |
     if phone is not None:
         phone = str(phone).strip() or None
 
+    button_obj = data.get("button") if isinstance(data.get("button"), dict) else {}
+    message_obj = data.get("message") if isinstance(data.get("message"), dict) else {}
+    reply_obj = data.get("reply") if isinstance(data.get("reply"), dict) else {}
     button_id = (
         data.get("button_id")
         or data.get("button_payload")
-        or data.get("payload")
-        or data.get("button_reply")
-        or _dig(data, "button", "payload")
+        or data.get("button_text")
+        or data.get("buttonText")
+        or button_obj.get("payload")
+        or button_obj.get("text")
+        or reply_obj.get("payload")
+        or reply_obj.get("text")
         or _dig(data, "interactive", "button_reply", "id")
-        or _dig(data, "message", "button", "payload")
+        or _dig(data, "interactive", "button_reply", "title")
+        or _dig(message_obj, "button", "payload")
+        or _dig(message_obj, "button", "text")
+        or _dig(message_obj, "interactive", "button_reply", "id")
+        or _dig(message_obj, "interactive", "button_reply", "title")
     )
+    if isinstance(button_id, dict):
+        button_id = button_id.get("id") or button_id.get("payload") or button_id.get("text")
     if button_id is not None:
         button_id = str(button_id).strip() or None
 
+    raw_message = data.get("message")
     body = (
         data.get("message_body")
         or data.get("body")
-        or data.get("text")
-        or data.get("message")
+        or (data.get("text") if isinstance(data.get("text"), str) else None)
+        or (raw_message if isinstance(raw_message, str) else None)
+        or reply_obj.get("text")
         or _dig(data, "text", "body")
-        or _dig(data, "message", "text", "body")
+        or _dig(message_obj, "text", "body")
+        or (message_obj.get("body") if isinstance(message_obj.get("body"), str) else None)
     )
     if body is not None:
         body = str(body).strip() or None
+    if not phone:
+        phone = (
+            message_obj.get("from")
+            or _dig(data, "participants", "sender", "from")
+            or _dig(payload, "participants", "sender", "from")
+        )
+        if phone is not None:
+            phone = str(phone).strip() or None
 
     # Meta-style envelope nested under entry/changes
     if not phone and not body and not button_id:

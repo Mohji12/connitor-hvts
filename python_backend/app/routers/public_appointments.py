@@ -66,8 +66,11 @@ class BookAppointmentBody(BaseModel):
 
 @router.get("/hospitals")
 @public_route
-def list_hospitals(db: Annotated[Session, Depends(get_db)]):
-    return AppointmentsService(db).list_public_hospitals()
+def list_hospitals(
+    db: Annotated[Session, Depends(get_db)],
+    hospitalChainId: str | None = Query(default=None),
+):
+    return AppointmentsService(db).list_public_hospitals(hospital_chain_id=hospitalChainId)
 
 
 @router.get("/departments")

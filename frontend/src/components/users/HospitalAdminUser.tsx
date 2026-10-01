@@ -175,6 +175,7 @@ function AddEditUserDialog({
                     <SelectItem value="DEPARTMENT_ADMIN">Department Admin</SelectItem>
                     <SelectItem value="SUB_DEPARTMENT_ADMIN">Sub Department Admin</SelectItem>
                     <SelectItem value="STAFF">Staff</SelectItem>
+                    <SelectItem value="SECURITY_SUPERVISOR">Security Supervisor</SelectItem>
                     <SelectItem value="SECURITY">Security</SelectItem>
                   </SelectContent>
                 </Select>

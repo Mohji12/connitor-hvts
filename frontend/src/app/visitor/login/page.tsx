@@ -121,10 +121,6 @@ function VisitorLoginContent() {
     if (identifier) {
       passwordForm.setValue('identifier', identifier);
     }
-    if (searchParams.get('mode') === 'legacy-otp') {
-      setMode('legacy-otp');
-      setStep('email');
-    }
   }, [searchParams, passwordForm]);
 
   const loginWithPassword = async (data: z.infer<typeof PasswordLoginSchema>) => {

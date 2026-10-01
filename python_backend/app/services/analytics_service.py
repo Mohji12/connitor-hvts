@@ -269,7 +269,57 @@ class AnalyticsService:
         }
 
     def get_all_branches_with_stats(self) -> list[dict]:
-        return [self.get_branch_stats(b.id) for b in self.db.query(Branch).all()]
+        return _analytics_cached(
+            "all_branches_with_stats",
+            self._compute_all_branches_with_stats,
+        )
+
+    def _compute_all_branches_with_stats(self) -> list[dict]:
+        branches = self.db.query(Branch).all()
+        if not branches:
+            return []
+        branch_ids = [b.id for b in branches]
+        today = now_ist().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        staff_counts = dict(
+            self.db.query(User.branchId, func.count(User.id))
+            .filter(User.branchId.in_(branch_ids), User.role == Role.STAFF.value)
+            .group_by(User.branchId)
+            .all()
+        )
+        visitor_counts = dict(
+            self.db.query(Visitor.branchId, func.count(Visitor.id))
+            .filter(Visitor.branchId.in_(branch_ids))
+            .group_by(Visitor.branchId)
+            .all()
+        )
+        active_visits = dict(
+            self.db.query(Visit.branchId, func.count(Visit.id))
+            .filter(
+                Visit.branchId.in_(branch_ids),
+                Visit.status == VisitStatus.CHECKED_IN.value,
+            )
+            .group_by(Visit.branchId)
+            .all()
+        )
+        today_visits = dict(
+            self.db.query(Visit.branchId, func.count(Visit.id))
+            .filter(Visit.branchId.in_(branch_ids), Visit.createdAt >= today)
+            .group_by(Visit.branchId)
+            .all()
+        )
+
+        return [
+            {
+                "branchId": branch.id,
+                "branchName": branch.name,
+                "totalStaff": staff_counts.get(branch.id, 0),
+                "totalVisitors": visitor_counts.get(branch.id, 0),
+                "activeVisits": active_visits.get(branch.id, 0),
+                "todayVisits": today_visits.get(branch.id, 0),
+            }
+            for branch in branches
+        ]
 
     def get_chain_growth(self) -> dict:
         now = now_ist()

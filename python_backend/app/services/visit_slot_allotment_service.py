@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import HTTPException
 from openpyxl import Workbook, load_workbook
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import (
@@ -29,6 +30,7 @@ from app.utils.timezone import now_ist
 logger = logging.getLogger(__name__)
 
 DEFAULT_DAILY_QUOTA = 50
+DEFAULT_GAP_MINUTES = 5
 MANAGE_ROLES = {
     Role.SUPER_ADMIN.value,
     Role.HOSPITAL_ADMIN.value,
@@ -69,30 +71,39 @@ def even_split_slots(
     window_start: str,
     window_end: str,
     slot_count: int,
+    gap_minutes: int = 0,
 ) -> list[tuple[datetime, datetime]]:
-    """Return (slotStart, slotEnd) pairs evenly filling [window_start, window_end)."""
+    """Return (slotStart, slotEnd) pairs inside [window_start, window_end).
+
+    gap_minutes is free time between the end of one visit and the start of the next.
+    """
     if slot_count < 1:
         raise ValueError("slot_count must be >= 1")
+    if gap_minutes < 0:
+        raise ValueError("gap_minutes must be >= 0")
     sh, sm = _parse_hhmm(window_start)
     eh, em = _parse_hhmm(window_end)
     start = datetime(day.year, day.month, day.day, sh, sm, 0, 0)
     end = datetime(day.year, day.month, day.day, eh, em, 0, 0)
     if end <= start:
         raise ValueError("window_end must be after window_start")
-    total_seconds = (end - start).total_seconds()
-    step = total_seconds / slot_count
-    if step < 60:
-        raise ValueError("Each slot must be at least 1 minute long")
+    gap = timedelta(minutes=gap_minutes)
+    gaps_total = gap * max(slot_count - 1, 0)
+    usable = (end - start) - gaps_total
+    if usable.total_seconds() < slot_count * 60:
+        raise ValueError(
+            "Window is too short for this many visits with the gap between them"
+        )
+    step = usable.total_seconds() / slot_count
     out: list[tuple[datetime, datetime]] = []
-    for i in range(slot_count):
-        slot_start = start + timedelta(seconds=step * i)
-        slot_end = start + timedelta(seconds=step * (i + 1))
-        # Snap to whole minutes
-        slot_start = slot_start.replace(second=0, microsecond=0)
-        slot_end = slot_end.replace(second=0, microsecond=0)
-        if slot_end <= slot_start:
-            slot_end = slot_start + timedelta(minutes=1)
+    cursor = start
+    for _ in range(slot_count):
+        slot_start = cursor
+        slot_end = cursor + timedelta(seconds=step)
         out.append((slot_start, slot_end))
+        cursor = slot_end + gap
+    if out:
+        out[-1] = (out[-1][0], end)
     return out
 
 
@@ -145,22 +156,49 @@ class VisitSlotAllotmentService:
         )
         if policy:
             return policy
-        policy = BranchVisitSlotPolicy(branchId=branch_id, dailyQuota=DEFAULT_DAILY_QUOTA)
-        self.db.add(policy)
-        self.db.flush()
+        policy = BranchVisitSlotPolicy(
+            branchId=branch_id,
+            dailyQuota=DEFAULT_DAILY_QUOTA,
+            gapMinutes=DEFAULT_GAP_MINUTES,
+        )
+        try:
+            with self.db.begin_nested():
+                self.db.add(policy)
+                self.db.flush()
+        except IntegrityError:
+            self.db.expunge(policy)
+            policy = (
+                self.db.query(BranchVisitSlotPolicy)
+                .filter(BranchVisitSlotPolicy.branchId == branch_id)
+                .first()
+            )
+            if policy is None:
+                raise
         return policy
 
     def get_policy(self, user: dict, branch_id: str) -> dict:
         self._assert_branch_access(user, branch_id)
         policy = self.get_or_create_policy(branch_id)
         self.db.commit()
-        return {"branchId": branch_id, "dailyQuota": policy.dailyQuota}
+        return {
+            "branchId": branch_id,
+            "dailyQuota": policy.dailyQuota,
+            "gapMinutes": policy.gapMinutes if policy.gapMinutes is not None else DEFAULT_GAP_MINUTES,
+        }
 
-    def update_policy(self, user: dict, branch_id: str, daily_quota: int) -> dict:
+    def update_policy(
+        self,
+        user: dict,
+        branch_id: str,
+        daily_quota: int,
+        gap_minutes: int | None = None,
+    ) -> dict:
         self._require_manage(user)
         self._assert_branch_access(user, branch_id)
         if daily_quota < 1 or daily_quota > 5000:
             raise HTTPException(status_code=400, detail="dailyQuota must be between 1 and 5000.")
+        if gap_minutes is not None and (gap_minutes < 0 or gap_minutes > 60):
+            raise HTTPException(status_code=400, detail="gapMinutes must be between 0 and 60.")
         policy = self.get_or_create_policy(branch_id)
         used = self._day_allotted_count(branch_id, now_ist().date())
         if daily_quota < used:
@@ -169,8 +207,14 @@ class VisitSlotAllotmentService:
                 detail=f"Cannot set quota below today's allotted slots ({used}).",
             )
         policy.dailyQuota = daily_quota
+        if gap_minutes is not None:
+            policy.gapMinutes = gap_minutes
         self.db.commit()
-        return {"branchId": branch_id, "dailyQuota": policy.dailyQuota}
+        return {
+            "branchId": branch_id,
+            "dailyQuota": policy.dailyQuota,
+            "gapMinutes": policy.gapMinutes if policy.gapMinutes is not None else DEFAULT_GAP_MINUTES,
+        }
 
     def list_allotable_staff(self, user: dict, branch_id: str) -> dict:
         self._assert_branch_access(user, branch_id)
@@ -264,6 +308,12 @@ class VisitSlotAllotmentService:
         end = datetime(day.year, day.month, day.day, eh, em, 0, 0)
         return start, end
 
+    def _gap_minutes(self, branch_id: str) -> int:
+        policy = self.get_or_create_policy(branch_id)
+        if policy.gapMinutes is None:
+            return DEFAULT_GAP_MINUTES
+        return int(policy.gapMinutes)
+
     def materialize_allotment(self, allotment: VisitSlotAllotment) -> dict:
         """Regenerate unbooked DoctorAvailabilitySlot rows for this allotment window."""
         try:
@@ -272,6 +322,7 @@ class VisitSlotAllotmentService:
                 allotment.windowStart,
                 allotment.windowEnd,
                 allotment.slotCount,
+                self._gap_minutes(allotment.branchId),
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

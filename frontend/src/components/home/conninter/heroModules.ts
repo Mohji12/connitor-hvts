@@ -13,7 +13,8 @@ import type { ShowcaseModule } from './ModuleToggle';
 export type HeroStepStatus = 'done' | 'active' | 'pending';
 
 export type HeroModule = {
-  heading: string;
+  /** Serif lead + script accent (editorial hero typography) */
+  heading: { lead: string; accent: string };
   subtext: string;
   searchPlaceholder: string;
   ctaHref: string;
@@ -63,7 +64,10 @@ export type HeroModule = {
 
 export const heroModules: Record<ShowcaseModule, HeroModule> = {
   visitor: {
-    heading: 'Schedule hospital visits in minutes, not hours.',
+    heading: {
+      lead: 'Schedule hospital visits in',
+      accent: 'minutes, not hours.',
+    },
     subtext:
       "India's most advanced platform for coordinating medical reps and hospital visitor management. Find hospitals, check real-time slot availability, and book your visit — all in one place.",
     searchPlaceholder: 'Search hospitals, specialties, or departments',
@@ -123,7 +127,10 @@ export const heroModules: Record<ShowcaseModule, HeroModule> = {
     stats: { label: 'BOOKED', unit: 'appointments', ratio: 1 },
   },
   delivery: {
-    heading: 'Hospital deliveries, received on schedule.',
+    heading: {
+      lead: 'Hospital deliveries,',
+      accent: 'received on schedule.',
+    },
     subtext:
       'Give vendors and distributors a single place to book dock slots, pass the security gate with a QR scan, and hand over to stores with verified sign-off — no more queues at the loading bay.',
     searchPlaceholder: 'Search hospitals, docks, or receiving slots',

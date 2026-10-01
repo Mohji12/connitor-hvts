@@ -162,7 +162,7 @@ function VisitHeader({ access }: { access: MeetingAccess }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#001b71] px-4 py-3 text-white">
       <div className="flex items-center gap-3">
-        <ConninterWordmark href={null} size="sm" className="text-white" />
+        <ConninterWordmark href={null} size="sm" className="brightness-0 invert" />
         <span className="hidden h-5 w-px bg-white/20 sm:block" />
         <div className="text-sm leading-tight">
           <p className="font-semibold" data-testid="meeting-title">

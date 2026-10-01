@@ -85,7 +85,7 @@ def db():
         branchId=branch.id,
         departmentId=dept.id,
         subDepartmentId=sub.id,
-        passwordHash=hash_password("Connitor@123"),
+        passwordHash=hash_password("Conninter123@"),
         isActive=True,
     )
     admin = User(
@@ -96,7 +96,7 @@ def db():
         role=Role.HOSPITAL_ADMIN.value,
         hospitalChainId=chain.id,
         branchId=branch.id,
-        passwordHash=hash_password("Connitor@123"),
+        passwordHash=hash_password("Conninter123@"),
         isActive=True,
     )
     security = User(
@@ -107,7 +107,7 @@ def db():
         role=Role.SECURITY.value,
         hospitalChainId=chain.id,
         branchId=branch.id,
-        passwordHash=hash_password("Connitor@123"),
+        passwordHash=hash_password("Conninter123@"),
         isActive=True,
     )
     session.add_all([chain, branch, dept, sub, doctor, admin, security])
@@ -208,12 +208,15 @@ def test_second_consume_does_not_double_assign(db):
     assert ids == {visit_a.visitorPassId, visit_b.visitorPassId}
 
 
-def test_approve_with_empty_pool_returns_409(db):
+def test_approve_with_empty_pool_mints_a_pass(db):
     visit = _book(db, phone="9876500004")
-    with pytest.raises(HTTPException) as ctx:
-        _approve(db, visit)
-    assert ctx.value.status_code == 409
-    assert "has not been issued" in str(ctx.value.detail)
+    result = _approve(db, visit)
+    db.refresh(visit)
+    assert visit.status == VisitStatus.APPROVED.value
+    assert visit.visitorPassId is not None
+    assert result["visitorPassId"] == visit.visitorPassId
+    row = db.query(VisitorPass).filter(VisitorPass.passId == visit.visitorPassId).one()
+    assert row.status == VisitorPassStatus.ASSIGNED.value
 
 
 def test_approve_exhausted_pool_returns_409(db):

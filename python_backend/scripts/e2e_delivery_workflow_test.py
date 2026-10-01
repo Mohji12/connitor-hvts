@@ -23,11 +23,11 @@ from app.utils.timezone import now_ist
 
 API_BASE = "http://127.0.0.1:8001/api"
 VENDOR_EMAIL = "distributor@citygen.demo"
-VENDOR_PASSWORD = "Connitor@123"
+VENDOR_PASSWORD = "Conninter123@"
 SECURITY_EMAIL = "security@connitor-elcity.com"
-SECURITY_PASSWORD = "Connitor@123"
+SECURITY_PASSWORD = "Conninter123@"
 RECEIVING_EMAIL = "receiving@connitor-elcity.com"
-RECEIVING_PASSWORD = "Connitor@123"
+RECEIVING_PASSWORD = "Conninter123@"
 BRANCH_ID = ELECTRONIC_CITY_BRANCH_ID
 
 

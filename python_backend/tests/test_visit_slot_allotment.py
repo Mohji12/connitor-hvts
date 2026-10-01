@@ -47,7 +47,13 @@ def test_even_split_three_slots_in_one_hour():
     assert slots[2][1] == datetime(2026, 8, 25, 10, 0)
 
 
-def test_even_split_rejects_inverted_window():
+def test_even_split_leaves_five_minute_gap():
+    day = date(2026, 8, 25)
+    slots = even_split_slots(day, "09:00", "10:00", 2, gap_minutes=5)
+    assert len(slots) == 2
+    assert slots[0][0] == datetime(2026, 8, 25, 9, 0)
+    assert slots[1][0] - slots[0][1] == timedelta(minutes=5)
+    assert slots[1][1] == datetime(2026, 8, 25, 10, 0)
     with pytest.raises(ValueError):
         even_split_slots(date(2026, 8, 25), "12:00", "09:00", 2)
 
@@ -109,7 +115,7 @@ def db():
         role=Role.STAFF.value,
         userType="DOCTOR",
         isActive=True,
-        passwordHash=hash_password("Connitor@123"),
+        passwordHash=hash_password("Conninter123@"),
         hospitalChainId=chain.id,
         branchId=branch.id,
         departmentId=dept.id,
@@ -123,7 +129,7 @@ def db():
         role=Role.STAFF.value,
         userType="NURSE",
         isActive=True,
-        passwordHash=hash_password("Connitor@123"),
+        passwordHash=hash_password("Conninter123@"),
         hospitalChainId=chain.id,
         branchId=branch.id,
         departmentId=dept.id,
@@ -136,7 +142,7 @@ def db():
         phone="9100100001",
         role=Role.HOSPITAL_ADMIN.value,
         isActive=True,
-        passwordHash=hash_password("Connitor@123"),
+        passwordHash=hash_password("Conninter123@"),
         hospitalChainId=chain.id,
         branchId=branch.id,
     )
@@ -368,7 +374,7 @@ def test_resolve_staff_ambiguous_name(db):
         role=Role.STAFF.value,
         userType="DOCTOR",
         isActive=True,
-        passwordHash=hash_password("Connitor@123"),
+        passwordHash=hash_password("Conninter123@"),
         hospitalChainId=doctor.hospitalChainId,
         branchId=branch.id,
         departmentId=doctor.departmentId,

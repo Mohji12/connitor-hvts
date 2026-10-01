@@ -130,10 +130,12 @@ class GatePassService:
         )
         if not visit or not visit.visitor or not visit.branch:
             return {"sent": False, "message": "Visit not found"}
+        public_url = (visit.visitQRCode or "").strip()
+        pass_link = public_url if public_url.startswith("http") else gate_pass_base64
         sent = self.whatsapp.send_gate_pass(
             visit.visitor.phone,
-            visit.branch.name,
-            gate_pass_base64,
+            visit.visitor.name or "Visitor",
+            pass_link,
         )
         if sent:
             visit.gatePassSentViaWhatsApp = True

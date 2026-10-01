@@ -21,9 +21,30 @@ interface Hospital {
   bookedSlots: string[];
   initial: string;
   image: string;
+  /** When set, Book Now goes to Ovum centre picker or other deep link */
+  bookHref?: string;
+  /** Centre logo on card (contain) instead of photo */
+  logoImage?: string;
 }
 
 const hospitals: Hospital[] = [
+  {
+    name: 'Ovum Hospitals',
+    city: 'Bengaluru',
+    beds: '7 Centres',
+    years: 15,
+    specialties: ['Obstetrics', 'Gynaecology', 'Paediatrics'],
+    accreditations: ['WOMAN & CHILD SPECIALITY'],
+    rating: 4.7,
+    tier: 'PARTNER',
+    slotsLabel: 'Book at your centre',
+    slotsAvailable: ['9:00 AM', '10:00 AM', '11:30 AM', '2:00 PM', '4:30 PM'],
+    bookedSlots: ['10:30 AM', '3:00 PM'],
+    initial: 'O',
+    image: '/images/ovum-hospital-logo.png',
+    logoImage: '/images/ovum-hospital-logo.png',
+    bookHref: '/book-appointment/ovum/',
+  },
   {
     name: 'Apollo Hospitals',
     city: 'Chennai',
@@ -115,8 +136,8 @@ export default function HospitalsSection() {
     setSelectedSlots((prev) => ({ ...prev, [hospitalName]: slot }));
   };
 
-  const goBook = () => {
-    router.push('/book-appointment');
+  const goBook = (href?: string) => {
+    router.push(href ?? '/book-appointment/');
   };
 
   return (
@@ -165,7 +186,16 @@ export default function HospitalsSection() {
             >
               <div className="relative h-44 overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={h.image} alt={h.name} className="h-full w-full object-cover" loading="lazy" />
+                <img
+                  src={h.logoImage ?? h.image}
+                  alt={h.name}
+                  className={
+                    h.logoImage
+                      ? 'h-full w-full object-contain bg-white p-6'
+                      : 'h-full w-full object-cover'
+                  }
+                  loading="lazy"
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 to-transparent" />
 
                 <div className="absolute right-3 top-3 flex flex-col gap-1.5">
@@ -249,7 +279,7 @@ export default function HospitalsSection() {
                         <Button
                           size="sm"
                           disabled={!selectedSlots[h.name]}
-                          onClick={goBook}
+                          onClick={() => goBook(h.bookHref)}
                           className="mt-1 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"
                         >
                           Select &amp; Continue <ChevronRight className="ml-1 h-4 w-4" />
@@ -291,7 +321,7 @@ export default function HospitalsSection() {
 
                 <div className="border-t pt-3">
                   <Button
-                    onClick={goBook}
+                    onClick={() => goBook(h.bookHref)}
                     className="w-full bg-primary text-primary-foreground transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md"
                   >
                     Book Now <ChevronRight className="ml-1 h-4 w-4" />

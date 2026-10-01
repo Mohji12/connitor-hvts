@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test';
 
 const ADMIN_EMAIL = 'hospital.admin@connitor-elcity.com';
-const ADMIN_PASSWORD = 'Connitor@123';
+const ADMIN_PASSWORD = 'Conninter123@';
 const SLOT_DATE = '2026-08-22';
 
 test.describe('Admin visit slots demo', () => {

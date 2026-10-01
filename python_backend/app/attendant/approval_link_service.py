@@ -15,7 +15,7 @@ from app.config import get_doctor_approval_link_url, get_settings, is_test_mode_
 from app.models import Branch, User
 from app.models.attendant_entities import Admission, Attendant, Patient
 from app.schemas.visitor_account import hash_token
-from app.services.messaging_service import EmailService
+from app.services.messaging_service import EmailService, SmsService
 from app.utils.timezone import now_ist
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ class AttendantApprovalLinkService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.email = EmailService()
+        self.sms = SmsService()
         self.passes = AttendantPassService(db)
 
     def create_link(self, attendant: Attendant) -> tuple[str, str]:
@@ -69,29 +70,46 @@ class AttendantApprovalLinkService:
         patient_mrn = patient.mrn if patient else "—"
         sent: list[str] = []
         for ward in recipients:
-            try:
-                self.email.send_ward_attendant_approval_request_email(
-                    ward.email,
-                    ward_name=ward.name or "Ward Admin",
-                    attendant_name=attendant.name,
-                    attendant_phone=attendant.phone,
-                    attendant_email=attendant.email,
-                    relationship=attendant.relationship or "",
-                    patient_name=patient_name,
-                    patient_mrn=patient_mrn,
-                    ward_name_label=admission.wardName if admission else "",
-                    room_number=admission.roomNumber if admission else "",
-                    hospital_name=branch.name if branch else "Hospital",
-                    approval_url=url,
-                )
-                sent.append(ward.email)
-            except Exception as exc:
-                logger.error(
-                    "Failed to send ward approval email to %s for attendant %s: %s",
-                    ward.email,
-                    attendant.id,
-                    exc,
-                )
+            text = (
+                f"Conninter: Attendant visit-pass request for {patient_name} (MRN {patient_mrn}). "
+                f"Attendant: {attendant.name} ({attendant.phone}). "
+                f"Approve or decline: {url}"
+            )
+            if ward.phone:
+                try:
+                    self.sms.send_message(ward.phone, text)
+                    sent.append(ward.phone)
+                except Exception as exc:
+                    logger.error(
+                        "Failed to WhatsApp ward approval to %s for attendant %s: %s",
+                        ward.phone,
+                        attendant.id,
+                        exc,
+                    )
+            if get_settings().email_notifications_enabled and ward.email:
+                try:
+                    self.email.send_ward_attendant_approval_request_email(
+                        ward.email,
+                        ward_name=ward.name or "Ward Admin",
+                        attendant_name=attendant.name,
+                        attendant_phone=attendant.phone,
+                        attendant_email=attendant.email,
+                        relationship=attendant.relationship or "",
+                        patient_name=patient_name,
+                        patient_mrn=patient_mrn,
+                        ward_name_label=admission.wardName if admission else "",
+                        room_number=admission.roomNumber if admission else "",
+                        hospital_name=branch.name if branch else "Hospital",
+                        approval_url=url,
+                    )
+                    sent.append(ward.email)
+                except Exception as exc:
+                    logger.error(
+                        "Failed to send ward approval email to %s for attendant %s: %s",
+                        ward.email,
+                        attendant.id,
+                        exc,
+                    )
 
         return {"approvalUrl": url, "emailsSent": len(sent), "recipients": sent}
 

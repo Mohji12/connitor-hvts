@@ -237,8 +237,17 @@ class EmailService:
         context: str = "email",
         attachments: list[tuple[str, bytes, str]] | None = None,
         inline_images: list[tuple[str, bytes, str]] | None = None,
+        force: bool = False,
     ) -> None:
         settings = get_settings()
+        if not force and not settings.email_notifications_enabled:
+            logger.info(
+                "EMAIL_NOTIFICATIONS_ENABLED=false; skipping %s to %s (WhatsApp/SMS is primary)",
+                context,
+                to_email,
+            )
+            return
+
         if is_test_mode_enabled(settings):
             logger.info("[HVTS_TEST_MODE] Sending %s to %s: %s", context, to_email, subject)
 
@@ -300,7 +309,9 @@ class EmailService:
             product_name=settings.email_product_name,
         )
         try:
-            self._deliver_email(to_email, subject, text_body, html_body, context="login OTP")
+            self._deliver_email(
+                to_email, subject, text_body, html_body, context="login OTP", force=True
+            )
         except Exception as exc:
             logger.error("Failed to send OTP email to %s: %s", to_email, exc)
             raise
@@ -314,7 +325,14 @@ class EmailService:
             validity_minutes=10,
         )
         try:
-            self._deliver_email(to_email, subject, text_body, html_body, context="registration OTP")
+            self._deliver_email(
+                to_email,
+                subject,
+                text_body,
+                html_body,
+                context="registration OTP",
+                force=True,
+            )
         except Exception as exc:
             logger.error("Failed to send registration OTP to %s: %s", to_email, exc)
             raise
@@ -369,6 +387,7 @@ class EmailService:
                 text_body,
                 html_body,
                 context="account credentials",
+                force=True,
             )
         except Exception as exc:
             logger.error("Failed to send account credentials to %s: %s", to_email, exc)
@@ -1518,33 +1537,70 @@ class WhatsAppService:
                 f"Meta WhatsApp interactive message failed ({response.status_code}): {response.text}"
             )
 
-    def send_gate_pass(self, phone: str, visitor_name: str, gate_pass_url: str) -> None:
+    def send_gate_pass(
+        self,
+        phone: str,
+        visitor_name: str,
+        gate_pass_url: str,
+        *,
+        image_url: str | None = None,
+    ) -> bool:
         settings = get_settings()
         if is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster":
             template = (settings.whatsapp_template_gate_pass or "").strip()
             if template:
-                send_wapblaster_template(
-                    phone,
-                    template_name=template,
-                    template_language=settings.whatsapp_template_language,
-                    fields=[
-                        "Connitor",
-                        visitor_name,
-                        "Gate pass",
-                        gate_pass_url,
-                        "Show this message at security",
-                    ],
-                )
+                link = (gate_pass_url or "").strip()
+                media = (image_url or "").strip()
+                if not media.startswith("http"):
+                    media = link if link.startswith("http") else ""
+                if link.startswith("data:") or len(link) > 1000:
+                    link = "Scan the QR image"
+                extra = None
+                if media:
+                    extra = {
+                        "header_image": media,
+                        "header_image_url": media,
+                        "header_media_url": media,
+                        "media_url": media,
+                    }
+                fields = [
+                    "Connitor",
+                    visitor_name,
+                    "Gate pass",
+                    link or "Scan the QR image",
+                    "Show this QR at security",
+                ]
+                try:
+                    send_wapblaster_template(
+                        phone,
+                        template_name=template,
+                        template_language=settings.whatsapp_template_gate_pass_language,
+                        fields=fields,
+                        extra=extra,
+                    )
+                except Exception:
+                    if not extra:
+                        raise
+                    logger.warning(
+                        "Gate-pass template with QR image failed for %s; retrying without header image",
+                        phone,
+                    )
+                    send_wapblaster_template(
+                        phone,
+                        template_name=template,
+                        template_language=settings.whatsapp_template_gate_pass_language,
+                        fields=fields,
+                    )
             else:
                 send_wapblaster_text(
                     phone,
                     f"Connitor gate pass for {visitor_name}.\nView / check-in: {gate_pass_url}",
                 )
-            return
+            return True
 
         if not settings.whatsapp_api_url or not settings.whatsapp_access_token:
             logger.warning("WhatsApp not configured; gate pass URL: %s", gate_pass_url)
-            return
+            return False
 
         url = (
             f"{settings.whatsapp_api_url.rstrip('/')}/"
@@ -1556,7 +1612,7 @@ class WhatsAppService:
             "type": "template",
             "template": {
                 "name": settings.whatsapp_template_gate_pass,
-                "language": meta_template_language(),
+                "language": {"code": settings.whatsapp_template_gate_pass_language},
                 "components": [
                     {
                         "type": "body",
@@ -1569,4 +1625,5 @@ class WhatsAppService:
             },
         }
         headers = {"Authorization": f"Bearer {settings.whatsapp_access_token}"}
-        httpx.post(url, json=payload, headers=headers, timeout=30)
+        response = httpx.post(url, json=payload, headers=headers, timeout=30)
+        return response.status_code in (200, 201)

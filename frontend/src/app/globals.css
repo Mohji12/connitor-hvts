@@ -9,6 +9,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Bodoni Moda', 'Bodoni 72', 'Didot', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -31,6 +32,7 @@
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-gold: var(--gold);
+  --color-logo-accent-green: var(--logo-accent-green);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -46,8 +48,9 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* Conninter brand: wordmark #001B71, accent #4A90E2 */
+/* Conninter brand: wordmark #001B71, accent #4A90E2, logo mark #A3D948 */
 :root {
+  --logo-accent-green: #a3d948;
   --radius: 0.75rem;
   --background: #ffffff;
   --foreground: #1e293b;
