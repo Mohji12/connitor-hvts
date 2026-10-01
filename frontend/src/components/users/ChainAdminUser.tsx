@@ -18,6 +18,8 @@ import {
   UserFormSchema,
   UserTypes,
   Departments,
+  asDepartment,
+  asUserType,
 } from '@/lib/schema/schema';
 
 // UI Components
@@ -146,8 +148,8 @@ const AddEditUserDialog = ({
             phone: userToEdit.phone,
             hospitalChainId: loggedInUser.hospitalChainId,
             branchId: userToEdit.branchId!,
-            department: userToEdit.department ?? undefined,
-            userType: userToEdit.userType ?? undefined,
+            department: asDepartment(userToEdit.department),
+            userType: asUserType(userToEdit.userType),
             location: userToEdit.location ?? '',
           });
           break;

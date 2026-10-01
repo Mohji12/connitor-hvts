@@ -104,6 +104,23 @@ export const Departments = [
   'LEGAL_COMPLIANCE',
 ] as const;
 
+export type DepartmentValue = (typeof Departments)[number];
+export type UserTypeValue = (typeof UserTypes)[number];
+
+export function asDepartment(value: string | null | undefined): DepartmentValue | undefined {
+  if (value && (Departments as readonly string[]).includes(value)) {
+    return value as DepartmentValue;
+  }
+  return undefined;
+}
+
+export function asUserType(value: string | null | undefined): UserTypeValue | undefined {
+  if (value && (UserTypes as readonly string[]).includes(value)) {
+    return value as UserTypeValue;
+  }
+  return undefined;
+}
+
 export const Roles = [
   'SUPER_ADMIN',
   'CHAIN_ADMIN',

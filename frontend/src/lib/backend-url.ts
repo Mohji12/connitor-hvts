@@ -2,7 +2,7 @@
 export const LOCAL_BACKEND_URL = 'http://127.0.0.1:8002';
 
 /** Production API when static hosting was built without NEXT_PUBLIC_BACKEND_API_URL. */
-export const PRODUCTION_BACKEND_URL = 'https://connitor.bengalurutechcommunity.com';
+export const PRODUCTION_BACKEND_URL = 'https://api.conninter.com';
 
 function isKnownProductionHost(hostname: string): boolean {
   return (

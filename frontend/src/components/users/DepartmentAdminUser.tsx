@@ -8,7 +8,7 @@ import useSWR from 'swr';
 import { z } from 'zod';
 import { UserService } from '@/lib/services/userService';
 import { SubDepartmentService } from '@/lib/services/departmentService';
-import { User, UserFormSchema, SubDepartment, Departments, UserTypes } from '@/lib/schema/schema';
+import { User, UserFormSchema, SubDepartment, Departments, UserTypes, asDepartment, asUserType } from '@/lib/schema/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -82,8 +82,8 @@ function AddEditUserDialog({
         branchId: scope.branchId,
         departmentId: userToEdit.departmentId ?? scope.departmentId,
         subDepartmentId: userToEdit.subDepartmentId ?? undefined,
-        userType: userToEdit.userType ?? undefined,
-        department: userToEdit.department ?? undefined,
+        userType: asUserType(userToEdit.userType),
+        department: asDepartment(userToEdit.department),
         location: userToEdit.location ?? '',
       } as z.infer<typeof UserFormSchema>);
       return;

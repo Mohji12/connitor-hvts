@@ -15,6 +15,8 @@ import {
   Department,
   Departments,
   UserTypes,
+  asDepartment,
+  asUserType,
 } from '@/lib/schema/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,8 +87,8 @@ function AddEditUserDialog({
         branchId: scope.branchId,
         departmentId: userToEdit.departmentId ?? undefined,
         subDepartmentId: userToEdit.subDepartmentId ?? undefined,
-        userType: userToEdit.userType ?? undefined,
-        department: userToEdit.department ?? undefined,
+        userType: asUserType(userToEdit.userType),
+        department: asDepartment(userToEdit.department),
         location: userToEdit.location ?? '',
       } as z.infer<typeof UserFormSchema>);
       return;

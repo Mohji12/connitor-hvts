@@ -28,6 +28,8 @@ import {
   UserUpdateSchema,
   Departments,
   UserTypes,
+  asDepartment,
+  asUserType,
 } from '@/lib/schema/schema';
 
 // UI Components
@@ -208,8 +210,8 @@ const AddEditUserDialog = ({
             branchId: userToEdit.branchId!,
             departmentId: userToEdit.departmentId ?? undefined,
             subDepartmentId: userToEdit.subDepartmentId ?? undefined,
-            department: userToEdit.department ?? undefined,
-            userType: userToEdit.userType ?? undefined,
+            department: asDepartment(userToEdit.department),
+            userType: asUserType(userToEdit.userType),
             location: userToEdit.location ?? '',
           });
           break;

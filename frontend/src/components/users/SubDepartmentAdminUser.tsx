@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import useSWR from 'swr';
 import { z } from 'zod';
 import { UserService } from '@/lib/services/userService';
-import { User, UserFormSchema, Departments, UserTypes } from '@/lib/schema/schema';
+import { User, UserFormSchema, Departments, UserTypes, asDepartment, asUserType } from '@/lib/schema/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -84,8 +84,8 @@ function AddEditStaffDialog({
         branchId: scope.branchId,
         departmentId: scope.departmentId,
         subDepartmentId: scope.subDepartmentId,
-        userType: userToEdit.userType ?? undefined,
-        department: userToEdit.department ?? undefined,
+        userType: asUserType(userToEdit.userType),
+        department: asDepartment(userToEdit.department),
         location: userToEdit.location ?? '',
       } as z.infer<typeof UserFormSchema>);
       return;
