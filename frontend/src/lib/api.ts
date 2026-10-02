@@ -81,6 +81,10 @@ if (typeof window !== 'undefined') {
       busyConfig.baseURL = resolveBaseUrl();
       busyConfig.url = normalizeApiUrl(busyConfig.url, busyConfig.baseURL);
 
+      if (typeof FormData !== 'undefined' && busyConfig.data instanceof FormData) {
+        busyConfig.headers.delete('Content-Type');
+      }
+
       const requestUrl = `${busyConfig.url ?? ''}`;
       if (isVisitorPortalApiPath(requestUrl)) {
         const visitorToken = getVisitorToken();

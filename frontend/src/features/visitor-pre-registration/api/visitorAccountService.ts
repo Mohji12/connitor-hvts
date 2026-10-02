@@ -41,9 +41,7 @@ export const VisitorAccountApi = {
   async uploadPhoto(accountId: string, file: File): Promise<{ photoStorageKey: string }> {
     const form = new FormData();
     form.append('photo', file);
-    const response = await apiClient.post(`${BASE}/${accountId}/photo`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.post(`${BASE}/${accountId}/photo`, form);
     return response.data;
   },
 
@@ -57,9 +55,7 @@ export const VisitorAccountApi = {
     form.append('document', file);
     form.append('govtIdType', govtIdType);
     if (govtIdTypeOther) form.append('govtIdTypeOther', govtIdTypeOther);
-    const response = await apiClient.post(`${BASE}/${accountId}/government-id`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.post(`${BASE}/${accountId}/government-id`, form);
     return response.data;
   },
 

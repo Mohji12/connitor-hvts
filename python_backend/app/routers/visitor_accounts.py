@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.config import get_public_frontend_url, get_settings
@@ -18,10 +18,17 @@ from app.schemas.visitor_account import (
     VerifyPhoneBody,
 )
 from app.services.rate_limit_service import RateLimitService
+from app.services.s3_storage_service import resolve_local_asset
 from app.services.visitor_account_service import VisitorAccountService
 
 router = APIRouter()
 rate_limits = RateLimitService()
+
+
+@router.get("/assets/{asset_path:path}")
+@public_route
+def download_local_asset(asset_path: str, exp: int = Query(...), sig: str = Query(...)):
+    return FileResponse(resolve_local_asset(asset_path, exp, sig))
 
 
 @router.post("")

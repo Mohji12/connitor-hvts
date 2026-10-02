@@ -37,6 +37,7 @@ playwright/.cache/
 
 # Backend env (explicit)
 python_backend/.env
+python_backend/var/
 frontend/.env.local
 
 

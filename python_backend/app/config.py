@@ -132,6 +132,7 @@ class Settings(BaseSettings):
     aws_access_key_id: str | None = Field(default=None, validation_alias="AWS_ACCESS_KEY_ID")
     aws_secret_access_key: str | None = Field(default=None, validation_alias="AWS_SECRET_ACCESS_KEY")
     aws_s3_bucket: str | None = Field(default=None, validation_alias="AWS_S3_BUCKET")
+    s3_public_acl: bool = Field(default=False, validation_alias="S3_PUBLIC_ACL")
     visitor_jwt_expiry_hours: int = Field(default=168, validation_alias="VISITOR_JWT_EXPIRY_HOURS")
     email_verification_base_url: str | None = Field(
         default=None, validation_alias="EMAIL_VERIFICATION_BASE_URL"
