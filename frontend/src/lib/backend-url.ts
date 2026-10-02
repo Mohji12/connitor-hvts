@@ -5,8 +5,13 @@ export const LOCAL_BACKEND_URL = 'http://127.0.0.1:8002';
 export const PRODUCTION_BACKEND_URL = 'https://api.conninter.com';
 
 function isKnownProductionHost(hostname: string): boolean {
+  // conninter.com redirects to www.conninter.com. That host must call the API
+  // directly. A same-origin /api rewrite 307s to api.conninter.com and the
+  // browser drops the Authorization header on that cross-origin redirect.
+  if (hostname === 'api.conninter.com') return false;
   return (
     hostname === 'conninter.com' ||
+    hostname.endsWith('.conninter.com') ||
     hostname.endsWith('.vercel.app') ||
     hostname.endsWith('.amplifyapp.com')
   );
