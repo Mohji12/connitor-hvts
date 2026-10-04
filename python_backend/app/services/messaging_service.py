@@ -26,6 +26,8 @@ from app.config import (
 from app.services.wapblaster_client import (
     message_to_template_fields,
     send_wapblaster_appointment_approval,
+    send_wapblaster_meeting_pass,
+    send_wapblaster_phone_otp,
     send_wapblaster_template,
     send_wapblaster_text,
 )
@@ -1271,6 +1273,36 @@ class SmsService:
         """Send via Twilio/SNS SMS only (skip WhatsApp), e.g. doctor approval links."""
         self._deliver_sms(phone, message, require_delivery=False)
 
+    def send_profile_phone_otp(self, phone: str, otp: str, *, valid_minutes: int = 5) -> None:
+        """Visitor profile phone verification. Uses the OTP template, not the visit template."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_phone_otp or "").strip()
+        if (
+            template
+            and is_wapblaster_configured(settings)
+            and settings.whatsapp_provider == "wapblaster"
+        ):
+            try:
+                send_wapblaster_phone_otp(
+                    phone,
+                    template_name=template,
+                    template_language=settings.whatsapp_template_phone_otp_language,
+                    otp=otp,
+                    valid_minutes=valid_minutes,
+                )
+                return
+            except Exception:
+                logger.warning(
+                    "WhatsApp phone OTP template %s failed; falling back to SMS",
+                    template,
+                    exc_info=True,
+                )
+        message = (
+            f"Conninter: Your verification code is {otp}. "
+            f"It is valid for {valid_minutes} minutes. Do not share it."
+        )
+        self._deliver_sms(phone, message, require_delivery=True)
+
     def send_otp(self, phone: str, otp: str) -> None:
         message = (
             f"Login in HVTS: Your One-Time Password is {otp}. "
@@ -1339,8 +1371,16 @@ class WhatsAppService:
         purpose: str | None = None,
         approval_url: str | None = None,
         reschedule_url: str | None = None,
+        doctor_name: str = "Doctor",
+        organization: str = "—",
+        visitor_type: str = "General",
+        department: str = "—",
+        requested_date: str = "",
+        requested_time: str = "",
+        items_carrying: str = "",
+        visit_id: str = "",
     ) -> None:
-        """Send Confirm/Reschedule approval (Meta templates) or WapBlaster template + fallback text."""
+        """Send Confirm Visit / Reject Visit on conninter_doctor_visit_approval."""
         settings = get_settings()
         if is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster":
             if is_test_mode_enabled(settings):
@@ -1354,13 +1394,25 @@ class WhatsAppService:
             purpose_line = purpose or "Appointment"
             template = (settings.whatsapp_template_appointment_approval or "").strip()
             if template:
+                date_text = requested_date or appointment_label
+                time_text = requested_time or "—"
                 send_wapblaster_appointment_approval(
                     phone,
                     template_name=template,
-                    template_language=settings.whatsapp_template_language,
+                    template_language=(
+                        settings.whatsapp_template_appointment_approval_language
+                        or settings.whatsapp_template_language
+                    ),
+                    doctor_name=doctor_name,
                     visitor_name=visitor_name,
-                    appointment_label=appointment_label,
+                    organization=organization or "—",
+                    visitor_type=visitor_type,
                     purpose=purpose_line,
+                    department=department or "—",
+                    requested_date=date_text,
+                    requested_time=time_text,
+                    items_carrying=items_carrying or "—",
+                    visit_id=visit_id or (approval_code or ""),
                     approval_code=approval_code,
                 )
             else:
@@ -1536,6 +1588,52 @@ class WhatsAppService:
             raise RuntimeError(
                 f"Meta WhatsApp interactive message failed ({response.status_code}): {response.text}"
             )
+
+    def send_meeting_pass(
+        self,
+        phone: str,
+        *,
+        visitor_name: str,
+        doctor_name: str,
+        hospital_name: str,
+        department: str,
+        requested_date: str,
+        requested_time: str,
+        purpose: str,
+        items_carrying: str,
+        image_url: str,
+    ) -> bool:
+        """Send conninter_meeting_pass with the composed pass as the header image."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_gate_pass or "").strip()
+        if not template:
+            return False
+        if not (is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster"):
+            logger.warning("Meeting pass template is set but WapBlaster is not the WhatsApp provider")
+            return False
+        if is_test_mode_enabled(settings):
+            logger.info(
+                "[HVTS_TEST_MODE] Meeting pass %s to %s for %s",
+                template,
+                phone,
+                visitor_name,
+            )
+            return True
+        send_wapblaster_meeting_pass(
+            phone,
+            template_name=template,
+            template_language=settings.whatsapp_template_gate_pass_language or "en_GB",
+            visitor_name=visitor_name,
+            doctor_name=doctor_name,
+            hospital_name=hospital_name,
+            department=department,
+            requested_date=requested_date,
+            requested_time=requested_time,
+            purpose=purpose or "Visit",
+            items_carrying=items_carrying or "—",
+            image_url=image_url,
+        )
+        return True
 
     def send_gate_pass(
         self,

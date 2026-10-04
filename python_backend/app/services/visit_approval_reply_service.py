@@ -19,10 +19,13 @@ logger = logging.getLogger(__name__)
 
 REPLY_PATTERN = re.compile(r"^(YES|NO|Y|N|CONFIRM)\s*(\d{6})$", re.IGNORECASE)
 ACTION_ONLY_PATTERN = re.compile(r"^(YES|NO|Y|N|CONFIRM)$", re.IGNORECASE)
-BUTTON_ID_PATTERN = re.compile(r"^(yes|no|confirm)_(\d{6})$", re.IGNORECASE)
+BUTTON_ID_PATTERN = re.compile(r"^(yes|no|confirm|reject)_(\d{6})$", re.IGNORECASE)
 RESCHEDULE_BUTTON_PATTERN = re.compile(r"^reschedule_(\d{6})$", re.IGNORECASE)
 RESCHEDULE_TEXT_PATTERN = re.compile(r"^RESCHEDULE\s*(\d{6})$", re.IGNORECASE)
-BUTTON_LABEL_PATTERN = re.compile(r"^(yes|y|no|n|confirm|reschedule)$", re.IGNORECASE)
+BUTTON_LABEL_PATTERN = re.compile(
+    r"^(yes|y|no|n|confirm|reschedule|confirm visit|reject visit|reject)$",
+    re.IGNORECASE,
+)
 
 REJECT_REASON = "Declined via WhatsApp"
 
@@ -72,7 +75,7 @@ def parse_button_reply(button_id: str) -> tuple[str, str | None] | None:
     keyword = label.group(1).lower()
     if keyword == "reschedule":
         return "reschedule", None
-    if keyword in ("no", "n"):
+    if keyword in ("no", "n", "reject", "reject visit"):
         return "reject", None
     return "approve", None
 

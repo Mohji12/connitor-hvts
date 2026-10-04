@@ -21,6 +21,12 @@ class ParseButtonReplyTests(unittest.TestCase):
     def test_confirm_label(self) -> None:
         self.assertEqual(parse_button_reply("Confirm"), ("approve", None))
 
+    def test_confirm_visit_label(self) -> None:
+        self.assertEqual(parse_button_reply("Confirm Visit"), ("approve", None))
+
+    def test_reject_visit_label(self) -> None:
+        self.assertEqual(parse_button_reply("Reject Visit"), ("reject", None))
+
     def test_reschedule_label(self) -> None:
         self.assertEqual(parse_button_reply("Reschedule"), ("reschedule", None))
 

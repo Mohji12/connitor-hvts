@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { VISITOR_KINDS, type VisitorKind } from '@/lib/constants/visit-constants';
@@ -114,6 +115,7 @@ export function BookAppointmentWizard({
   const [email, setEmail] = React.useState('');
   const [appointmentDate, setAppointmentDate] = React.useState(todayIstDateIso());
   const [purpose, setPurpose] = React.useState('');
+  const [itemsCarrying, setItemsCarrying] = React.useState('');
   const [appointmentMode, setAppointmentMode] = React.useState<'IN_PERSON' | 'ONLINE'>('IN_PERSON');
   const [visitorType, setVisitorType] = React.useState<VisitorKind>('GENERAL');
   const [companyName, setCompanyName] = React.useState('');
@@ -319,8 +321,12 @@ export function BookAppointmentWizard({
 
   const submit = async () => {
     const normalizedEmail = email.trim().toLowerCase();
-    if (!purpose.trim()) {
+    if (purpose.trim().length < 3) {
       setError('Please enter the purpose of your visit.');
+      return;
+    }
+    if (itemsCarrying.trim().length < 2) {
+      setError('Please mention what you are carrying.');
       return;
     }
     if (!requestCustomSlot && !slotId) {
@@ -372,7 +378,8 @@ export function BookAppointmentWizard({
           ? `${appointmentDate}T${preferredTime}:00`
           : selectedSlot?.slotStart,
         requestCustomSlot,
-        purpose,
+        purpose: purpose.trim(),
+        itemsCarrying: itemsCarrying.trim(),
         appointmentMode,
         visitorType,
         companyName: visitorType === 'SALES_REPRESENTATIVE' ? companyName.trim() : undefined,
@@ -696,8 +703,28 @@ export function BookAppointmentWizard({
               </div>
 
               <div>
-                <Label>Purpose</Label>
-                <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} required />
+                <Label htmlFor="visit-purpose">Purpose of the visit</Label>
+                <Textarea
+                  id="visit-purpose"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  required
+                  minLength={3}
+                  maxLength={191}
+                  placeholder="For example: product discussion, follow-up consultation"
+                />
+              </div>
+              <div>
+                <Label htmlFor="items-carrying">What are you carrying?</Label>
+                <Textarea
+                  id="items-carrying"
+                  value={itemsCarrying}
+                  onChange={(e) => setItemsCarrying(e.target.value)}
+                  required
+                  minLength={2}
+                  maxLength={500}
+                  placeholder="For example: laptop, product samples, documents. Write Nothing if you are not carrying anything."
+                />
               </div>
               <div>
                 <Label htmlFor="visitor-type">Visitor type</Label>
@@ -792,6 +819,14 @@ export function BookAppointmentWizard({
             <div className="space-y-4 text-center">
               <p className="font-medium text-green-600">Booking Confirmed</p>
               <p className="text-sm">{result.message}</p>
+              <p className="text-sm text-left">
+                <span className="text-muted-foreground">Purpose of the visit: </span>
+                {purpose.trim()}
+              </p>
+              <p className="text-sm text-left">
+                <span className="text-muted-foreground">Carrying: </span>
+                {itemsCarrying.trim()}
+              </p>
               <p className="text-sm text-muted-foreground break-all">Booking ID: {result.bookingId}</p>
               <p className="text-xs text-muted-foreground">
                 Save your booking ID. You will receive approval once the doctor reviews your request.

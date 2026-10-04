@@ -134,7 +134,8 @@ function BookingStatusContent() {
                 </p>
               )}
               <p><span className="text-muted-foreground">Doctor:</span> {status.doctorName ?? '—'}</p>
-              <p><span className="text-muted-foreground">Purpose:</span> {status.purpose ?? '—'}</p>
+              <p><span className="text-muted-foreground">Purpose of the visit:</span> {status.purpose ?? '—'}</p>
+              <p><span className="text-muted-foreground">Carrying:</span> {status.itemsCarrying || '—'}</p>
               {status.appointmentDate && (
                 <p>
                   <span className="text-muted-foreground">Scheduled:</span>{' '}

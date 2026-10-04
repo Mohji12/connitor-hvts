@@ -105,6 +105,22 @@ class VisitorAccountServiceTests(unittest.TestCase):
 
         result = self.service.send_phone_otp("acct-1")
         self.assertEqual(result["testOtp"], "123456")
+        self.service.sms.send_profile_phone_otp.assert_not_called()
+
+    @patch("app.services.visitor_account_service.is_test_mode_enabled", return_value=False)
+    def test_send_phone_otp_uses_whatsapp_template(self, _test: MagicMock) -> None:
+        account = MagicMock()
+        account.phone = "9123456701"
+        account.phoneVerificationAttempts = 0
+        self.db.get.return_value = account
+
+        self.service.send_phone_otp("acct-1")
+        self.service.sms.send_profile_phone_otp.assert_called_once()
+        phone, otp = self.service.sms.send_profile_phone_otp.call_args[0]
+        self.assertEqual(phone, "9123456701")
+        self.assertEqual(len(otp), 6)
+        self.assertTrue(otp.isdigit())
+        self.service.sms.send_message.assert_not_called()
 
     @patch("app.services.visitor_account_service.is_test_mode_enabled", return_value=True)
     @patch("app.services.visitor_account_service.get_settings")

@@ -153,6 +153,44 @@ class NotificationsService:
             except Exception as exc:
                 logger.error("Failed to email user %s: %s", user.email, exc)
 
+    def _doctor_display_name(self, staff: User) -> str:
+        name = (staff.name or "Doctor").strip()
+        lowered = name.lower()
+        if lowered.startswith("dr."):
+            name = name[3:].strip()
+        elif lowered.startswith("dr "):
+            name = name[3:].strip()
+        return name or "Doctor"
+
+    def _visitor_type_label(self, visit: Visit) -> str:
+        kind = (visit.visitorType or "GENERAL").upper()
+        labels = {
+            "GENERAL": "General",
+            "SALES_REPRESENTATIVE": "Sales Representative",
+            "VENDOR": "Vendor",
+        }
+        return labels.get(kind, "General")
+
+    def _organization_for_doctor_template(self, visit: Visit) -> str:
+        """Sales representatives include the company. Other visit types leave it blank."""
+        if (visit.visitorType or "").upper() != "SALES_REPRESENTATIVE":
+            return "—"
+        return (visit.companyName or "").strip() or "—"
+
+    def _department_name(self, visit: Visit) -> str:
+        if visit.departmentId:
+            department = self.db.get(Department, visit.departmentId)
+            if department and department.name:
+                return department.name
+        if visit.department:
+            return str(visit.department).replace("_", " ").title()
+        return "—"
+
+    def _appointment_date_and_time(self, visit: Visit) -> tuple[str, str]:
+        if not visit.appointmentDate or self._is_open_slot_request(visit):
+            return "To be decided", "—"
+        return visit.appointmentDate.strftime("%d %b %Y"), visit.appointmentDate.strftime("%I:%M %p")
+
     def _format_appt(self, visit: Visit) -> str:
         if not visit.appointmentDate:
             return "scheduled time"
@@ -304,18 +342,21 @@ class NotificationsService:
         is_open = self._is_open_slot_request(visit)
         if is_custom:
             purpose = purpose[len("[CUSTOM SLOT]") :].strip() or "Visit requested"
+        carrying = getattr(visit, "itemsCarrying", None)
+        carrying_text = carrying.strip() if isinstance(carrying, str) and carrying.strip() else ""
+        purpose_note = f"{purpose}. Carrying: {carrying_text}" if carrying_text else purpose
         self._ensure_sms_approval_code(visit)
         _token, approval_url, reschedule_url = VisitApprovalLinkService(self.db).create_link(visit)
         if is_open:
             dashboard_message = (
                 f"Visit slot request from {name}. Date and time to be decided by the doctor. "
-                f"Purpose: {purpose}. Approval link sent by WhatsApp/SMS."
+                f"Purpose: {purpose_note}. Approval link sent by WhatsApp/SMS."
             )
         else:
             dashboard_message = (
                 f"{'Custom slot request' if is_custom else 'New appointment'} from {name} on {appt} "
                 f"({self._meeting_mode_label(visit)}). "
-                f"Purpose: {purpose}. "
+                f"Purpose: {purpose_note}. "
                 "Approval link sent to doctor via WhatsApp/SMS."
             )
         self._add_notification(staff.id, visit.id, dashboard_message)
@@ -327,7 +368,7 @@ class NotificationsService:
                     doctor_name=staff.name or "Doctor",
                     visitor_name=name,
                     appointment_date=appt,
-                    purpose=purpose,
+                    purpose=purpose_note,
                     approval_url=approval_url,
                     open_slot_request=is_open,
                     meeting_mode=self._meeting_mode_label(visit),
@@ -355,24 +396,33 @@ class NotificationsService:
             mode_label = self._meeting_mode_label(visit)
             if is_open:
                 sms_message = (
-                    f"Conninter: {name} wants a visiting slot. Purpose: {purpose}. "
+                    f"Conninter: {name} wants a visiting slot. Purpose: {purpose_note}. "
                     f"Approve or decline: {approval_url}"
                 )
             else:
                 sms_message = (
                     f"Conninter: {'Visit slot request' if is_custom else 'New appointment'} from {name} "
-                    f"on {appt} ({mode_label}). Purpose: {purpose}. Approve or decline: {approval_url}"
+                    f"on {appt} ({mode_label}). Purpose: {purpose_note}. Approve or decline: {approval_url}"
                 )
             try:
                 if is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster":
+                    requested_date, requested_time = self._appointment_date_and_time(visit)
                     self.whatsapp.send_appointment_approval_buttons(
                         staff.phone,
                         visitor_name=name,
                         appointment_label=appt if not is_open else "Open slot (doctor to schedule)",
                         approval_code=visit.smsApprovalCode or "",
                         purpose=purpose,
+                        items_carrying=carrying_text,
                         approval_url=approval_url,
                         reschedule_url=reschedule_url,
+                        doctor_name=self._doctor_display_name(staff),
+                        organization=self._organization_for_doctor_template(visit),
+                        visitor_type=self._visitor_type_label(visit),
+                        department=self._department_name(visit),
+                        requested_date=requested_date,
+                        requested_time=requested_time,
+                        visit_id=visit.smsApprovalCode or visit.id,
                     )
                 else:
                     self.sms.send_message(staff.phone, sms_message)
@@ -569,32 +619,40 @@ class NotificationsService:
         return f"{base}/api/public/visits/{visit_id}/gate-pass.png"
 
     def _send_approval_qr_whatsapp(self, visit: Visit, visitor: Visitor, visitor_name: str) -> None:
-        """Publish the check-in QR and send it on WhatsApp after doctor approval."""
-        if not visitor.phone or not visit.visitQRCode:
+        """Send conninter_meeting_pass with the composed check-in image."""
+        if not visitor.phone:
             return
         try:
-            import base64
-
-            raw = visit.visitQRCode
-            if "," in raw:
-                raw = raw.split(",", 1)[1]
-            image_bytes = base64.b64decode(raw)
+            from app.services.meeting_pass_image import assemble_meeting_pass, render_meeting_pass
             from app.services.s3_storage_service import S3StorageService
 
+            content = assemble_meeting_pass(self.db, visit)
+            image_bytes = render_meeting_pass(content)
             image_url = S3StorageService().publish_gate_pass_png(visit.id, image_bytes)
             if not image_url:
-                image_url = self._public_gate_pass_image_url(visit.id)
-            if not image_url:
-                logger.warning("No public QR URL for visit %s; WhatsApp QR skipped", visit.id)
+                logger.warning("No public meeting-pass URL for visit %s; WhatsApp skipped", visit.id)
                 return
-            self.whatsapp.send_gate_pass(
+            purpose = (visit.purpose or "").strip()
+            if purpose.upper().startswith("[CUSTOM SLOT]"):
+                purpose = purpose[len("[CUSTOM SLOT]") :].strip()
+            carrying = getattr(visit, "itemsCarrying", None)
+            carrying_text = carrying.strip() if isinstance(carrying, str) else ""
+            sent = self.whatsapp.send_meeting_pass(
                 visitor.phone,
-                visitor_name,
-                image_url,
+                visitor_name=content.visitor_name or visitor_name,
+                doctor_name=content.doctor_name,
+                hospital_name=content.hospital_name,
+                department=content.department,
+                requested_date=content.date_text,
+                requested_time=content.time_text,
+                purpose=purpose or "Visit",
+                items_carrying=carrying_text or "—",
                 image_url=image_url,
             )
+            if not sent:
+                logger.warning("Meeting pass template was not sent for visit %s", visit.id)
         except Exception as exc:
-            logger.error("Failed to WhatsApp gate-pass QR to %s: %s", visitor.phone, exc)
+            logger.error("Failed to WhatsApp meeting pass to %s: %s", visitor.phone, exc)
 
     def notify_visitor_online_approval(self, visit: Visit, visitor: Visitor, doctor: User) -> None:
         name = self._visitor_name(visitor)

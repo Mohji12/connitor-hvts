@@ -67,7 +67,11 @@ class SecurityService:
             self.notifications.notify_visitor_approval(visit, visit.visitor, visit.staff)
         image = self.gate_pass.generate_gate_pass_image(visit_id)
         gcp = self.gate_pass.upload_gate_pass_to_gcp(visit_id, image["imageUrl"])
-        whatsapp = self.gate_pass.send_gate_pass_via_whatsapp(visit_id, image["imageUrl"])
+        template = (get_settings().whatsapp_template_gate_pass or "").strip()
+        if template:
+            whatsapp = {"sent": True, "message": "Meeting pass sent with the approval notice"}
+        else:
+            whatsapp = self.gate_pass.send_gate_pass_via_whatsapp(visit_id, image["imageUrl"])
 
         visit.status = VisitStatus.APPROVED.value
         self.db.commit()

@@ -108,6 +108,7 @@ export const AppointmentService = {
     slotId?: string;
     requestCustomSlot?: boolean;
     purpose: string;
+    itemsCarrying: string;
     appointmentMode?: 'IN_PERSON' | 'ONLINE';
     visitorType?: 'GENERAL' | 'SALES_REPRESENTATIVE' | 'VENDOR';
     companyName?: string;
@@ -136,6 +137,7 @@ export const AppointmentService = {
       appointmentDate: string | null;
       doctorName: string | null;
       purpose: string | null;
+      itemsCarrying?: string | null;
       checkInTime: string | null;
       checkOutTime: string | null;
       totalDurationMinutes: number | null;

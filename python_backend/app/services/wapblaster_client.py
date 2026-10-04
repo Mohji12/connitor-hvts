@@ -21,6 +21,7 @@ WAPBLASTER_BODY_ONLY_TEMPLATES = frozenset(
     {
         "approval_doctor",
         "conninter_notification",
+        "conninter_phone_otp",
         "confirmation_template",  # legacy alias
     }
 )
@@ -176,22 +177,34 @@ def send_wapblaster_template(
     if extra:
         for key, value in extra.items():
             if value is not None and str(value).strip():
-                payload[str(key)] = str(value)[:2048]
+                text = str(value)
+                limit = 8192 if text.startswith("http") else 2048
+                payload[str(key)] = text[:limit]
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
 
     response = httpx.post(url, json=payload, headers=headers, timeout=45)
-    if response.status_code not in (200, 201):
+    body_text = response.text[:500]
+    accepted = response.status_code in (200, 201)
+    if accepted:
+        try:
+            result = response.json()
+        except ValueError:
+            result = {}
+        if isinstance(result, dict) and str(result.get("result", "success")).lower() not in ("success", "ok", ""):
+            accepted = False
+    if not accepted:
         logger.error(
             "WapBlaster template %s failed to %s: %s %s",
             name,
             payload["phone_number"],
             response.status_code,
-            response.text[:500],
+            body_text,
         )
         response.raise_for_status()
+        raise RuntimeError(body_text or "WapBlaster template was not accepted")
 
     logger.info(
         "WapBlaster template %s sent to %s",
@@ -205,32 +218,42 @@ def send_wapblaster_appointment_approval(
     *,
     template_name: str,
     template_language: str,
+    doctor_name: str,
     visitor_name: str,
-    appointment_label: str,
+    organization: str,
+    visitor_type: str,
     purpose: str,
+    department: str,
+    requested_date: str,
+    requested_time: str,
+    items_carrying: str,
+    visit_id: str,
     approval_code: str,
-    brand_name: str = "Connitor",
+    brand_name: str = "Conninter",
 ) -> None:
     """
-    Doctor visit approval on WhatsApp — no web links (those open a browser).
+    Doctor visit approval via conninter_doctor_visit_approval.
 
-    Uses approval_doctor (or legacy confirmation_template) body vars (max 30 chars each)
-    plus quick-reply payload confirm_{code} when the approved Meta template has a Confirm
-    quick-reply button. Falls back to plain text: reply CONFIRM {code} to approve in-chat.
+    Body {{1}}..{{10}} match the approved template. {{9}} is what the visitor
+    is carrying and {{10}} is the visit id. Confirm Visit is button_0 and
+    Reject Visit is button_1.
     """
     code = (approval_code or "").strip()
-    confirm_payload = f"confirm_{code}" if code else "confirm"
     fields = [
-        brand_name,
-        visitor_name,
-        appointment_label,
+        doctor_name or "Doctor",
+        visitor_name or "Visitor",
+        organization or "—",
+        visitor_type or "General",
         purpose or "Visit",
-        f"Reply CONFIRM {code}" if code else "Reply CONFIRM",
+        department or "—",
+        requested_date or "—",
+        requested_time or "—",
+        items_carrying or "—",
+        visit_id or code or "—",
     ]
     extra = {
-        "button_payload": confirm_payload,
-        "button_1_payload": confirm_payload,
-        "quick_reply_payload": confirm_payload,
+        "button_0": f"confirm_{code}" if code else "confirm",
+        "button_1": f"no_{code}" if code else "no",
     }
     try:
         send_wapblaster_template(
@@ -249,8 +272,78 @@ def send_wapblaster_appointment_approval(
         fallback = (
             f"{brand_name}: New visit request\n"
             f"{truncate_utility_param(visitor_name, 40)}\n"
-            f"{truncate_utility_param(appointment_label, 40)}\n"
-            f"Reply CONFIRM {code} to approve now.\n"
-            f"(Do not use a link — type CONFIRM {code} in this chat.)"
+            f"{truncate_utility_param(requested_date, 40)} {truncate_utility_param(requested_time, 20)}\n"
+            f"Reply CONFIRM {code} to approve, or REJECT {code} to decline."
         )
         send_wapblaster_text(phone, fallback)
+
+
+def send_wapblaster_meeting_pass(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    visitor_name: str,
+    doctor_name: str,
+    hospital_name: str,
+    department: str,
+    requested_date: str,
+    requested_time: str,
+    purpose: str,
+    items_carrying: str,
+    image_url: str,
+) -> None:
+    """Visitor meeting pass. Header image is the composed pass.
+
+    Body order matches conninter_meeting_pass: visitor, doctor, hospital,
+    department, purpose, items carrying, date, time.
+    """
+    fields = [
+        visitor_name or "Visitor",
+        doctor_name or "Doctor",
+        hospital_name or "Hospital",
+        department or "—",
+        purpose or "Visit",
+        items_carrying or "—",
+        requested_date or "—",
+        requested_time or "—",
+    ]
+    media = (image_url or "").strip()
+    extra = None
+    if media.startswith("http"):
+        extra = {
+            "header_image": media,
+            "header_image_url": media,
+            "header_media_url": media,
+            "media_url": media,
+        }
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=fields,
+        extra=extra,
+    )
+
+
+def send_wapblaster_phone_otp(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    otp: str,
+    valid_minutes: int = 5,
+) -> None:
+    """Visitor profile phone OTP via otp_verification. field_1 is the code for {{1}} and Copy code.
+
+    valid_minutes is not sent. That Authentication template has no minutes variable.
+    """
+    logger.debug("Phone OTP template expiry is fixed at %s minutes", valid_minutes)
+    code = otp.strip()
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=[code],
+        extra={"button_0": code},
+    )

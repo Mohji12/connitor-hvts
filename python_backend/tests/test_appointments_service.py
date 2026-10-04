@@ -97,11 +97,15 @@ class AppointmentsServiceTests(unittest.TestCase):
                 "phone": "9123456701",
                 "appointmentDate": "2026-06-10T10:00:00+00:00",
                 "purpose": "Follow-up consultation",
+                "itemsCarrying": "Laptop, brochure",
             }
         )
 
         self.assertEqual(result["status"], "REQUEST_SENT")
         self.db.add.assert_called()
+        created_visit = self.db.add.call_args_list[-1].args[0]
+        self.assertEqual(created_visit.purpose, "Follow-up consultation")
+        self.assertEqual(created_visit.itemsCarrying, "Laptop, brochure")
         self.service.notifications.notify_staff_on_visit_request.assert_called_once()
 
     def test_get_booking_status_wrong_phone(self) -> None:

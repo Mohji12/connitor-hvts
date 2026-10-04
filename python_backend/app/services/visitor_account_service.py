@@ -255,10 +255,7 @@ class VisitorAccountService:
 
         if not is_test_mode_enabled(settings):
             try:
-                self.sms.send_message(
-                    account.phone,
-                    f"Connitor: Your verification code is {otp}. Valid for 5 minutes.",
-                )
+                self.sms.send_profile_phone_otp(account.phone, otp, valid_minutes=5)
             except Exception as exc:
                 logger.error("SMS OTP failed: %s", exc)
                 raise HTTPException(status_code=503, detail="Failed to send SMS OTP") from exc

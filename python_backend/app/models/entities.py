@@ -185,6 +185,7 @@ class Visit(Base):
     visitCategory: Mapped[str | None] = mapped_column(String(50), nullable=True)
     visitSubType: Mapped[str | None] = mapped_column(String(191), nullable=True)
     purpose: Mapped[str | None] = mapped_column(String(191), nullable=True)
+    itemsCarrying: Mapped[str | None] = mapped_column(String(500), nullable=True)
     department: Mapped[str | None] = mapped_column(String(50), nullable=True)
     deliveryPlatform: Mapped[str | None] = mapped_column(String(191), nullable=True)
     deliveryRecipient: Mapped[str | None] = mapped_column(String(191), nullable=True)

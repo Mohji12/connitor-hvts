@@ -29,7 +29,8 @@ class BookAppointmentBody(BaseModel):
     slotId: str | None = None
     """When true, visitor proposes a custom date/time and meeting mode for the doctor to approve."""
     requestCustomSlot: bool = False
-    purpose: str = Field(min_length=3)
+    purpose: str = Field(min_length=3, max_length=191)
+    itemsCarrying: str = Field(min_length=2, max_length=500)
     appointmentMode: Literal["IN_PERSON", "ONLINE"] = "IN_PERSON"
     visitorType: Literal["GENERAL", "SALES_REPRESENTATIVE", "VENDOR"] = "GENERAL"
     companyName: str | None = None

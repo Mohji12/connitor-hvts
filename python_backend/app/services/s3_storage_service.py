@@ -189,6 +189,29 @@ class S3StorageService:
         mime = file.content_type or "image/jpeg"
         return self.upload_visitor_asset(account_id, category, content, mime, suffix=suffix)
 
+    def read_bytes(self, storage_key: str) -> bytes | None:
+        """Read a visitor photo or other stored object. Keys may be S3 or local:."""
+        key = (storage_key or "").strip()
+        if not key:
+            return None
+        if key.startswith(LOCAL_KEY_PREFIX):
+            relative = key[len(LOCAL_KEY_PREFIX) :]
+            path = (visitor_upload_root() / relative).resolve()
+            root = visitor_upload_root().resolve()
+            if path != root and root not in path.parents:
+                return None
+            if path.is_file():
+                return path.read_bytes()
+            return None
+        if not self._client or not self.settings.aws_s3_bucket:
+            return None
+        try:
+            obj = self._client.get_object(Bucket=self.settings.aws_s3_bucket, Key=key)
+            return obj["Body"].read()
+        except Exception:
+            logger.warning("S3 read failed for %s", key, exc_info=True)
+            return None
+
     def get_presigned_url(self, storage_key: str, ttl_seconds: int = 900) -> str | None:
         if storage_key.startswith(LOCAL_KEY_PREFIX):
             return self._local_asset_url(storage_key, ttl_seconds)

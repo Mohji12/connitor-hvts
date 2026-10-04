@@ -215,21 +215,37 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("WHATSAPP_ACCESS_TOKEN", "WHATSAPP_API_KEY"),
     )
     whatsapp_template_gate_pass: str = Field(
-        default="gate_pass_approved",
+        default="conninter_meeting_pass",
         validation_alias="WHATSAPP_TEMPLATE_GATE_PASS",
+        description="Visitor meeting pass sent after an in-person visit is approved.",
     )
     whatsapp_template_gate_pass_language: str = Field(
-        default="en_US",
+        default="en_GB",
         validation_alias="WHATSAPP_TEMPLATE_GATE_PASS_LANGUAGE",
-        description="Meta language for gate_pass_approved (approved as en_US, not en_GB).",
+        description="conninter_meeting_pass is approved as English (UK).",
     )
     whatsapp_template_notification: str = Field(
-        default="conninter_notification",
+        default="",
         validation_alias="WHATSAPP_TEMPLATE_NOTIFICATION",
     )
+    whatsapp_template_phone_otp: str = Field(
+        default="otp_verification",
+        validation_alias="WHATSAPP_TEMPLATE_PHONE_OTP",
+        description="Authentication template for visitor profile phone OTP. Body {{1}} is the code, plus a Copy code button.",
+    )
+    whatsapp_template_phone_otp_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_PHONE_OTP_LANGUAGE",
+        description="otp_verification is approved as English (US), not en_GB.",
+    )
     whatsapp_template_appointment_approval: str = Field(
-        default="approval_doctor",
+        default="conninter_doctor_visit_approval",
         validation_alias="WHATSAPP_TEMPLATE_APPOINTMENT_APPROVAL",
+    )
+    whatsapp_template_appointment_approval_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_APPOINTMENT_APPROVAL_LANGUAGE",
+        description="conninter_doctor_visit_approval language. Match the approved template (English US).",
     )
     whatsapp_template_language: str = Field(
         default="en_GB",
