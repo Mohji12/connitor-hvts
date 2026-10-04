@@ -39,6 +39,10 @@ class ParseButtonReplyTests(unittest.TestCase):
     def test_confirm_text(self) -> None:
         self.assertEqual(parse_approval_reply("CONFIRM 482901"), ("approve", "482901"))
 
+    def test_confirm_visit_text_approves_without_code(self) -> None:
+        self.assertEqual(parse_button_reply("Confirm Visit"), ("approve", None))
+        self.assertIsNone(parse_approval_reply("Confirm Visit"))
+
     def test_invalid(self) -> None:
         self.assertIsNone(parse_button_reply("approve_visit-1"))
 
@@ -93,6 +97,26 @@ class VisitApprovalButtonTests(unittest.TestCase):
         reply = self.service.handle_button_reply(
             from_phone="918625877312",
             button_id="Confirm",
+        )
+
+        mock_find_visit.assert_called_once()
+        self.assertIsNone(mock_find_visit.call_args.kwargs["code"])
+        self.service.staff_service.approve_visit.assert_called_once_with("visit-1", "doc-1")
+        self.assertIn("Approved", reply)
+
+    @patch.object(VisitApprovalReplyService, "_find_doctor_by_phone")
+    @patch.object(VisitApprovalReplyService, "_find_pending_visit")
+    def test_confirm_visit_text_approves_pending_visit(
+        self,
+        mock_find_visit: MagicMock,
+        mock_find_doctor: MagicMock,
+    ) -> None:
+        mock_find_doctor.return_value = self._doctor()
+        mock_find_visit.return_value = self._visit()
+
+        reply = self.service.handle_reply(
+            from_phone="919900725181",
+            body="Confirm Visit",
         )
 
         mock_find_visit.assert_called_once()

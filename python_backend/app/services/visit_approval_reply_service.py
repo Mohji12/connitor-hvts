@@ -202,11 +202,11 @@ class VisitApprovalReplyService:
         return self._process_action(from_phone=from_phone, action=action, code=code)
 
     def handle_reply(self, *, from_phone: str, body: str) -> str:
-        parsed = parse_approval_reply(body)
+        parsed = parse_approval_reply(body) or parse_button_reply(body)
         if not parsed:
             return (
-                "Unrecognized reply. Tap Confirm or Reschedule on the appointment message, "
-                "or send CONFIRM {code} / RESCHEDULE {code}."
+                "Unrecognized reply. Tap Confirm Visit or Reject Visit on the appointment message, "
+                "or send CONFIRM {code} / REJECT {code}."
             )
 
         action, code = parsed
