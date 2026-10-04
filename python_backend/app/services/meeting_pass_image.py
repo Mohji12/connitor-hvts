@@ -215,7 +215,7 @@ def _date_and_time(visit) -> tuple[str, str]:
     if end is not None:
         end_text = end.strftime("%I:%M %p").lstrip("0")
         if end_text != start_text:
-            return date_text, f"{start_text} – {end_text}"
+            return date_text, f"{start_text} - {end_text}"
     return date_text, start_text
 
 
@@ -367,7 +367,20 @@ def render_meeting_pass(content: MeetingPassContent) -> bytes:
         except Exception:
             pass
 
-    flat = base.convert("RGB")
+    flat = _fit_whatsapp_header(base.convert("RGB"))
     buffer = io.BytesIO()
     flat.save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+def _fit_whatsapp_header(image: Image.Image) -> Image.Image:
+    """Place the full pass on a square canvas.
+
+    WhatsApp center-crops a template header to 1:1. The blank artwork is
+    525x1024, so that crop was cutting off the Conninter logo and the footer.
+    """
+    margin = 28
+    side = max(image.width, image.height) + margin * 2
+    canvas = Image.new("RGB", (side, side), _PAGE)
+    canvas.paste(image, ((side - image.width) // 2, (side - image.height) // 2))
+    return canvas

@@ -1,5 +1,8 @@
+import io
 from datetime import datetime
 from types import SimpleNamespace
+
+from PIL import Image
 
 from app.services.meeting_pass_image import (
     MeetingPassContent,
@@ -99,3 +102,13 @@ def test_rendered_passes_differ_when_company_is_present() -> None:
     assert sales_png.startswith(b"\x89PNG")
     assert general_png.startswith(b"\x89PNG")
     assert sales_png != general_png
+
+
+def test_rendered_pass_is_square_so_whatsapp_shows_the_logos() -> None:
+    content = assemble_meeting_pass(None, _visit(visitor_type="GENERAL", company=None))
+    image = Image.open(io.BytesIO(render_meeting_pass(content))).convert("RGB")
+
+    assert image.width == image.height
+    assert image.width > 1024
+    # Conninter logo sits at the top of the blank. It must remain near the top of the square.
+    assert image.getpixel((image.width // 2, 80)) != (248, 248, 248)
