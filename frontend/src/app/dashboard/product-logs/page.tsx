@@ -13,11 +13,15 @@ interface AppLogRow {
   createdAt: string | null;
 }
 
-const LEVELS = ['', 'ERROR', 'WARNING'] as const;
+const LEVELS = [
+  { value: '', label: 'All' },
+  { value: 'ERROR', label: 'Error' },
+  { value: 'WARNING', label: 'Warning' },
+] as const;
 
 export default function ProductLogsPage() {
   const user = useAuthSession<{ role: string }>();
-  const [level, setLevel] = useState<(typeof LEVELS)[number]>('');
+  const [level, setLevel] = useState<(typeof LEVELS)[number]['value']>('');
   const [logs, setLogs] = useState<AppLogRow[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -63,11 +67,15 @@ export default function ProductLogsPage() {
             id="log-level"
             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
             value={level}
-            onChange={(event) => setLevel(event.target.value as (typeof LEVELS)[number])}
+            onChange={(event) =>
+              setLevel(event.target.value as (typeof LEVELS)[number]['value'])
+            }
           >
-            <option value="">All</option>
-            <option value="ERROR">Error</option>
-            <option value="WARNING">Warning</option>
+            {LEVELS.map((option) => (
+              <option key={option.label} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
           <button
             type="button"
