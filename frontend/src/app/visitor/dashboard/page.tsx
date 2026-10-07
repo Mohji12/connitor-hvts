@@ -102,8 +102,8 @@ function AppointmentCard({ item }: { item: VisitorAppointment }) {
         )}
 
         {item.status === 'APPROVED' && item.checkInQrCode && (
-          <div className="-mx-6 overflow-hidden bg-white text-center">
-            <p className="flex items-center justify-center gap-2 px-6 pt-3 text-sm font-medium text-emerald-900">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-4 py-4 text-center">
+            <p className="mb-3 flex items-center justify-center gap-2 text-sm font-medium text-emerald-900">
               <QrCode className="h-4 w-4" />
               Show this QR at hospital security
             </p>
@@ -111,10 +111,10 @@ function AppointmentCard({ item }: { item: VisitorAppointment }) {
             <img
               src={item.checkInQrCode}
               alt="Check-in QR code"
-              className="block w-full"
+              className="mx-auto aspect-square h-56 w-56 object-contain"
             />
             {item.checkInOtp && (
-              <p className="mt-2 px-6 pb-3 text-xs text-emerald-800">
+              <p className="mt-3 text-xs text-emerald-800">
                 Backup OTP: <span className="font-mono font-semibold">{item.checkInOtp}</span>
                 {item.checkInOtpExpiry && (
                   <> · valid until {formatDate(item.checkInOtpExpiry)}</>

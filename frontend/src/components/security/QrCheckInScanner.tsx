@@ -17,6 +17,18 @@ type Props = {
   permissionErrorHint?: string;
 };
 
+type Html5Scanner = {
+  stop: () => Promise<void>;
+  getRunningTrackCameraCapabilities?: () => {
+    zoomFeature: () => {
+      isSupported: () => boolean;
+      min: () => number;
+      max: () => number;
+      apply: (value: number) => Promise<void>;
+    };
+  };
+};
+
 /** Wait for React to paint the reader element before html5-qrcode measures it. */
 function waitForLayout(): Promise<void> {
   return new Promise((resolve) => {
@@ -24,6 +36,22 @@ function waitForLayout(): Promise<void> {
       requestAnimationFrame(() => resolve());
     });
   });
+}
+
+/** Prefer a light hardware zoom so the QR fills more of the frame. */
+async function applyScannerZoom(scanner: Html5Scanner): Promise<void> {
+  try {
+    const zoom = scanner.getRunningTrackCameraCapabilities?.().zoomFeature();
+    if (!zoom?.isSupported()) return;
+    const min = zoom.min();
+    const max = zoom.max();
+    if (!(max > min)) return;
+    // About 1.6× when the camera allows it — enough to lock faster without cropping too hard.
+    const target = Math.min(max, Math.max(min, min + (max - min) * 0.35));
+    await zoom.apply(Number(target.toFixed(2)));
+  } catch {
+    // Not every device exposes zoom; CSS scale below still helps.
+  }
 }
 
 export function QrCheckInScanner({
@@ -41,7 +69,7 @@ export function QrCheckInScanner({
   const [starting, setStarting] = React.useState(false);
   const [active, setActive] = React.useState(false);
   const [shouldStart, setShouldStart] = React.useState(false);
-  const scannerRef = React.useRef<{ stop: () => Promise<void> } | null>(null);
+  const scannerRef = React.useRef<Html5Scanner | null>(null);
   const handledRef = React.useRef(false);
   const onScanRef = React.useRef(onScan);
   onScanRef.current = onScan;
@@ -87,8 +115,19 @@ export function QrCheckInScanner({
         scannerRef.current = scanner;
 
         await scanner.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          {
+            facingMode: 'environment',
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          {
+            fps: 20,
+            aspectRatio: 1,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.72);
+              return { width: edge, height: edge };
+            },
+          },
           async (decodedText) => {
             if (handledRef.current) return;
             handledRef.current = true;
@@ -101,6 +140,7 @@ export function QrCheckInScanner({
         );
 
         if (!cancelled) {
+          await applyScannerZoom(scanner);
           setActive(true);
         }
       } catch {
@@ -133,7 +173,8 @@ export function QrCheckInScanner({
             id={elementId}
             className={cn(
               'min-h-[300px] w-full overflow-hidden rounded-lg border border-gray-200 bg-black',
-              '[&_video]:!block [&_video]:!h-full [&_video]:!max-h-[360px] [&_video]:!w-full [&_video]:object-cover',
+              // Slight digital zoom so the QR fills more of the scan box on phones without optical zoom.
+              '[&_video]:!block [&_video]:!h-full [&_video]:!max-h-[360px] [&_video]:!w-full [&_video]:scale-[1.35] [&_video]:object-cover',
               '[&_#qr-shaded-region]:!border-2 [&_#qr-shaded-region]:!border-emerald-400',
             )}
           />

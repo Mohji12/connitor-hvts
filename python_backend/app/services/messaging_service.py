@@ -32,6 +32,8 @@ from app.services.wapblaster_client import (
     send_wapblaster_order_delivered,
     send_wapblaster_phone_otp,
     send_wapblaster_visit_rejected,
+    send_wapblaster_online_meeting_doctor,
+    send_wapblaster_online_meeting_visitor,
     send_wapblaster_template,
     send_wapblaster_text,
 )
@@ -1646,6 +1648,140 @@ class WhatsAppService:
                 if index < len(languages) - 1:
                     logger.warning(
                         "Visit rejected template %s failed for %s (%s); retrying en_US",
+                        template,
+                        language,
+                        exc,
+                    )
+                    continue
+                raise
+        if last_error:
+            raise last_error
+        return False
+
+    def send_online_meeting_doctor(
+        self,
+        phone: str,
+        *,
+        doctor_name: str,
+        visitor_name: str,
+        organization: str,
+        purpose: str,
+        requested_date: str,
+        requested_time: str,
+        meeting_id: str,
+        meeting_url: str,
+    ) -> bool:
+        """Send conninter_online_meeting_doctor after an online visit is approved."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_online_meeting_doctor or "").strip()
+        if not template:
+            return False
+        if not (is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster"):
+            logger.warning(
+                "Online meeting doctor template is set but WapBlaster is not the WhatsApp provider"
+            )
+            return False
+        if is_test_mode_enabled(settings):
+            logger.info(
+                "[HVTS_TEST_MODE] Online meeting doctor %s to %s for %s",
+                template,
+                phone,
+                visitor_name,
+            )
+            return True
+        primary = (settings.whatsapp_template_online_meeting_doctor_language or "en_US").strip() or "en_US"
+        languages = [primary]
+        if primary != "en_US":
+            languages.append("en_US")
+        last_error: Exception | None = None
+        for index, language in enumerate(languages):
+            try:
+                send_wapblaster_online_meeting_doctor(
+                    phone,
+                    template_name=template,
+                    template_language=language,
+                    doctor_name=doctor_name,
+                    visitor_name=visitor_name,
+                    organization=organization,
+                    purpose=purpose,
+                    requested_date=requested_date,
+                    requested_time=requested_time,
+                    meeting_id=meeting_id,
+                    meeting_url=meeting_url,
+                )
+                return True
+            except Exception as exc:
+                last_error = exc
+                if index < len(languages) - 1:
+                    logger.warning(
+                        "Online meeting doctor template %s failed for %s (%s); retrying en_US",
+                        template,
+                        language,
+                        exc,
+                    )
+                    continue
+                raise
+        if last_error:
+            raise last_error
+        return False
+
+    def send_online_meeting_visitor(
+        self,
+        phone: str,
+        *,
+        visitor_name: str,
+        doctor_name: str,
+        hospital_name: str,
+        department: str,
+        requested_date: str,
+        requested_time: str,
+        meeting_id: str,
+        meeting_url: str,
+    ) -> bool:
+        """Send conninter_online_meeting_visitor after an online visit is approved."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_online_meeting_visitor or "").strip()
+        if not template:
+            return False
+        if not (is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster"):
+            logger.warning(
+                "Online meeting visitor template is set but WapBlaster is not the WhatsApp provider"
+            )
+            return False
+        if is_test_mode_enabled(settings):
+            logger.info(
+                "[HVTS_TEST_MODE] Online meeting visitor %s to %s for %s",
+                template,
+                phone,
+                visitor_name,
+            )
+            return True
+        primary = (settings.whatsapp_template_online_meeting_visitor_language or "en_US").strip() or "en_US"
+        languages = [primary]
+        if primary != "en_US":
+            languages.append("en_US")
+        last_error: Exception | None = None
+        for index, language in enumerate(languages):
+            try:
+                send_wapblaster_online_meeting_visitor(
+                    phone,
+                    template_name=template,
+                    template_language=language,
+                    visitor_name=visitor_name,
+                    doctor_name=doctor_name,
+                    hospital_name=hospital_name,
+                    department=department,
+                    requested_date=requested_date,
+                    requested_time=requested_time,
+                    meeting_id=meeting_id,
+                    meeting_url=meeting_url,
+                )
+                return True
+            except Exception as exc:
+                last_error = exc
+                if index < len(languages) - 1:
+                    logger.warning(
+                        "Online meeting visitor template %s failed for %s (%s); retrying en_US",
                         template,
                         language,
                         exc,

@@ -698,11 +698,45 @@ class NotificationsService:
             except Exception as exc:
                 logger.error("Failed to send online appointment email to %s: %s", visitor.email, exc)
 
-        if join_url:
-            self.sms.send_message(
-                visitor.phone,
-                f"Connitor: Online appointment approved with Dr. {doctor.name}. Join video consultation: {join_url}",
-            )
+        phone = self._visitor_phone(visitor)
+        if join_url and phone:
+            branch = self.db.get(Branch, visit.branchId)
+            hospital_name = "Hospital"
+            if branch is not None:
+                chain = getattr(branch, "hospitalChain", None)
+                chain_name = getattr(chain, "name", None) if chain is not None else None
+                if isinstance(chain_name, str) and chain_name.strip():
+                    hospital_name = chain_name.strip()
+                elif branch.name:
+                    hospital_name = branch.name
+            requested_date, requested_time = self._appointment_date_and_time(visit)
+            meeting_id = (visit.meetingRoomName or visit.smsApprovalCode or visit.id or "—").strip()
+            doctor_label = self._doctor_display_name(doctor)
+            sent = False
+            try:
+                sent = self.whatsapp.send_online_meeting_visitor(
+                    phone,
+                    visitor_name=name,
+                    doctor_name=f"Dr. {doctor_label}",
+                    hospital_name=hospital_name,
+                    department=self._department_name(visit),
+                    requested_date=requested_date,
+                    requested_time=requested_time,
+                    meeting_id=meeting_id,
+                    meeting_url=join_url,
+                )
+            except Exception as exc:
+                logger.error(
+                    "Failed to WhatsApp online meeting template to visitor %s: %s",
+                    phone,
+                    exc,
+                )
+            if not sent:
+                self.sms.send_message(
+                    phone,
+                    f"Connitor: Online appointment approved with Dr. {doctor.name}. "
+                    f"Join video consultation: {join_url}",
+                )
 
     def notify_doctor_online_approval(self, visit: Visit, doctor: User, visitor: Visitor) -> None:
         name = self._visitor_name(visitor)
@@ -729,10 +763,35 @@ class NotificationsService:
         else:
             self._email_user(doctor, "Online Appointment Approved", message)
         if start_url and doctor.phone:
-            self._sms_user(
-                doctor,
-                f"Connitor: Online appointment with {name} on {appt}. Start consultation: {start_url}",
-            )
+            purpose = (visit.purpose or "").strip()
+            if purpose.upper().startswith("[CUSTOM SLOT]"):
+                purpose = purpose[len("[CUSTOM SLOT]") :].strip()
+            requested_date, requested_time = self._appointment_date_and_time(visit)
+            meeting_id = (visit.meetingRoomName or visit.smsApprovalCode or visit.id or "—").strip()
+            sent = False
+            try:
+                sent = self.whatsapp.send_online_meeting_doctor(
+                    doctor.phone,
+                    doctor_name=self._doctor_display_name(doctor),
+                    visitor_name=name,
+                    organization=self._organization_for_doctor_template(visit),
+                    purpose=purpose or "Visit",
+                    requested_date=requested_date,
+                    requested_time=requested_time,
+                    meeting_id=meeting_id,
+                    meeting_url=start_url,
+                )
+            except Exception as exc:
+                logger.error(
+                    "Failed to WhatsApp online meeting template to doctor %s: %s",
+                    doctor.phone,
+                    exc,
+                )
+            if not sent:
+                self._sms_user(
+                    doctor,
+                    f"Connitor: Online appointment with {name} on {appt}. Start consultation: {start_url}",
+                )
         self.db.commit()
 
     def notify_online_meeting_started(self, visit: Visit, visitor: Visitor, doctor: User) -> None:

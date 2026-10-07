@@ -263,6 +263,96 @@ def test_visit_rejected_template_field_order(mock_post: MagicMock) -> None:
 
 
 @patch("app.services.wapblaster_client.httpx.post")
+def test_online_meeting_doctor_template_field_order(mock_post: MagicMock) -> None:
+    from app.services.wapblaster_client import send_wapblaster_online_meeting_doctor
+
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"result": "success"}
+    mock_post.return_value = response
+
+    with patch("app.services.wapblaster_client.get_settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            HVTS_TEST_MODE=False,
+            WHATSAPP_PROVIDER="wapblaster",
+            WAPBLASTER_API_BASE="https://www.wapblaster.com/api",
+            WAPBLASTER_VENDOR_UID="vendor-uid",
+            WAPBLASTER_ACCESS_TOKEN="test-token",
+        )
+        send_wapblaster_online_meeting_doctor(
+            "7003636111",
+            template_name="conninter_online_meeting_doctor",
+            template_language="en_US",
+            doctor_name="Arjun Desai",
+            visitor_name="Rahul Mehta",
+            organization="Sunrise Pharma",
+            purpose="Product discussion",
+            requested_date="08 Oct 2026",
+            requested_time="11:00 AM",
+            meeting_id="visit-abc-123",
+            meeting_url="https://www.conninter.com/meet/?t=host-token-xyz",
+        )
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["template_name"] == "conninter_online_meeting_doctor"
+    assert payload["template_language"] == "en_US"
+    assert payload["field_1"] == "Arjun Desai"
+    assert payload["field_2"] == "Rahul Mehta"
+    assert payload["field_3"] == "Sunrise Pharma"
+    assert payload["field_4"] == "Product discussion"
+    assert payload["field_5"] == "08 Oct 2026"
+    assert payload["field_6"] == "11:00 AM"
+    assert payload["field_7"] == "visit-abc-123"
+    assert payload["field_8"] == "https://www.conninter.com/meet/?t=host-token-xyz"
+    assert payload["button_0"] == "host-token-xyz"
+
+
+@patch("app.services.wapblaster_client.httpx.post")
+def test_online_meeting_visitor_template_field_order(mock_post: MagicMock) -> None:
+    from app.services.wapblaster_client import send_wapblaster_online_meeting_visitor
+
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"result": "success"}
+    mock_post.return_value = response
+
+    with patch("app.services.wapblaster_client.get_settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            HVTS_TEST_MODE=False,
+            WHATSAPP_PROVIDER="wapblaster",
+            WAPBLASTER_API_BASE="https://www.wapblaster.com/api",
+            WAPBLASTER_VENDOR_UID="vendor-uid",
+            WAPBLASTER_ACCESS_TOKEN="test-token",
+        )
+        send_wapblaster_online_meeting_visitor(
+            "8625877312",
+            template_name="conninter_online_meeting_visitor",
+            template_language="en_US",
+            visitor_name="Rahul Mehta",
+            doctor_name="Dr. Arjun Desai",
+            hospital_name="Ovum Woman & Child Speciality Hospital",
+            department="Fertility & IVF",
+            requested_date="08 Oct 2026",
+            requested_time="11:00 AM",
+            meeting_id="visit-abc-123",
+            meeting_url="https://www.conninter.com/meet/?t=guest-token-xyz",
+        )
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["template_name"] == "conninter_online_meeting_visitor"
+    assert payload["template_language"] == "en_US"
+    assert payload["field_1"] == "Rahul Mehta"
+    assert payload["field_2"] == "Dr. Arjun Desai"
+    assert payload["field_3"] == "Ovum Woman & Child Speciality Hospital"
+    assert payload["field_4"] == "Fertility & IVF"
+    assert payload["field_5"] == "08 Oct 2026"
+    assert payload["field_6"] == "11:00 AM"
+    assert payload["field_7"] == "visit-abc-123"
+    assert payload["field_8"] == "https://www.conninter.com/meet/?t=guest-token-xyz"
+    assert payload["button_0"] == "guest-token-xyz"
+
+
+@patch("app.services.wapblaster_client.httpx.post")
 def test_order_delivered_template_field_order(mock_post: MagicMock) -> None:
     from app.services.wapblaster_client import send_wapblaster_order_delivered
 

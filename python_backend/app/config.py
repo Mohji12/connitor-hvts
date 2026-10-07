@@ -261,6 +261,26 @@ class Settings(BaseSettings):
         validation_alias="WHATSAPP_TEMPLATE_VISIT_REJECTED_LANGUAGE",
         description="conninter_visit_rejected language. The approved copy is English (US).",
     )
+    whatsapp_template_online_meeting_doctor: str = Field(
+        default="conninter_online_meeting_doctor",
+        validation_alias="WHATSAPP_TEMPLATE_ONLINE_MEETING_DOCTOR",
+        description="Sent to the doctor when an online visit is approved with a LiveKit room.",
+    )
+    whatsapp_template_online_meeting_doctor_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_ONLINE_MEETING_DOCTOR_LANGUAGE",
+        description="conninter_online_meeting_doctor language. Match the approved template (English US).",
+    )
+    whatsapp_template_online_meeting_visitor: str = Field(
+        default="conninter_online_meeting_visitor",
+        validation_alias="WHATSAPP_TEMPLATE_ONLINE_MEETING_VISITOR",
+        description="Sent to the visitor when an online visit is approved with a LiveKit room.",
+    )
+    whatsapp_template_online_meeting_visitor_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_ONLINE_MEETING_VISITOR_LANGUAGE",
+        description="conninter_online_meeting_visitor language. Match the approved template (English US).",
+    )
     whatsapp_template_delivery_pass: str = Field(
         default="conninter_delivery_pass",
         validation_alias="WHATSAPP_TEMPLATE_DELIVERY_PASS",

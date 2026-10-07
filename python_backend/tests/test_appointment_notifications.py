@@ -379,6 +379,66 @@ class AppointmentNotificationsTests(unittest.TestCase):
             visit_id="604818",
         )
 
+    def test_online_approval_sends_doctor_meeting_template(self) -> None:
+        visit = _visit()
+        visit.appointmentMode = AppointmentMode.ONLINE.value
+        visit.visitorType = "SALES_REPRESENTATIVE"
+        visit.companyName = "Sunrise Pharma"
+        visit.purpose = "Product discussion"
+        visit.meetingRoomName = "visit-visit-1"
+        visit.meetingHostUrl = "https://www.conninter.com/meet/?t=host-token"
+        visit.smsApprovalCode = None
+        visitor = _visitor()
+        doctor = _doctor()
+        self.service.whatsapp.send_online_meeting_doctor.return_value = True
+
+        self.service.notify_doctor_online_approval(visit, doctor, visitor)
+
+        self.service.whatsapp.send_online_meeting_doctor.assert_called_once_with(
+            doctor.phone,
+            doctor_name="Arjun Desai",
+            visitor_name="Rahul Mehta",
+            organization="Sunrise Pharma",
+            purpose="Product discussion",
+            requested_date="10 Jun 2026",
+            requested_time="10:00 AM",
+            meeting_id="visit-visit-1",
+            meeting_url="https://www.conninter.com/meet/?t=host-token",
+        )
+        self.service.sms.send_message.assert_not_called()
+
+    @patch.object(NotificationsService, "_send_calendar_invite")
+    def test_online_approval_sends_visitor_meeting_template(self, _mock_calendar: MagicMock) -> None:
+        visit = _visit()
+        visit.appointmentMode = AppointmentMode.ONLINE.value
+        visit.departmentId = None
+        visit.department = "Fertility & IVF"
+        visit.meetingRoomName = "visit-visit-1"
+        visit.meetingJoinUrl = "https://www.conninter.com/meet/?t=guest-token"
+        visit.smsApprovalCode = None
+        visitor = _visitor()
+        doctor = _doctor()
+        branch = _branch()
+        branch.hospitalChain = MagicMock(name="Ovum Woman & Child Speciality Hospital")
+        branch.hospitalChain.name = "Ovum Woman & Child Speciality Hospital"
+        self.db.get.return_value = branch
+        self.service.whatsapp.send_online_meeting_visitor.return_value = True
+
+        self.service.notify_visitor_online_approval(visit, visitor, doctor)
+
+        self.service.whatsapp.send_online_meeting_visitor.assert_called_once_with(
+            visitor.phone,
+            visitor_name="Rahul Mehta",
+            doctor_name="Dr. Arjun Desai",
+            hospital_name="Ovum Woman & Child Speciality Hospital",
+            department="Fertility & Ivf",
+            requested_date="10 Jun 2026",
+            requested_time="10:00 AM",
+            meeting_id="visit-visit-1",
+            meeting_url="https://www.conninter.com/meet/?t=guest-token",
+        )
+        self.service.sms.send_message.assert_not_called()
+
     def test_check_in_rejects_online_visit(self) -> None:
         visit = _visit()
         visit.status = VisitStatus.APPROVED.value

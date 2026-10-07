@@ -314,6 +314,97 @@ def send_wapblaster_visit_rejected(
     )
 
 
+def _meet_join_button_param(meeting_url: str) -> str:
+    """Dynamic URL button value for /meet/?t=… links (token only when present)."""
+    from urllib.parse import parse_qs, urlparse
+
+    url = (meeting_url or "").strip()
+    if not url:
+        return "—"
+    token = (parse_qs(urlparse(url).query).get("t") or [None])[0]
+    return (token or url).strip() or "—"
+
+
+def send_wapblaster_online_meeting_doctor(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    doctor_name: str,
+    visitor_name: str,
+    organization: str,
+    purpose: str,
+    requested_date: str,
+    requested_time: str,
+    meeting_id: str,
+    meeting_url: str,
+) -> None:
+    """Doctor notice when an online visit is approved.
+
+    Body order matches conninter_online_meeting_doctor: doctor, visitor,
+    organization, purpose, date, time, meeting id, meeting link. Join Meeting
+    is button_0 (dynamic URL suffix for the /meet/?t= token).
+    """
+    link = (meeting_url or "").strip() or "—"
+    fields = [
+        doctor_name or "Doctor",
+        visitor_name or "Visitor",
+        organization or "—",
+        purpose or "Visit",
+        requested_date or "—",
+        requested_time or "—",
+        meeting_id or "—",
+        link,
+    ]
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=fields,
+        extra={"button_0": _meet_join_button_param(link)},
+    )
+
+
+def send_wapblaster_online_meeting_visitor(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    visitor_name: str,
+    doctor_name: str,
+    hospital_name: str,
+    department: str,
+    requested_date: str,
+    requested_time: str,
+    meeting_id: str,
+    meeting_url: str,
+) -> None:
+    """Visitor notice when an online visit is approved.
+
+    Body order matches conninter_online_meeting_visitor: visitor, doctor,
+    hospital, department, date, time, meeting id, meeting link. Join Meeting
+    is button_0 (dynamic URL suffix for the /meet/?t= token).
+    """
+    link = (meeting_url or "").strip() or "—"
+    fields = [
+        visitor_name or "Visitor",
+        doctor_name or "Doctor",
+        hospital_name or "Hospital",
+        department or "—",
+        requested_date or "—",
+        requested_time or "—",
+        meeting_id or "—",
+        link,
+    ]
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=fields,
+        extra={"button_0": _meet_join_button_param(link)},
+    )
+
+
 def send_wapblaster_meeting_pass(
     phone: str,
     *,

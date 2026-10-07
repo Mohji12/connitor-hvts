@@ -26,11 +26,13 @@ _IDENTITY_BOX = (258, 192, 504, 268)
 # Value lines sit on the printed underlines and stop at the end of each line.
 _LEFT_VALUE = (108, 130)
 _RIGHT_VALUE = (354, 128)
-# Open band between the date card and "Valid for today only" (text starts ~y=710).
-# Divider is the printed line at x=262. The QR and logo fill that band.
-_CARD_TOP = 518
-_CARD_SIZE = 150
+# Open band between the date card and "Valid for today only" (text starts ~y=677).
+# Divider is the printed line at x=262. QR is centered in the left frame.
+_QR_FRAME = (36, 540, 250, 668)
+_QR_SIZE = 128
 _DIVIDER_X = 262
+_CARD_TOP = _QR_FRAME[1]
+_CARD_SIZE = _QR_SIZE
 _NAVY = (16, 32, 84)
 _BLACK = (20, 28, 48)
 _BLUE = (0, 112, 214)
@@ -174,7 +176,7 @@ def _qr_module_image(payload: str) -> Image.Image:
     code = qrcode.QRCode(
         error_correction=qrcode.constants.ERROR_CORRECT_M,
         box_size=1,
-        border=1,
+        border=3,
     )
     code.add_data(payload)
     code.make(fit=True)
@@ -421,10 +423,9 @@ def render_meeting_pass(content: MeetingPassContent) -> bytes:
     card_bottom = _CARD_TOP + _CARD_SIZE
     if content.qr_png:
         try:
-            left_edge = 16
-            right_edge = _DIVIDER_X - 6
-            left = left_edge + (right_edge - left_edge - _CARD_SIZE) // 2
-            paste_crisp_qr(base, content.qr_png, left, _CARD_TOP, _CARD_SIZE)
+            left = _QR_FRAME[0] + (_QR_FRAME[2] - _QR_FRAME[0] - _QR_SIZE) // 2
+            top = _QR_FRAME[1] + (_QR_FRAME[3] - _QR_FRAME[1] - _QR_SIZE) // 2
+            paste_crisp_qr(base, content.qr_png, left, top, _QR_SIZE)
         except Exception:
             pass
     if content.logo_png:
@@ -432,7 +433,7 @@ def render_meeting_pass(content: MeetingPassContent) -> bytes:
             _paste_logo(
                 base,
                 content.logo_png,
-                (_DIVIDER_X + 8, _CARD_TOP, 512, card_bottom),
+                (_DIVIDER_X + 12, _CARD_TOP, 508, card_bottom),
                 plate=False,
             )
         except Exception:
