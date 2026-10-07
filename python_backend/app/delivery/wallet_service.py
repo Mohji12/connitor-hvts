@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.delivery.utils import bad_request, not_found
+from app.delivery.utils import bad_request
 from app.models.delivery_entities import VendorWallet, WalletTransaction
 
 
@@ -26,9 +26,13 @@ class WalletService:
     def recharge(self, user: dict, vendor_id: str, amount: float) -> dict:
         if amount <= 0:
             raise bad_request("Amount must be positive")
+        if user.get("role") == "DISTRIBUTOR" and user.get("distributorId") != vendor_id:
+            raise bad_request("Cannot recharge another vendor's wallet")
         wallet = self.db.query(VendorWallet).filter(VendorWallet.vendorId == vendor_id).first()
         if not wallet:
-            raise not_found("Wallet")
+            wallet = VendorWallet(vendorId=vendor_id, balance=Decimal("0"))
+            self.db.add(wallet)
+            self.db.flush()
         wallet.balance += Decimal(str(amount))
         self.db.add(
             WalletTransaction(
@@ -39,6 +43,7 @@ class WalletService:
             )
         )
         self.db.commit()
+        self.db.refresh(wallet)
         return {"vendorId": vendor_id, "balance": float(wallet.balance)}
 
     def list_transactions(self, vendor_id: str, limit: int = 50) -> list[dict]:

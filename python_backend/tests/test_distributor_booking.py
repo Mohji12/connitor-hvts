@@ -186,6 +186,48 @@ def test_create_agent_does_not_create_user_account(db):
     assert db.query(User).filter(User.role == "DELIVERY_AGENT").count() == 0
 
 
+def test_create_agent_handles_shared_synthetic_email(db):
+    """Phone-based synthetic emails must not 400 when another vendor already used them."""
+    branch = db.query(Branch).first()
+    dist_a, user_a = _seed_vendor(db, branch.id)
+    dist_b = Distributor(
+        id=str(uuid.uuid4()),
+        vendorCode="VEN-000002",
+        vendorName="Other Vendor",
+        vendorType="MEDICAL",
+        isActive=True,
+        verificationStatus="APPROVED",
+        onboardingStatus="APPROVED",
+    )
+    db.add(dist_b)
+    db.flush()
+    user_b = User(
+        id=str(uuid.uuid4()),
+        name="Other Dist",
+        phone="9222222222",
+        email="dist2@test.com",
+        role="DISTRIBUTOR",
+        distributorId=dist_b.id,
+        passwordHash=hash_password("Password1!"),
+        isActive=True,
+    )
+    db.add(user_b)
+    db.commit()
+
+    shared = "7983982875@delivery.local"
+    AgentVehicleService(db).create_agent(
+        {"id": user_a.id, "role": "DISTRIBUTOR", "distributorId": dist_a.id},
+        {"name": "Driver A", "email": shared, "phone": "7983982875"},
+    )
+    result = AgentVehicleService(db).create_agent(
+        {"id": user_b.id, "role": "DISTRIBUTOR", "distributorId": dist_b.id},
+        {"name": "Driver B", "email": shared, "phone": "7983982875"},
+    )
+    assert result["name"] == "Driver B"
+    assert result["email"] != shared
+    assert result["phone"] == "7983982875"
+
+
 def test_book_delivery_sends_driver_assignment_email(db):
     branch = db.query(Branch).first()
     dist, user = _seed_vendor(db, branch.id)

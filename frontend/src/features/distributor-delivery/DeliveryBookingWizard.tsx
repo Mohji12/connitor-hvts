@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { CheckCircle2, Plus, X } from 'lucide-react';
 import {
@@ -13,6 +14,7 @@ import {
   type VehicleCategory,
 } from '@/lib/services/distributorDeliveryService';
 import { todayIstDateIso, formatIstDateTime } from '@/lib/datetime';
+import { useAuthSession } from '@/hooks/useAuthSession';
 import { DeliveryStepper } from '@/features/delivery-management/ui';
 import { DriverPhotoField } from '@/features/distributor-delivery/DriverPhotoField';
 import { Button } from '@/components/ui/button';
@@ -32,7 +34,24 @@ type Step = 1 | 2;
 
 const WIZARD_STEPS = ['Details', 'Payment'];
 
-type PayMethod = 'UPI' | 'CARD';
+type PayMethod = 'WALLET' | 'UPI' | 'CARD';
+
+function apiDetail(error: unknown): string {
+  if (typeof error !== 'object' || !error || !('response' in error)) return '';
+  const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) =>
+        typeof item === 'object' && item && 'msg' in item
+          ? String((item as { msg: string }).msg)
+          : String(item),
+      )
+      .filter(Boolean)
+      .join('; ');
+  }
+  return '';
+}
 
 const PACKAGE_TYPES: PackageType[] = ['Small', 'Medium', 'Large', 'Equipment', 'Custom'];
 const VEHICLE_TYPES: VehicleCategory[] = ['Bike', 'Auto', 'SCV', 'LCV', 'MCV'];
@@ -142,6 +161,8 @@ function computeQuote(packages: PackageRow[], vehicleType: VehicleCategory | '')
 }
 
 export function DeliveryBookingWizard(): React.ReactElement {
+  const user = useAuthSession<{ distributorId?: string }>();
+  const vendorId = user?.distributorId;
   const [step, setStep] = React.useState<Step>(1);
   const [branches, setBranches] = React.useState<ApprovedBranch[]>([]);
   const [branchId, setBranchId] = React.useState('');
@@ -165,7 +186,8 @@ export function DeliveryBookingWizard(): React.ReactElement {
   const [agentPhone, setAgentPhone] = React.useState('');
   const [packages, setPackages] = React.useState<PackageRow[]>([newPackageRow()]);
   const [loading, setLoading] = React.useState(false);
-  const [payMethod, setPayMethod] = React.useState<PayMethod>('UPI');
+  const [payMethod, setPayMethod] = React.useState<PayMethod>('WALLET');
+  const [walletBalance, setWalletBalance] = React.useState<number | null>(null);
   const [upiId, setUpiId] = React.useState('');
   const [cardNumber, setCardNumber] = React.useState('');
   const [cardExpiry, setCardExpiry] = React.useState('');
@@ -232,6 +254,13 @@ export function DeliveryBookingWizard(): React.ReactElement {
   }, [branchId, slotDate, feePreview?.slotMinutes]);
 
   React.useEffect(() => {
+    if (step !== 2 || !vendorId) return;
+    DistributorDeliveryService.getWallet(vendorId)
+      .then((w) => setWalletBalance(w.balance))
+      .catch(() => setWalletBalance(null));
+  }, [step, vendorId]);
+
+  React.useEffect(() => {
     if (vehicleMode === 'existing' && selectedVehicle?.vehicleType) {
       const vt = selectedVehicle.vehicleType.toUpperCase();
       let matched = VEHICLE_TYPES.find((t) => t.toUpperCase() === vt);
@@ -292,8 +321,16 @@ export function DeliveryBookingWizard(): React.ReactElement {
     }));
 
   const canPay = (): boolean => {
+    if (payMethod === 'WALLET') {
+      if (walletBalance == null || !feePreview) return false;
+      return walletBalance >= feePreview.walletFee;
+    }
     if (payMethod === 'UPI') return upiId.trim().length >= 3;
-    return cardNumber.replace(/\s/g, '').length >= 12 && cardExpiry.trim().length >= 3 && cardCvv.trim().length >= 3;
+    return (
+      cardNumber.replace(/\s/g, '').length >= 12 &&
+      cardExpiry.trim().length >= 3 &&
+      cardCvv.trim().length >= 3
+    );
   };
 
   const submit = async (simulateFailure = false) => {
@@ -303,35 +340,46 @@ export function DeliveryBookingWizard(): React.ReactElement {
       return;
     }
     if (!canPay()) {
-      toast.error(payMethod === 'UPI' ? 'Enter a UPI ID' : 'Enter card details');
+      if (payMethod === 'WALLET') {
+        toast.error('Insufficient wallet balance — recharge under Wallet, then try again.');
+      } else {
+        toast.error(payMethod === 'UPI' ? 'Enter a UPI ID' : 'Enter card details');
+      }
       return;
     }
     setLoading(true);
     try {
-      // Brief fake gateway delay for demo UX
-      await new Promise((r) => setTimeout(r, 1200));
+      // Brief fake gateway delay for online demo UX
+      if (payMethod !== 'WALLET') {
+        await new Promise((r) => setTimeout(r, 1200));
+      }
+      const phoneDigits = agentPhone.trim().replace(/\D/g, '');
       const driverEmail =
         agentEmail.trim() ||
-        `${agentPhone.trim().replace(/\D/g, '') || 'driver'}@delivery.local`;
+        `${phoneDigits || 'driver'}.${(vendorId || 'local').slice(0, 8)}@delivery.local`;
       let resolvedAgentId = agentMode === 'existing' ? agentId : '';
-      if (driverPhoto) {
-        if (!resolvedAgentId) {
-          try {
-            const created = await DistributorDeliveryService.createAgent({
-              name: agentName.trim(),
-              email: driverEmail,
-              phone: agentPhone.trim() || undefined,
-            });
-            resolvedAgentId = created.id;
-          } catch (createError) {
-            const rows = await DistributorDeliveryService.listAgents();
-            const match = rows.find(
-              (agent) => agent.email?.toLowerCase() === driverEmail.toLowerCase(),
+      if (!resolvedAgentId) {
+        try {
+          const created = await DistributorDeliveryService.createAgent({
+            name: agentName.trim(),
+            email: driverEmail,
+            phone: agentPhone.trim() || undefined,
+          });
+          resolvedAgentId = created.id;
+        } catch (createError) {
+          const rows = await DistributorDeliveryService.listAgents();
+          const match = rows.find((agent) => {
+            const agentPhoneDigits = (agent.phone || '').replace(/\D/g, '');
+            return (
+              agent.email?.toLowerCase() === driverEmail.toLowerCase() ||
+              (phoneDigits.length >= 10 && agentPhoneDigits.slice(-10) === phoneDigits.slice(-10))
             );
-            if (!match) throw createError;
-            resolvedAgentId = match.id;
-          }
+          });
+          if (!match) throw createError;
+          resolvedAgentId = match.id;
         }
+      }
+      if (driverPhoto && resolvedAgentId) {
         await DistributorDeliveryService.uploadAgentPhoto(resolvedAgentId, driverPhoto.file);
       }
       const payload = {
@@ -358,7 +406,7 @@ export function DeliveryBookingWizard(): React.ReactElement {
               email: driverEmail,
               phone: agentPhone.trim() || undefined,
             },
-        paymentMethod: 'DUMMY' as const,
+        paymentMethod: (payMethod === 'WALLET' ? 'WALLET' : 'DUMMY') as 'WALLET' | 'DUMMY',
       };
       const result = await DistributorDeliveryService.bookDelivery(payload);
       setSuccess({
@@ -367,11 +415,7 @@ export function DeliveryBookingWizard(): React.ReactElement {
       });
       toast.success('Payment successful — delivery booked');
     } catch (e: unknown) {
-      const detail =
-        typeof e === 'object' && e && 'response' in e
-          ? String((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? '')
-          : '';
-      toast.error(detail || 'Payment / booking failed');
+      toast.error(apiDetail(e) || 'Payment / booking failed');
     } finally {
       setLoading(false);
     }
@@ -898,7 +942,7 @@ export function DeliveryBookingWizard(): React.ReactElement {
           <CardHeader>
             <CardTitle>Payment</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Demo payment only — no real money is charged. Complete payment to confirm the booking.
+              Pay from your distributor wallet, or use UPI/Card (demo — no real money is charged).
             </p>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
@@ -965,7 +1009,15 @@ export function DeliveryBookingWizard(): React.ReactElement {
 
             <div className="space-y-3 rounded-lg border p-4">
               <Label>Payment method</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={payMethod === 'WALLET' ? 'default' : 'outline'}
+                  className={payMethod === 'WALLET' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                  onClick={() => setPayMethod('WALLET')}
+                >
+                  Wallet
+                </Button>
                 <Button
                   type="button"
                   variant={payMethod === 'UPI' ? 'default' : 'outline'}
@@ -984,7 +1036,28 @@ export function DeliveryBookingWizard(): React.ReactElement {
                 </Button>
               </div>
 
-              {payMethod === 'UPI' ? (
+              {payMethod === 'WALLET' ? (
+                <div className="space-y-2 rounded-md bg-slate-50 p-3">
+                  <p className="font-medium text-slate-900">
+                    Balance: ₹{walletBalance != null ? walletBalance.toFixed(2) : '—'}
+                  </p>
+                  {feePreview && walletBalance != null && walletBalance < feePreview.walletFee ? (
+                    <p className="text-sm text-red-700">
+                      Need ₹{feePreview.walletFee.toFixed(2)}. Recharge your wallet first.
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      Fee is deducted from your distributor wallet when you confirm.
+                    </p>
+                  )}
+                  <Link
+                    href="/vendor/wallet"
+                    className="inline-block text-sm font-medium text-amber-700 underline-offset-2 hover:underline"
+                  >
+                    Recharge wallet
+                  </Link>
+                </div>
+              ) : payMethod === 'UPI' ? (
                 <div>
                   <Label htmlFor="upi-id">UPI ID</Label>
                   <Input
@@ -994,6 +1067,7 @@ export function DeliveryBookingWizard(): React.ReactElement {
                     onChange={(e) => setUpiId(e.target.value)}
                     autoComplete="off"
                   />
+                  <p className="mt-1 text-xs text-muted-foreground">Demo only — no real charge.</p>
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1027,6 +1101,9 @@ export function DeliveryBookingWizard(): React.ReactElement {
                       autoComplete="off"
                     />
                   </div>
+                  <p className="sm:col-span-2 text-xs text-muted-foreground">
+                    Demo only — no real charge.
+                  </p>
                 </div>
               )}
             </div>

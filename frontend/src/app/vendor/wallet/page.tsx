@@ -45,19 +45,28 @@ export default function VendorWalletPage(): React.ReactElement {
 
   const recharge = async () => {
     if (!vendorId) return;
+    const value = Number(amount);
+    if (!(value > 0)) {
+      toast.error('Enter a positive amount');
+      return;
+    }
     try {
-      await DistributorDeliveryService.rechargeWallet(vendorId, Number(amount));
+      await DistributorDeliveryService.rechargeWallet(vendorId, value);
       toast.success('Wallet recharged');
       await load();
-    } catch {
-      toast.error('Recharge failed');
+    } catch (e: unknown) {
+      const detail =
+        typeof e === 'object' && e && 'response' in e
+          ? String((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? '')
+          : '';
+      toast.error(detail || 'Recharge failed');
     }
   };
 
   return (
     <DeliveryPageShell
       title="Wallet"
-      subtitle="Delivery booking fees are debited from this balance when wallet billing is enabled."
+      subtitle="Recharge here, then choose Wallet on the delivery booking payment step. Fees are deducted from this balance."
     >
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="border-[#001B71]/08 bg-white shadow-sm">
@@ -65,10 +74,20 @@ export default function VendorWalletPage(): React.ReactElement {
             <CardTitle>Balance</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-4xl font-bold text-slate-900">₹{balance ?? '—'}</p>
+            <p className="text-4xl font-bold text-slate-900">
+              ₹{balance != null ? balance.toFixed(2) : '—'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Enter an amount and tap Recharge (demo credit — no real payment gateway).
+            </p>
             <div className="flex gap-2">
-              <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
-              <Button onClick={() => void recharge()}>
+              <Input
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              <Button onClick={() => void recharge()} disabled={!vendorId || !(Number(amount) > 0)}>
                 Recharge
               </Button>
             </div>

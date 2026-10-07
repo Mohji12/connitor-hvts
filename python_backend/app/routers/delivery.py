@@ -109,7 +109,7 @@ class VehicleCreateBody(BaseModel):
 
 class AgentCreateBody(BaseModel):
     name: str
-    email: str
+    email: str | None = None
     phone: str | None = None
     licenseNumber: str | None = None
 
