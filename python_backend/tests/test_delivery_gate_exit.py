@@ -144,21 +144,20 @@ def _seed_received_delivery(db, branch_id: str) -> tuple[InboundDelivery, dict, 
     return delivery, user, payload, signature
 
 
-def test_scan_suggests_mark_exit_when_received(db):
+def test_scan_suggests_mark_exit_when_inside_with_entry_qr(db):
     branch = db.query(Branch).first()
     delivery, user, payload, signature = _seed_received_delivery(db, branch.id)
-    delivery.status = DeliveryStatus.RECEIVED.value
+    delivery.status = DeliveryStatus.ARRIVED_AT_GATE.value
     db.commit()
 
-    # ENTRY QR while RECEIVED should not suggest exit — need checkout QR
     with patch("app.delivery.gate_service.hmac") as mock_hmac:
         mock_hmac.new.return_value.hexdigest.return_value = signature
         mock_hmac.compare_digest.return_value = True
         result = DeliveryGateService(db).scan_qr(user, payload, signature)
 
-    assert result["suggestedAction"] == "INFO"
+    assert result["suggestedAction"] == "MARK_EXIT"
     assert result["qrKind"] == "ENTRY"
-    assert result["delivery"]["status"] == DeliveryStatus.RECEIVED.value
+    assert result["delivery"]["status"] == DeliveryStatus.ARRIVED_AT_GATE.value
 
 
 def test_process_qr_auto_exits_and_returns_duration(db):
@@ -204,7 +203,8 @@ def test_process_qr_auto_exits_and_returns_duration(db):
     assert serialized["exitTime"] is not None
 
 
-def test_entry_qr_does_not_auto_exit_when_received(db):
+def test_same_whatsapp_entry_qr_auto_exits_when_at_gate(db):
+    """Driver WhatsApp pass QR is ENTRY — second scan after check-in marks exit."""
     branch = db.query(Branch).first()
     delivery, user, payload, signature = _seed_received_delivery(db, branch.id)
     gate = DeliveryGateService(db)
@@ -213,18 +213,21 @@ def test_entry_qr_does_not_auto_exit_when_received(db):
     ) as checkout_notify:
         checkout_notify.return_value = {"emailsSent": 0, "recipients": []}
         gate.allow_entry(user, delivery.id)
-    delivery = db.get(InboundDelivery, delivery.id)
-    delivery.status = DeliveryStatus.RECEIVED.value
-    db.commit()
 
-    with patch("app.delivery.gate_service.hmac") as mock_hmac:
+    assert db.get(InboundDelivery, delivery.id).status == DeliveryStatus.ARRIVED_AT_GATE.value
+
+    with patch("app.delivery.gate_service.hmac") as mock_hmac, patch(
+        "app.services.notifications_service.NotificationsService.notify_on_delivery_exit"
+    ) as notify:
         mock_hmac.new.return_value.hexdigest.return_value = signature
         mock_hmac.compare_digest.return_value = True
+        notify.return_value = None
         result = gate.process_scanned_qr(user, payload, signature, auto_exit=True)
 
-    assert result.get("actionTaken") is None
-    assert result["suggestedAction"] == "INFO"
-    assert db.get(InboundDelivery, delivery.id).status == DeliveryStatus.RECEIVED.value
+    assert result["actionTaken"] == "MARK_EXIT"
+    assert result["status"] == DeliveryStatus.EXITED.value
+    assert db.get(InboundDelivery, delivery.id).status == DeliveryStatus.EXITED.value
+    notify.assert_called_once()
 
 
 def test_mark_exit_emails_distributor_and_driver(db):

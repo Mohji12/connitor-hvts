@@ -139,6 +139,11 @@ export function TodayDeliveriesTab({ branchId, className }: Props): React.ReactE
         {deliveries.map((d) => {
           const onHold = d.status === 'ON_HOLD';
           const canHold = d.status === 'SCHEDULED' || d.status === 'APPROVED';
+          const inside =
+            d.status === 'ARRIVED_AT_GATE' ||
+            d.status === 'GATE_VERIFIED' ||
+            d.status === 'IN_PROGRESS' ||
+            d.status === 'RECEIVED';
           return (
             <li key={d.id}>
               <Card className={onHold ? 'border-rose-200 bg-rose-50/40' : undefined}>
@@ -171,6 +176,11 @@ export function TodayDeliveriesTab({ branchId, className }: Props): React.ReactE
                       {d.holdUntil ? <p>Until: {formatIstDateTime(d.holdUntil)}</p> : null}
                     </div>
                   )}
+                  {inside ? (
+                    <p className="text-muted-foreground">
+                      Inside — open Delivery Scan and scan the same WhatsApp QR to check out.
+                    </p>
+                  ) : null}
                   <div className="flex flex-wrap gap-2 pt-1">
                     {canHold && (
                       <Button
@@ -199,7 +209,8 @@ export function TodayDeliveriesTab({ branchId, className }: Props): React.ReactE
                     {!onHold && (
                       <Button variant="outline" size="sm" asChild>
                         <Link href="/security/dashboard?tab=delivery-scan">
-                          <ScanLine className="h-4 w-4 mr-1" /> Scan QR at gate
+                          <ScanLine className="h-4 w-4 mr-1" />
+                          {inside ? 'Scan QR to check out' : 'Scan QR at gate'}
                         </Link>
                       </Button>
                     )}

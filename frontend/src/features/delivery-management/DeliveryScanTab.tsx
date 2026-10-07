@@ -197,15 +197,15 @@ export function DeliveryScanTab({ branchId }: DeliveryScanTabProps): React.React
         <CardHeader>
           <CardTitle>Scan delivery QR</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Scan the driver&apos;s check-in QR to allow entry. After entry, a checkout QR is emailed —
-            scan that after GRN to exit.
+            Scan the driver&apos;s WhatsApp delivery pass QR to check in. Scan the same QR again to
+            check out when the vehicle leaves.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <QrCheckInScanner
             readerId="delivery-qr-reader"
             onScan={onCameraScan}
-            hint="Show the check-in or checkout QR from the driver's email."
+            hint="Show the WhatsApp delivery pass QR from the driver's phone."
             buttonLabel="Open camera"
           />
 
@@ -275,9 +275,9 @@ export function DeliveryScanTab({ branchId }: DeliveryScanTabProps): React.React
                 Time inside: {String(gateTiming?.durationMinutes ?? delivery.durationMinutes)} min
               </p>
             ) : null}
-            {suggestedAction === 'MARK_EXIT' && delivery.status === 'RECEIVED' ? (
+            {suggestedAction === 'MARK_EXIT' ? (
               <p className="rounded-md bg-white px-3 py-2 text-amber-900">
-                Checkout QR confirmed — scan again or tap Mark exit below.
+                Vehicle is inside — scan the same WhatsApp QR again or tap Mark exit below.
               </p>
             ) : null}
             {passNumber && (
@@ -289,9 +289,12 @@ export function DeliveryScanTab({ branchId }: DeliveryScanTabProps): React.React
               {(delivery.status === 'SCHEDULED' || delivery.status === 'APPROVED') && (
                 <Button onClick={() => void allowEntry()}>Allow entry</Button>
               )}
-              {delivery.status === 'RECEIVED' && (
+              {(delivery.status === 'ARRIVED_AT_GATE' ||
+                delivery.status === 'GATE_VERIFIED' ||
+                delivery.status === 'IN_PROGRESS' ||
+                delivery.status === 'RECEIVED') && (
                 <Button variant="outline" onClick={() => void markExit()}>
-                  Mark exit (or scan checkout QR)
+                  Mark exit (same WhatsApp QR)
                 </Button>
               )}
             </div>
@@ -299,7 +302,7 @@ export function DeliveryScanTab({ branchId }: DeliveryScanTabProps): React.React
             delivery.status === 'GATE_VERIFIED' ||
             delivery.status === 'IN_PROGRESS' ? (
               <p className="text-muted-foreground">
-                Vehicle is inside — finish GRN, then scan the emailed checkout QR to exit.
+                Vehicle is inside — scan the same driver WhatsApp QR to check out, or tap Mark exit.
               </p>
             ) : null}
             {delivery.status === 'EXITED' || delivery.status === 'CLOSED' ? (

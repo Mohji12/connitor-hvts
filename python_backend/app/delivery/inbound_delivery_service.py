@@ -40,7 +40,8 @@ logger = logging.getLogger(__name__)
 
 EDITABLE = {DeliveryStatus.DRAFT.value, DeliveryStatus.SCHEDULED.value}
 
-# Canonical happy-path: SCHEDULED → ARRIVED_AT_GATE → IN_PROGRESS → RECEIVED → EXITED
+# Canonical happy-path: SCHEDULED → ARRIVED_AT_GATE → (optional receiving) → EXITED
+# Same WhatsApp ENTRY QR can check out once the vehicle is inside (At gate / in progress / received).
 # GATE_VERIFIED kept as a legacy synonym of "at gate" (same transitions as ARRIVED_AT_GATE).
 ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     DeliveryStatus.DRAFT.value: {DeliveryStatus.SCHEDULED.value, DeliveryStatus.REJECTED.value},
@@ -63,14 +64,17 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     DeliveryStatus.ARRIVED_AT_GATE.value: {
         DeliveryStatus.GATE_VERIFIED.value,
         DeliveryStatus.IN_PROGRESS.value,
+        DeliveryStatus.EXITED.value,
         DeliveryStatus.REJECTED.value,
     },
     DeliveryStatus.GATE_VERIFIED.value: {
         DeliveryStatus.IN_PROGRESS.value,
+        DeliveryStatus.EXITED.value,
         DeliveryStatus.REJECTED.value,
     },
     DeliveryStatus.IN_PROGRESS.value: {
         DeliveryStatus.RECEIVED.value,
+        DeliveryStatus.EXITED.value,
         DeliveryStatus.REJECTED.value,
     },
     DeliveryStatus.RECEIVED.value: {DeliveryStatus.EXITED.value, DeliveryStatus.COMPLETED.value},

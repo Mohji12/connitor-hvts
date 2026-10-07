@@ -68,25 +68,31 @@ class DeliveryGateService:
             "passNumber": entry.passNumber if entry else None,
         }
 
+    _INSIDE_FOR_EXIT = frozenset(
+        {
+            DeliveryStatus.ARRIVED_AT_GATE.value,
+            DeliveryStatus.GATE_VERIFIED.value,
+            DeliveryStatus.IN_PROGRESS.value,
+            DeliveryStatus.RECEIVED.value,
+        }
+    )
+
     def _suggested_action(self, status: str, *, qr_kind: str = "ENTRY") -> tuple[str, str]:
         kind = (qr_kind or "ENTRY").upper()
+        if status in (DeliveryStatus.EXITED.value, DeliveryStatus.CLOSED.value):
+            return "INFO", "Delivery already exited."
+
+        # Same WhatsApp pass QR (ENTRY) or emailed EXIT QR — both check out once inside.
+        if status in self._INSIDE_FOR_EXIT and kind in ("ENTRY", "EXIT"):
+            return (
+                "MARK_EXIT",
+                "Vehicle is inside — scan the same driver WhatsApp QR again to check out.",
+            )
+
         if kind == "EXIT":
-            if status == DeliveryStatus.RECEIVED.value:
-                return "MARK_EXIT", "Checkout QR valid — confirm gate exit."
-            if status in (DeliveryStatus.EXITED.value, DeliveryStatus.CLOSED.value):
-                return "INFO", "Delivery already exited."
-            if status in (
-                DeliveryStatus.ARRIVED_AT_GATE.value,
-                DeliveryStatus.GATE_VERIFIED.value,
-                DeliveryStatus.IN_PROGRESS.value,
-            ):
-                return (
-                    "INFO",
-                    "Checkout QR scanned — finish receiving/GRN before exit is allowed.",
-                )
             return "INFO", f"Checkout QR not ready for exit (status {status})."
 
-        # ENTRY QR
+        # ENTRY QR — arrival
         if status == DeliveryStatus.ON_HOLD.value:
             return (
                 "INFO",
@@ -94,18 +100,6 @@ class DeliveryGateService:
             )
         if status in (DeliveryStatus.SCHEDULED.value, DeliveryStatus.APPROVED.value):
             return "ALLOW_ENTRY", "QR valid — allow vehicle entry."
-        if status in (
-            DeliveryStatus.ARRIVED_AT_GATE.value,
-            DeliveryStatus.GATE_VERIFIED.value,
-            DeliveryStatus.IN_PROGRESS.value,
-            DeliveryStatus.RECEIVED.value,
-        ):
-            return (
-                "INFO",
-                "Already checked in — use the checkout QR emailed after entry (after GRN).",
-            )
-        if status in (DeliveryStatus.EXITED.value, DeliveryStatus.CLOSED.value):
-            return "INFO", "Delivery already exited."
         return "INFO", f"No gate action for status {status}."
 
     def _ensure_exit_qr(self, delivery: InboundDelivery) -> DeliveryQrCode:
@@ -207,9 +201,10 @@ class DeliveryGateService:
         delivery = self.db.get(InboundDelivery, delivery_id)
         if not delivery:
             raise not_found("Delivery")
-        if delivery.status != DeliveryStatus.RECEIVED.value:
+        if delivery.status not in self._INSIDE_FOR_EXIT:
             raise bad_request(
-                f"Mark exit only after GRN (RECEIVED). Current status: {delivery.status}"
+                "Mark exit only after the vehicle has checked in at the gate. "
+                f"Current status: {delivery.status}"
             )
         exit_time = now_ist()
         self.db.add(
@@ -316,7 +311,7 @@ class DeliveryGateService:
         auto_exit: bool = True,
         gate_id: str | None = None,
     ) -> dict:
-        """Validate QR; complete exit only when checkout QR is scanned and status is RECEIVED."""
+        """Validate QR; check out with the same WhatsApp ENTRY QR (or EXIT QR) once inside."""
         delivery, qr = self._validate_qr(user, qr_payload, signature)
         qr_kind = (qr.qrKind or "ENTRY").upper()
         self.db.add(
@@ -338,8 +333,9 @@ class DeliveryGateService:
 
         if (
             auto_exit
-            and qr_kind == "EXIT"
-            and delivery.status == DeliveryStatus.RECEIVED.value
+            and action == "MARK_EXIT"
+            and delivery.status in self._INSIDE_FOR_EXIT
+            and qr_kind in ("ENTRY", "EXIT")
         ):
             exit_result = self.mark_exit(user, delivery.id)
             result.update(
