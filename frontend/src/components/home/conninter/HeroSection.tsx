@@ -19,9 +19,7 @@ const cardMotion = (delay: number) => ({
 });
 
 const heroImageSrc = (moduleKey: ShowcaseModule): string =>
-  moduleKey === 'delivery'
-    ? '/Delivered%20Confirmation%20with%20Delivery%20Team.png'
-    : '/Meeting%20Successful%20Team%20Promotion.png';
+  moduleKey === 'delivery' ? '/images/hero-delivery.png' : '/images/hero-meeting.png';
 
 const HeroArtwork = ({
   moduleKey,
