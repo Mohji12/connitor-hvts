@@ -20,7 +20,15 @@ type Props = {
 type Html5Scanner = {
   start: (
     cameraIdOrConfig: string | MediaTrackConstraints,
-    config: Record<string, unknown>,
+    config: {
+      fps: number;
+      qrbox?:
+        | { width: number; height: number }
+        | ((viewfinderWidth: number, viewfinderHeight: number) => {
+            width: number;
+            height: number;
+          });
+    },
     onSuccess: (decodedText: string) => void,
     onFailure?: (error: string) => void,
   ) => Promise<null>;
@@ -36,7 +44,8 @@ type Html5Scanner = {
   };
 };
 
-type Html5QrcodeCtor = (new (elementId: string) => Html5Scanner) & {
+type Html5QrcodeCtor = {
+  new (elementId: string): Html5Scanner;
   getCameras?: () => Promise<Array<{ id: string; label: string }>>;
 };
 
@@ -256,7 +265,7 @@ export function QrCheckInScanner({
 
         const { Html5Qrcode } = await import('html5-qrcode');
         const scanner = await startScannerWithFallback(
-          Html5Qrcode as Html5QrcodeCtor,
+          Html5Qrcode as unknown as Html5QrcodeCtor,
           elementId,
           async (decodedText) => {
             if (handledRef.current) return;
