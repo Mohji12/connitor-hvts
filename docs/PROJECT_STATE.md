@@ -30,6 +30,7 @@
 | **3-module completion doc** | 🟢 Done     | Agent     | Detailed what’s-complete for urgent + schedule + delivery: `docs/MODULES-COMPLETE.md` |
 | **Sales Rep attendance** | 🟢 Live | Agent | Check-in confirm email + company outcome + dashboard status — `docs/features/sales-rep-attendance/` |
 | **Attendant Management (AMS)** | 🟢 Live | Agent | Full AMS under `/dashboard/ams` on attendant-pass foundation — `docs/features/attendant-management/` |
+| **Product admin logs** | 🟢 Live | Agent | Role `PRODUCT_ADMIN` at `/dashboard/product-logs`. Warnings and errors go to `AppLog`. Hourly SMTP digest to `PRODUCT_LOG_EMAIL` (default mohangola2202@gmail.com), including a zero-error mail. Account password is `PRODUCT_ADMIN_PASSWORD` (not committed). Restart the Python API so the hourly thread runs. |
 | **Rule/UI alignment**     | 🟢 Done        | Agent     | Delivery status transitions + exit-after-GRN; attendant expired ACTIVE + branch scan + honest email toast; El City demo portals |
 | **Visitor pass quota** | 🟢 Live | Agent | Per-branch daily hospital-issued pass IDs — `docs/features/visitor-pass-quota/` |
 | **Visit slot extension** | 🟢 Live | Agent | Slot-length clock from check-in; doctor extend email; hold next visitor — `docs/features/visit-slot-extension/` |

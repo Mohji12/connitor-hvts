@@ -35,6 +35,7 @@ function getInitials(name: string): string {
 }
 
 function formatRole(role: string): string {
+  if (role === 'WARD_ADMIN') return 'Receptionist';
   return role.replace(/[^a-zA-Z0-9 ]/g, ' ').trim();
 }
 

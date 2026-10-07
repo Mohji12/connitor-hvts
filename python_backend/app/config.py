@@ -187,6 +187,14 @@ class Settings(BaseSettings):
     )
     smtp_use_tls: bool = Field(default=True, validation_alias="SMTP_USE_TLS")
     smtp_use_ssl: bool = Field(default=False, validation_alias="SMTP_USE_SSL")
+    product_log_email: str = Field(
+        default="mohangola2202@gmail.com",
+        validation_alias="PRODUCT_LOG_EMAIL",
+    )
+    product_admin_password: str | None = Field(
+        default=None,
+        validation_alias="PRODUCT_ADMIN_PASSWORD",
+    )
 
     hvts_test_mode: bool = Field(default=False, validation_alias="HVTS_TEST_MODE")
     delivery_module_enabled: bool = Field(default=True, validation_alias="DELIVERY_MODULE_ENABLED")

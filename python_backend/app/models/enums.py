@@ -16,6 +16,7 @@ class Role(str, enum.Enum):
     DISTRIBUTOR = "DISTRIBUTOR"
     DELIVERY_AGENT = "DELIVERY_AGENT"
     WARD_ADMIN = "WARD_ADMIN"
+    PRODUCT_ADMIN = "PRODUCT_ADMIN"
 
 
 class DeliveryStatus(str, enum.Enum):

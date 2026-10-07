@@ -12,6 +12,7 @@ from app.routers import (
     doctor_urgent_passcode,
     doctor_schedule,
     jobs,
+    product_logs,
     hospital_chains,
     livekit_webhooks,
     meetings,
@@ -65,6 +66,7 @@ api_router.include_router(
     tags=["sales-meeting-confirm"],
 )
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
+api_router.include_router(product_logs.router, prefix="/product-logs", tags=["product-logs"])
 api_router.include_router(
     public_visit_extensions.router,
     prefix="/public/visit-extensions",

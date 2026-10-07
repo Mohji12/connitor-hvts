@@ -46,6 +46,7 @@ from app.models.visitor_wallet_entities import (  # noqa: F401 — register ORM 
     VisitorWalletTransaction,
 )
 from app.models.permission_entities import Permission, RolePermission
+from app.models.app_log import AppLog  # noqa: F401 — register ORM table
 from app.models.delivery_entities import (  # noqa: F401 — register ORM tables
     BranchDeliverySettings,
     DeliveryGate,

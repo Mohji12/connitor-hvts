@@ -115,7 +115,7 @@ export default function AmsRegisterPage(): React.ReactElement {
         admId = admission.id;
       }
       if (!admId || !name.trim() || phone.trim().length < 10) {
-        toast.error('Select patient and enter attendant name + mobile');
+        toast.error('Select a patient and enter the name and mobile of the person with the patient');
         return;
       }
       const attendant = await AttendantPassService.registerAttendantFull({
@@ -138,7 +138,7 @@ export default function AmsRegisterPage(): React.ReactElement {
         maxEntries: resolveMaxEntries(),
       });
       setIssued(pass);
-      toast.success('Attendant registered and pass issued');
+      toast.success('Pass allotted');
     } catch (e: unknown) {
       const detail =
         typeof e === 'object' && e && 'response' in e
@@ -154,7 +154,7 @@ export default function AmsRegisterPage(): React.ReactElement {
 
   if (issued) {
     return (
-      <AmsPageShell title="QR Pass" subtitle="Share this pass with the attendant.">
+      <AmsPageShell title="QR Pass" subtitle="The pass is on its way to the person with the patient.">
         <AmsQrPassCard
           passNumber={issued.passNumber}
           attendantName={issued.attendant?.name ?? name}
@@ -171,14 +171,17 @@ export default function AmsRegisterPage(): React.ReactElement {
           qrSignature={issued.qrSignature}
         />
         <Button className="bg-[#0052CC]" onClick={() => window.location.reload()}>
-          Register another
+          Allot another pass
         </Button>
       </AmsPageShell>
     );
   }
 
   return (
-    <AmsPageShell title="Register Attendant" subtitle="Create an authorized attendant pass.">
+    <AmsPageShell
+      title="Allot pass"
+      subtitle="Enter the patient details and allot the pass to one person with the patient. The WhatsApp pass goes to their mobile."
+    >
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="rounded-xl">
           <CardHeader>
@@ -243,7 +246,7 @@ export default function AmsRegisterPage(): React.ReactElement {
 
         <Card className="rounded-xl">
           <CardHeader>
-            <CardTitle>Attendant details</CardTitle>
+            <CardTitle>Person with the patient</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
@@ -372,7 +375,7 @@ export default function AmsRegisterPage(): React.ReactElement {
                 disabled={loading}
                 onClick={() => void submit()}
               >
-                {loading ? 'Saving…' : 'Register & Generate QR Pass'}
+                {loading ? 'Saving…' : 'Allot pass'}
               </Button>
               <Button type="button" variant="outline" onClick={() => window.history.back()}>
                 Cancel

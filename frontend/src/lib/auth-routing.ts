@@ -12,6 +12,7 @@ export const ROLE_DASHBOARD_PATHS: Record<string, string> = {
   PURCHASE: '/dashboard/delivery',
   DISTRIBUTOR: '/vendor/deliveries',
   WARD_ADMIN: '/dashboard/ams',
+  PRODUCT_ADMIN: '/dashboard/product-logs',
 };
 
 export function getDashboardPathForRole(role: string): string {

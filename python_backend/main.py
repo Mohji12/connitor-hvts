@@ -47,26 +47,39 @@ async def lifespan(_app: FastAPI):
         )
 
     expire_thread = None
+    digest_thread = None
     if not is_lambda_runtime():
+        try:
+            from app.services.app_log_service import ensure_app_log_table
+
+            ensure_app_log_table()
+        except Exception:
+            logger.exception("Could not create AppLog table")
         expire_thread = threading.Thread(
             target=_sales_meeting_expire_loop,
             name="sales-meeting-expire",
             daemon=True,
         )
         expire_thread.start()
+        digest_thread = threading.Thread(
+            target=_product_log_digest_loop,
+            name="product-log-digest",
+            daemon=True,
+        )
+        digest_thread.start()
 
     yield
 
-    _sales_meeting_stop.set()
+    _background_stop.set()
 
 
-_sales_meeting_stop = threading.Event()
+_background_stop = threading.Event()
 
 
 def _sales_meeting_expire_loop() -> None:
     from app.services.sales_meeting_dispatch import dispatch_auto_expire_and_notify
 
-    while not _sales_meeting_stop.wait(300):
+    while not _background_stop.wait(300):
         try:
             result = dispatch_auto_expire_and_notify()
             expired = result.get("expired") or 0
@@ -74,6 +87,34 @@ def _sales_meeting_expire_loop() -> None:
                 logger.info("Sales meeting auto-expire: %s visit(s)", expired)
         except Exception:
             logger.exception("Sales meeting auto-expire loop failed")
+
+
+def _product_log_digest_loop() -> None:
+    from app.database import SessionLocal
+    from app.services.app_log_service import send_hourly_digest
+
+    while not _background_stop.wait(3600):
+        db = SessionLocal()
+        try:
+            send_hourly_digest(db)
+        except Exception:
+            logger.exception("Product log digest failed")
+        finally:
+            db.close()
+
+
+def _install_app_log_handler() -> None:
+    from app.services.app_log_service import AppLogHandler
+
+    root = logging.getLogger()
+    if any(isinstance(handler, AppLogHandler) for handler in root.handlers):
+        return
+    handler = AppLogHandler()
+    handler.setLevel(logging.WARNING)
+    root.addHandler(handler)
+
+
+_install_app_log_handler()
 
 
 app = FastAPI(
@@ -119,11 +160,13 @@ def root():
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(
-    _request: Request,
+    request: Request,
     exc: StarletteHTTPException,
 ):
     detail = exc.detail
     message = detail if isinstance(detail, str) else str(detail)
+    if exc.status_code >= 500:
+        logger.error("HTTP %s %s: %s", exc.status_code, request.url.path, message)
 
     body = {
         "statusCode": exc.status_code,
@@ -155,6 +198,15 @@ async def validation_exception_handler(
             "message": str(exc.errors()),
             "error": "Validation Error",
         },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled API error on %s", request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"statusCode": 500, "message": "Internal server error"},
     )
 
 

@@ -27,6 +27,17 @@ export function buildDashboardTeamEntry(
     hospitalChainName: user.hospitalChainName ?? user.hospitalChain?.name,
   });
 
+  if (user.role === 'PRODUCT_ADMIN') {
+    return {
+      name: user.name,
+      logo,
+      role: user.role,
+      hospitalChainName: '',
+      branchName: 'All hospitals',
+      brandLabel: 'Conninter',
+    };
+  }
+
   return {
     name: user.name,
     logo,

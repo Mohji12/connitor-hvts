@@ -74,7 +74,7 @@ export default function AmsDashboardPage(): React.ReactElement {
       actions={
         <div className="flex flex-wrap gap-2">
           <Button asChild className="bg-[#0052CC] hover:bg-[#0041a3]">
-            <Link href="/dashboard/ams/register">Register Attendant</Link>
+            <Link href="/dashboard/ams/register">Allot pass</Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="/security/dashboard?tab=attendant-scan">Scan QR</Link>

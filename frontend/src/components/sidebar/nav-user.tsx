@@ -20,6 +20,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { logout as performLogout } from '@/lib/logout';
+import { displayRole } from '@/lib/role-label';
 
 export function NavUser({
   user,
@@ -40,15 +41,12 @@ export function NavUser({
   };
 
   const getInitials = (name: string) => {
-    const words = name.trim().split('_').filter(Boolean);
+    const words = name.trim().split(/[\s_]+/).filter(Boolean);
+    if (words.length === 0) return '';
     if (words.length === 1) {
       return words[0].slice(0, 2).toUpperCase();
     }
     return (words[0][0] + words[words.length - 1][0]).toUpperCase();
-  };
-
-  const removeSpecialCharFromRole = (role: string) => {
-    return role.replace(/[^a-zA-Z0-9 ]/g, ' ').trim();
   };
 
   return (
@@ -63,13 +61,13 @@ export function NavUser({
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback className="rounded-lg">
-                  {getInitials(user.role)}
+                  {getInitials(displayRole(user.role))}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
                 <span className="truncate text-xs">
-                  {removeSpecialCharFromRole(user.role)}
+                  {displayRole(user.role)}
                 </span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -86,7 +84,7 @@ export function NavUser({
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback className="rounded-lg">
-                    {getInitials(user.role)}
+                    {getInitials(displayRole(user.role))}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
