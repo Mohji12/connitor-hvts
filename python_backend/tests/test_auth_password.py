@@ -57,6 +57,24 @@ class AuthPasswordLoginTests(unittest.TestCase):
             self.service.login_with_password("doctor@hospital.com", "wrong-password")
         self.assertEqual(ctx.exception.status_code, 401)
 
+    def test_distributor_login_requires_whatsapp_verification(self) -> None:
+        user = MagicMock()
+        user.isActive = True
+        user.phoneVerified = False
+        user.role = "DISTRIBUTOR"
+        user.passwordHash = hash_password("Conninter123@")
+
+        query = MagicMock()
+        query.options.return_value = query
+        query.filter.return_value = query
+        query.first.return_value = user
+        self.db.query.return_value = query
+
+        with self.assertRaises(HTTPException) as ctx:
+            self.service.login_with_password("vendor@example.com", "Conninter123@")
+        self.assertEqual(ctx.exception.status_code, 403)
+        self.assertIn("WhatsApp", ctx.exception.detail)
+
 
 if __name__ == "__main__":
     unittest.main()

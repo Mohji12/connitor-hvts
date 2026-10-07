@@ -12,6 +12,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { clearStoredAuthToken } from '@/lib/auth-storage';
 import apiClient from '@/lib/api';
+import { DistributorOnboardingService } from '@/lib/services/distributorOnboardingService';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getDashboardPathForRole,
@@ -79,6 +80,8 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
   const portalLabel = rolePortal?.label ?? deliveryPortal?.label;
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [otpBusy, setOtpBusy] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -124,8 +127,9 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
     } catch (err: unknown) {
       let errorMessage = 'Invalid login ID or password.';
       if (typeof err === 'object' && err && 'response' in err) {
-        // @ts-expect-error: dynamic error shape
-        errorMessage = err.response?.data?.message || errorMessage;
+        const data = (err as { response?: { data?: { detail?: string; message?: string } } }).response
+          ?.data;
+        errorMessage = data?.detail || data?.message || errorMessage;
       }
       setError(errorMessage);
       toast.error(errorMessage);
@@ -253,6 +257,57 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
                 </>
               )}
             </Button>
+            {error?.includes('WhatsApp') ? (
+              <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-left">
+                <p className="text-sm text-amber-950">
+                  Enter the 6-digit code sent to your WhatsApp, then sign in.
+                </p>
+                <Input
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={phoneOtp}
+                  onChange={(event) => setPhoneOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="WhatsApp code"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={otpBusy || phoneOtp.length !== 6}
+                    onClick={() => {
+                      const email = form.getValues('email').trim().toLowerCase();
+                      setOtpBusy(true);
+                      void DistributorOnboardingService.verifyPhone(email, phoneOtp)
+                        .then((result) => {
+                          toast.success(result.message);
+                          setError(null);
+                          setPhoneOtp('');
+                        })
+                        .catch(() => toast.error('Could not verify the code'))
+                        .finally(() => setOtpBusy(false));
+                    }}
+                  >
+                    Verify code
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={otpBusy}
+                    onClick={() => {
+                      const email = form.getValues('email').trim().toLowerCase();
+                      setOtpBusy(true);
+                      void DistributorOnboardingService.resendPhoneOtp(email)
+                        .then((result) => toast.success(result.message))
+                        .catch(() => toast.error('Could not resend the code'))
+                        .finally(() => setOtpBusy(false));
+                    }}
+                  >
+                    Resend
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             <p className="text-center text-sm text-muted-foreground pt-2">
               <Link href="/" className="text-primary hover:underline font-medium">
                 ← Back to home

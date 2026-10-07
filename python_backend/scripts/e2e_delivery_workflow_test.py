@@ -9,6 +9,7 @@ Run from python_backend/:
 """
 from __future__ import annotations
 
+import os
 import sys
 from datetime import timedelta
 
@@ -17,11 +18,13 @@ import httpx
 from app.constants.electronic_city_entities import ELECTRONIC_CITY_BRANCH_ID
 from app.database import SessionLocal
 from app.models import User
-from app.models.delivery_entities import InboundDelivery, VendorBranchMapping
+from app.models.delivery_entities import Distributor, InboundDelivery, VendorBranchMapping
 from app.models.enums import DeliveryStatus
 from app.utils.timezone import now_ist
 
-API_BASE = "http://127.0.0.1:8001/api"
+API_BASE = os.environ.get("CONNITOR_API_BASE", "http://127.0.0.1:8002/api")
+PRIMARY_PHONE = os.environ.get("E2E_PRIMARY_PHONE", "8625877312")
+ALT_PHONE = os.environ.get("E2E_ALT_PHONE", "7893982875")
 VENDOR_EMAIL = "distributor@citygen.demo"
 VENDOR_PASSWORD = "Conninter123@"
 SECURITY_EMAIL = "security@connitor-elcity.com"
@@ -66,7 +69,8 @@ def main() -> None:
 
     with httpx.Client(timeout=60.0) as client:
         step(1, "Health check")
-        health = client.get("http://127.0.0.1:8001/")
+        root = API_BASE.rstrip("/").removesuffix("/api")
+        health = client.get(f"{root}/")
         if health.status_code != 200:
             fail(f"Backend not reachable ({health.status_code})")
         ok("Backend is up")
@@ -112,20 +116,28 @@ def main() -> None:
         vehicle_list = (
             vehicles if isinstance(vehicles, list) else vehicles.get("items") or vehicles.get("vehicles") or []
         )
-        if not agent_list:
+        matching = [
+            agent
+            for agent in agent_list
+            if str(agent.get("phone") or "").endswith(ALT_PHONE[-10:])
+        ]
+        if matching:
+            agent_list = matching
+            ok(f"Using driver on {ALT_PHONE}")
+        else:
             create_agent = client.post(
                 f"{API_BASE}/delivery/agents",
                 headers=auth_headers(vendor_token),
                 json={
                     "name": "E2E Driver",
-                    "email": "e2e.driver@example.com",
-                    "phone": "9000099999",
+                    "email": f"e2e.driver.{ALT_PHONE}@example.com",
+                    "phone": ALT_PHONE,
                 },
             )
             if create_agent.status_code not in (200, 201):
                 fail(f"Create agent failed ({create_agent.status_code}): {create_agent.text}")
             agent_list = [create_agent.json()]
-            ok("Created driver for e2e")
+            ok(f"Created driver on {ALT_PHONE}")
         if not vehicle_list:
             create_vehicle = client.post(
                 f"{API_BASE}/delivery/vehicles",
@@ -238,13 +250,47 @@ def main() -> None:
         ok(f"GRN generated — {grn_number}")
 
         step(9, "Security marks exit")
-        exit_res = client.post(
-            f"{API_BASE}/delivery/security/mark-exit/{delivery_id}",
-            headers=auth_headers(security_token),
-        )
-        if exit_res.status_code != 200:
-            fail(f"Mark exit failed ({exit_res.status_code}): {exit_res.text}")
-        ok("Exit marked")
+        saved_contacts: list[tuple] = []
+        pin = SessionLocal()
+        try:
+            delivery_row = pin.get(InboundDelivery, delivery_id)
+            vendor = pin.get(Distributor, delivery_row.vendorId) if delivery_row else None
+            if vendor is not None:
+                saved_contacts.append(("vendor", vendor.id, vendor.phone, vendor.dispatchPhone))
+                vendor.phone = PRIMARY_PHONE
+                vendor.dispatchPhone = None
+                for dist_user in pin.query(User).filter(User.distributorId == vendor.id).all():
+                    saved_contacts.append(("user", dist_user.id, dist_user.phone, None))
+                    dist_user.phone = PRIMARY_PHONE
+                pin.commit()
+                ok(f"Distributor completion alert set to {PRIMARY_PHONE}")
+        finally:
+            pin.close()
+
+        try:
+            exit_res = client.post(
+                f"{API_BASE}/delivery/security/mark-exit/{delivery_id}",
+                headers=auth_headers(security_token),
+            )
+            if exit_res.status_code != 200:
+                fail(f"Mark exit failed ({exit_res.status_code}): {exit_res.text}")
+            ok("Exit marked")
+        finally:
+            restore = SessionLocal()
+            try:
+                for kind, row_id, phone, extra in saved_contacts:
+                    if kind == "vendor":
+                        row = restore.get(Distributor, row_id)
+                        if row is not None:
+                            row.phone = phone
+                            row.dispatchPhone = extra
+                    else:
+                        row = restore.get(User, row_id)
+                        if row is not None:
+                            row.phone = phone
+                restore.commit()
+            finally:
+                restore.close()
 
         step(10, "Verify final delivery status in database")
         db = SessionLocal()

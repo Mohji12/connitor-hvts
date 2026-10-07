@@ -25,6 +25,10 @@ class PublicApplyBody(BaseModel):
     email: EmailStr
     phone: str
     relationship: str | None = None
+    addCompanion: bool = False
+    companionName: str | None = None
+    companionPhone: str | None = None
+    companionRelationship: str | None = None
 
 
 class TokenBody(BaseModel):

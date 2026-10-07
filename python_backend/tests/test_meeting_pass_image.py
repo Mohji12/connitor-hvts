@@ -104,11 +104,26 @@ def test_rendered_passes_differ_when_company_is_present() -> None:
     assert sales_png != general_png
 
 
-def test_rendered_pass_is_square_so_whatsapp_shows_the_logos() -> None:
+def test_rendered_pass_fills_the_artwork_without_side_padding() -> None:
     content = assemble_meeting_pass(None, _visit(visitor_type="GENERAL", company=None))
-    image = Image.open(io.BytesIO(render_meeting_pass(content))).convert("RGB")
+    plain = render_meeting_pass(content)
+    image = Image.open(io.BytesIO(plain)).convert("RGB")
 
-    assert image.width == image.height
-    assert image.width > 1024
-    # Conninter logo sits at the top of the blank. It must remain near the top of the square.
-    assert image.getpixel((image.width // 2, 80)) != (248, 248, 248)
+    assert image.size == (525, 1024)
+    photo = Image.new("RGB", (80, 80), (220, 40, 40))
+    buffer = io.BytesIO()
+    photo.save(buffer, format="PNG")
+    with_photo = render_meeting_pass(
+        MeetingPassContent(
+            visitor_name=content.visitor_name,
+            role_label=content.role_label,
+            company_name=content.company_name,
+            doctor_name=content.doctor_name,
+            hospital_name=content.hospital_name,
+            department=content.department,
+            date_text=content.date_text,
+            time_text=content.time_text,
+            photo_png=buffer.getvalue(),
+        )
+    )
+    assert with_photo != plain

@@ -1,12 +1,11 @@
 import base64
-import io
 import json
 import random
 from datetime import datetime, timedelta
 from app.utils.timezone import ist_day_bounds, now_ist, parse_to_ist_naive, today_end_ist, today_start_ist
 
-import qrcode
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import DoctorAvailabilitySlot, Visit
@@ -94,17 +93,27 @@ class StaffService:
         return [self._visit_with_visitor(v) for v in visits]
 
     def get_visitor_history(self, staff_id: str) -> list[dict]:
+        """Recent visits for the staff home screen. Open check-ins stay included."""
         statuses = [
             VisitStatus.APPROVED.value,
             VisitStatus.REJECTED.value,
             VisitStatus.CHECKED_IN.value,
             VisitStatus.CHECKED_OUT.value,
         ]
+        recent_from = now_ist() - timedelta(days=14)
         visits = (
             self.db.query(Visit)
             .options(joinedload(Visit.visitor))
-            .filter(Visit.staffId == staff_id, Visit.status.in_(statuses))
+            .filter(
+                Visit.staffId == staff_id,
+                Visit.status.in_(statuses),
+                or_(
+                    Visit.status == VisitStatus.CHECKED_IN.value,
+                    Visit.createdAt >= recent_from,
+                ),
+            )
             .order_by(Visit.createdAt.desc())
+            .limit(200)
             .all()
         )
         return [self._visit_with_visitor(v) for v in visits]
@@ -130,10 +139,11 @@ class StaffService:
             "visitorPassId": visit.visitorPassId,
             "timestamp": now_ist().isoformat(),
         }
-        img = qrcode.make(json.dumps(payload))
-        buffer = io.BytesIO()
-        img.save(buffer, format="PNG")
-        return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+        from app.services.meeting_pass_image import _qr_png
+
+        return "data:image/png;base64," + base64.b64encode(
+            _qr_png(json.dumps(payload, separators=(",", ":")), 640)
+        ).decode()
 
     def approve_visit(self, visit_id: str, staff_id: str, doctor_feedback: str | None = None) -> dict:
         visit = (
@@ -198,6 +208,9 @@ class StaffService:
             visit.isCodeUsed = True
             visit.checkInOtpExpiry = now_ist() + timedelta(hours=8)
 
+        from app.services.visitor_wallet_service import VisitorWalletService
+
+        VisitorWalletService(self.db).settle_on_approve(visit)
         self.db.commit()
         self.db.refresh(visit)
 
@@ -251,6 +264,9 @@ class StaffService:
         from app.services.visitor_pass_service import VisitorPassService
 
         VisitorPassService(self.db).recycle_for_visit(visit)
+        from app.services.visitor_wallet_service import VisitorWalletService
+
+        VisitorWalletService(self.db).release_on_reject(visit)
         self.db.commit()
         self.db.refresh(visit)
         if visit.staff and visit.visitor:

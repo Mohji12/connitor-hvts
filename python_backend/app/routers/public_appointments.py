@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy.orm import Session
@@ -35,6 +35,10 @@ class BookAppointmentBody(BaseModel):
     visitorType: Literal["GENERAL", "SALES_REPRESENTATIVE", "VENDOR"] = "GENERAL"
     companyName: str | None = None
     companyEmail: EmailStr | None = None
+    paymentMethod: Literal["WALLET", "RAZORPAY"] | None = None
+    razorpayOrderId: str | None = None
+    razorpayPaymentId: str | None = None
+    razorpaySignature: str | None = None
 
     @field_validator("phone")
     @classmethod
@@ -131,6 +135,16 @@ def book_appointment(
                     payload["email"] = account.email
         except Exception:
             pass
+    if not payload.get("visitorAccountId"):
+        raise HTTPException(status_code=401, detail="Sign in to book and pay for this visit.")
+    if payload.get("paymentMethod") not in ("WALLET", "RAZORPAY"):
+        raise HTTPException(status_code=400, detail="Choose wallet or online payment.")
+    if payload.get("paymentMethod") == "RAZORPAY" and not (
+        payload.get("razorpayOrderId")
+        and payload.get("razorpayPaymentId")
+        and payload.get("razorpaySignature")
+    ):
+        raise HTTPException(status_code=400, detail="Online payment was not completed.")
     result = AppointmentsService(db).book_appointment(payload, defer_notifications=True)
     background_tasks.add_task(dispatch_new_visit_request_notifications, result["bookingId"])
     return result

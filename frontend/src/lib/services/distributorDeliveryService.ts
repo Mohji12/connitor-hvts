@@ -33,6 +33,7 @@ export interface DeliveryAgent {
   phone: string | null;
   licenseNumber: string | null;
   hasLogin?: boolean;
+  photoUrl?: string | null;
 }
 
 export interface DeliveryVehicle {
@@ -169,6 +170,13 @@ export const DistributorDeliveryService = {
     phone?: string;
   }): Promise<DeliveryAgent> {
     const res = await apiClient.post('/api/delivery/agents', data);
+    return res.data;
+  },
+
+  async uploadAgentPhoto(agentId: string, file: File): Promise<DeliveryAgent> {
+    const body = new FormData();
+    body.append('file', file);
+    const res = await apiClient.post<DeliveryAgent>(`/api/delivery/agents/${agentId}/photo`, body);
     return res.data;
   },
 

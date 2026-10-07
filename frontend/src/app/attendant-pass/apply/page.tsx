@@ -67,9 +67,8 @@ function PatientSummary({
         </p>
       )}
       {!lookup.hasAttendantInside && lookup.hasActivePass && (
-        <p className="mt-2 text-amber-800">
-          Another visitor currently holds the active pass. Ward staff must revoke it before yours
-          can be issued.
+        <p className="mt-2 text-slate-700">
+          Other visitors may also book until someone checks in with this patient.
         </p>
       )}
     </div>
@@ -91,6 +90,10 @@ function ApplyForm(): React.ReactElement {
   const [email, setEmail] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [relationship, setRelationship] = React.useState('');
+  const [addCompanion, setAddCompanion] = React.useState(false);
+  const [companionName, setCompanionName] = React.useState('');
+  const [companionPhone, setCompanionPhone] = React.useState('');
+  const [companionRelationship, setCompanionRelationship] = React.useState('');
   const [done, setDone] = React.useState(false);
   const [lookupLoading, setLookupLoading] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -169,6 +172,10 @@ function ApplyForm(): React.ReactElement {
       toast.error('Fill all required fields');
       return;
     }
+    if (addCompanion && (!companionName.trim() || companionPhone.trim().length < 10 || !companionRelationship.trim())) {
+      toast.error('Enter the extra person\'s name, phone, and relationship');
+      return;
+    }
     if (lookup.hasAttendantInside) {
       toast.error(
         'An attendant is currently inside for this patient. They must check out first.',
@@ -183,6 +190,10 @@ function ApplyForm(): React.ReactElement {
         email: email.trim(),
         phone: phone.trim(),
         relationship: relationship.trim() || undefined,
+        addCompanion,
+        companionName: addCompanion ? companionName.trim() : undefined,
+        companionPhone: addCompanion ? companionPhone.trim() : undefined,
+        companionRelationship: addCompanion ? companionRelationship.trim() : undefined,
       });
       setDone(true);
     } catch (e: unknown) {
@@ -200,10 +211,10 @@ function ApplyForm(): React.ReactElement {
     return (
       <Card className="mx-auto w-full max-w-xl">
         <CardContent className="space-y-3 pt-8 text-center">
-          <h2 className="text-xl font-semibold">Request submitted</h2>
+          <h2 className="text-xl font-semibold">Pass sent</h2>
           <p className="text-sm text-muted-foreground">
-            Ward staff will review your request by email. When approved, your visit pass and QR code
-            will be sent to your email. Bring a government ID to security.
+            Your attendant pass and QR are on the way to your WhatsApp. Show that same QR at
+            security to check in, and scan it again when you leave.
           </p>
         </CardContent>
       </Card>
@@ -221,8 +232,8 @@ function ApplyForm(): React.ReactElement {
       <div className="space-y-2">
         <h1 className="text-2xl font-bold tracking-tight">Apply for visit pass</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Only one family member may hold an active pass at a time. Find the admitted patient, then
-          submit your visit request.
+          Book during the hospital visiting hours. The pass is sent on WhatsApp right away. A new
+          booking closes only while another visitor is checked in with the patient.
         </p>
         {selectedBranch && (
           <div className="rounded-lg border border-[#001B71]/08 bg-[#4A90E2]/10 px-4 py-3 text-sm text-primary">
@@ -382,7 +393,7 @@ function ApplyForm(): React.ReactElement {
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="visitor-email">Email (pass QR will be sent here)</Label>
+              <Label htmlFor="visitor-email">Email</Label>
               <Input
                 id="visitor-email"
                 type="email"
@@ -409,13 +420,52 @@ function ApplyForm(): React.ReactElement {
                 className="w-full"
               />
             </div>
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={addCompanion}
+                onChange={(e) => setAddCompanion(e.target.checked)}
+              />
+              Add one person on this pass
+            </label>
+            {addCompanion && (
+              <>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="companion-name">Extra person name</Label>
+                  <Input
+                    id="companion-name"
+                    value={companionName}
+                    onChange={(e) => setCompanionName(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="companion-phone">Extra person phone</Label>
+                  <Input
+                    id="companion-phone"
+                    value={companionPhone}
+                    onChange={(e) => setCompanionPhone(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="companion-relationship">Relationship to patient</Label>
+                  <Input
+                    id="companion-relationship"
+                    value={companionRelationship}
+                    onChange={(e) => setCompanionRelationship(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              </>
+            )}
             <div className="sm:col-span-2">
               <Button
                 disabled={submitting || Boolean(lookup?.hasAttendantInside)}
                 className="w-full sm:w-auto"
                 onClick={() => void submit()}
               >
-                Submit request
+                Book pass
               </Button>
             </div>
           </CardContent>

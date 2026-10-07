@@ -169,7 +169,14 @@ export default function VendorRegisterPage(): React.ReactElement {
   const [form, setForm] = React.useState<FormState>(initialForm);
   const [branches, setBranches] = React.useState<OnboardingBranch[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [done, setDone] = React.useState<{ vendorCode: string; message: string } | null>(null);
+  const [done, setDone] = React.useState<{
+    vendorCode: string;
+    message: string;
+    email: string;
+  } | null>(null);
+  const [phoneOtp, setPhoneOtp] = React.useState('');
+  const [phoneVerified, setPhoneVerified] = React.useState(false);
+  const [otpBusy, setOtpBusy] = React.useState(false);
   const [files, setFiles] = React.useState<Record<string, File | null>>({
     gstCertificate: null,
     panCard: null,
@@ -342,7 +349,12 @@ export default function VendorRegisterPage(): React.ReactElement {
         },
         files,
       );
-      setDone({ vendorCode: result.vendorCode, message: result.message });
+      setDone({
+        vendorCode: result.vendorCode,
+        message: result.message,
+        email: form.email.trim().toLowerCase(),
+      });
+      setPhoneVerified(false);
       toast.success('Application submitted');
     } catch (e: unknown) {
       const detail =
@@ -361,6 +373,41 @@ export default function VendorRegisterPage(): React.ReactElement {
   };
 
   if (done) {
+    const verify = async () => {
+      setOtpBusy(true);
+      try {
+        const result = await DistributorOnboardingService.verifyPhone(done.email, phoneOtp.trim());
+        setPhoneVerified(true);
+        toast.success(result.message);
+      } catch (e: unknown) {
+        const detail =
+          typeof e === 'object' && e && 'response' in e
+            ? String(
+                (e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? '',
+              )
+            : '';
+        toast.error(detail || 'Could not verify the code');
+      } finally {
+        setOtpBusy(false);
+      }
+    };
+    const resend = async () => {
+      setOtpBusy(true);
+      try {
+        const result = await DistributorOnboardingService.resendPhoneOtp(done.email);
+        toast.success(result.message);
+      } catch (e: unknown) {
+        const detail =
+          typeof e === 'object' && e && 'response' in e
+            ? String(
+                (e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? '',
+              )
+            : '';
+        toast.error(detail || 'Could not resend the code');
+      } finally {
+        setOtpBusy(false);
+      }
+    };
     return (
       <main className="min-h-screen bg-[#F7F9FC] px-4 py-10">
         <Card className="mx-auto max-w-lg border-[#001B71]/08">
@@ -371,14 +418,36 @@ export default function VendorRegisterPage(): React.ReactElement {
               Vendor code <span className="font-mono font-medium text-slate-900">{done.vendorCode}</span>
             </p>
             <p className="text-sm text-muted-foreground">{done.message}</p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <Button asChild>
-                <Link href="/delivery/login">Sign in</Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/">Home</Link>
-              </Button>
-            </div>
+            {phoneVerified ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+                <Button asChild>
+                  <Link href="/delivery/login">Sign in</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/">Home</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3 text-left">
+                <Label htmlFor="distributor-phone-otp">WhatsApp code</Label>
+                <Input
+                  id="distributor-phone-otp"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={phoneOtp}
+                  onChange={(event) => setPhoneOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6-digit code"
+                />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button type="button" disabled={otpBusy || phoneOtp.length !== 6} onClick={() => void verify()}>
+                    Verify phone
+                  </Button>
+                  <Button type="button" variant="outline" disabled={otpBusy} onClick={() => void resend()}>
+                    Resend code
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

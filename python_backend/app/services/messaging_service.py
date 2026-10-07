@@ -26,8 +26,12 @@ from app.config import (
 from app.services.wapblaster_client import (
     message_to_template_fields,
     send_wapblaster_appointment_approval,
+    send_wapblaster_delivery_pass,
     send_wapblaster_meeting_pass,
+    send_wapblaster_attendant_pass,
+    send_wapblaster_order_delivered,
     send_wapblaster_phone_otp,
+    send_wapblaster_visit_rejected,
     send_wapblaster_template,
     send_wapblaster_text,
 )
@@ -785,16 +789,16 @@ class EmailService:
     @staticmethod
     def _build_delivery_qr_png(qr_payload: str, signature: str) -> bytes | None:
         """Encode the same JSON payload security scans from the driver dashboard QR."""
-        import io
         import json
 
-        import qrcode
-
         try:
-            img = qrcode.make(json.dumps({"qrPayload": qr_payload, "signature": signature}))
-            buffer = io.BytesIO()
-            img.save(buffer, format="PNG")
-            return buffer.getvalue()
+            from app.services.meeting_pass_image import _qr_png
+
+            encoded = json.dumps(
+                {"qrPayload": qr_payload, "signature": signature},
+                separators=(",", ":"),
+            )
+            return _qr_png(encoded, 640)
         except Exception:
             logger.warning("Failed to generate delivery QR PNG for email")
             return None
@@ -1589,6 +1593,69 @@ class WhatsAppService:
                 f"Meta WhatsApp interactive message failed ({response.status_code}): {response.text}"
             )
 
+    def send_visit_rejected(
+        self,
+        phone: str,
+        *,
+        visitor_name: str,
+        doctor_name: str,
+        hospital_name: str,
+        department: str,
+        requested_date: str,
+        requested_time: str,
+        visit_id: str,
+    ) -> bool:
+        """Send conninter_visit_rejected after the doctor declines a visit."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_visit_rejected or "").strip()
+        if not template:
+            return False
+        if not (is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster"):
+            logger.warning("Visit rejected template is set but WapBlaster is not the WhatsApp provider")
+            return False
+        if is_test_mode_enabled(settings):
+            logger.info(
+                "[HVTS_TEST_MODE] Visit rejected %s to %s for %s",
+                template,
+                phone,
+                visitor_name,
+            )
+            return True
+        primary = (settings.whatsapp_template_visit_rejected_language or "en_US").strip() or "en_US"
+        languages = [primary]
+        if primary != "en_US":
+            languages.append("en_US")
+        last_error: Exception | None = None
+        for index, language in enumerate(languages):
+            try:
+                send_wapblaster_visit_rejected(
+                    phone,
+                    template_name=template,
+                    template_language=language,
+                    visitor_name=visitor_name,
+                    doctor_name=doctor_name,
+                    hospital_name=hospital_name,
+                    department=department,
+                    requested_date=requested_date,
+                    requested_time=requested_time,
+                    visit_id=visit_id,
+                )
+                return True
+            except Exception as exc:
+                last_error = exc
+                if index < len(languages) - 1:
+                    logger.warning(
+                        "Visit rejected template %s failed for %s (%s); retrying en_US",
+                        template,
+                        language,
+                        exc,
+                    )
+                    continue
+                raise
+        if last_error:
+            raise last_error
+        return False
+
     def send_meeting_pass(
         self,
         phone: str,
@@ -1631,6 +1698,150 @@ class WhatsAppService:
             requested_time=requested_time,
             purpose=purpose or "Visit",
             items_carrying=items_carrying or "—",
+            image_url=image_url,
+        )
+        return True
+
+    def send_delivery_pass(
+        self,
+        phone: str,
+        *,
+        driver_name: str,
+        deliver_to: str,
+        po_number: str,
+        item_text: str,
+        vehicle_text: str,
+        date_text: str,
+        time_text: str,
+        image_url: str,
+    ) -> bool:
+        """Send the approved conninter_delivery_pass with the composed pass image."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_delivery_pass or "").strip()
+        if not template:
+            return False
+        if not (is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster"):
+            logger.warning("Delivery pass template is set but WapBlaster is not the WhatsApp provider")
+            return False
+        if is_test_mode_enabled(settings):
+            logger.info(
+                "[HVTS_TEST_MODE] Delivery pass %s to %s for %s",
+                template,
+                phone,
+                driver_name,
+            )
+            return True
+        send_wapblaster_delivery_pass(
+            phone,
+            template_name=template,
+            template_language=settings.whatsapp_template_delivery_pass_language or "en_GB",
+            driver_name=driver_name,
+            deliver_to=deliver_to,
+            po_number=po_number,
+            item_text=item_text,
+            vehicle_text=vehicle_text,
+            date_text=date_text,
+            time_text=time_text,
+            image_url=image_url,
+        )
+        return True
+
+    def send_order_delivered(
+        self,
+        phone: str,
+        *,
+        recipient_name: str,
+        hospital_name: str,
+        branch_name: str,
+        branch_address: str,
+        receiving_department: str,
+        order_id: str,
+        po_number: str,
+        order_date: str,
+        items: str,
+        total_quantity: str,
+        delivered_by: str,
+        vehicle_number: str,
+        delivery_date: str,
+        delivery_time: str,
+        delivery_reference: str,
+    ) -> bool:
+        """Send conninter_hospital_order_delivered after checkout QR exit."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_order_delivered or "").strip()
+        if not template:
+            return False
+        if not (is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster"):
+            logger.warning("Order delivered template is set but WapBlaster is not the WhatsApp provider")
+            return False
+        if is_test_mode_enabled(settings):
+            logger.info(
+                "[HVTS_TEST_MODE] Order delivered %s to %s for %s",
+                template,
+                phone,
+                order_id,
+            )
+            return True
+        send_wapblaster_order_delivered(
+            phone,
+            template_name=template,
+            template_language=settings.whatsapp_template_order_delivered_language or "en_US",
+            recipient_name=recipient_name,
+            hospital_name=hospital_name,
+            branch_name=branch_name,
+            branch_address=branch_address,
+            receiving_department=receiving_department,
+            order_id=order_id,
+            po_number=po_number,
+            order_date=order_date,
+            items=items,
+            total_quantity=total_quantity,
+            delivered_by=delivered_by,
+            vehicle_number=vehicle_number,
+            delivery_date=delivery_date,
+            delivery_time=delivery_time,
+            delivery_reference=delivery_reference,
+        )
+        return True
+
+    def send_attendant_pass(
+        self,
+        phone: str,
+        *,
+        attendant_name: str,
+        patient_name: str,
+        patient_id: str,
+        relationship: str,
+        issued_on: str,
+        validity: str,
+        image_url: str,
+    ) -> bool:
+        """Send conninter_patient_attendant_pass with the pass card as the header image."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_attendant_pass or "").strip()
+        if not template:
+            return False
+        if not (is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster"):
+            logger.warning("Attendant pass template is set but WapBlaster is not the WhatsApp provider")
+            return False
+        if is_test_mode_enabled(settings):
+            logger.info(
+                "[HVTS_TEST_MODE] Attendant pass %s to %s for %s",
+                template,
+                phone,
+                patient_name,
+            )
+            return True
+        send_wapblaster_attendant_pass(
+            phone,
+            template_name=template,
+            template_language=settings.whatsapp_template_attendant_pass_language or "en_US",
+            attendant_name=attendant_name,
+            patient_name=patient_name,
+            patient_id=patient_id,
+            relationship=relationship,
+            issued_on=issued_on,
+            validity=validity,
             image_url=image_url,
         )
         return True

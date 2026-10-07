@@ -476,9 +476,13 @@ class VisitSlotAllotmentService:
             .first()
         )
         if existing:
-            raise HTTPException(
-                status_code=409,
-                detail="Allotment already exists for this staff, date, and window start. Use PATCH.",
+            return self.update_allotment(
+                user,
+                branch_id,
+                existing.id,
+                window_start=start_n,
+                window_end=end_n,
+                slot_count=slot_count,
             )
         self._assert_quota(branch_id, day, slot_count)
         row = VisitSlotAllotment(

@@ -280,6 +280,17 @@ class AppointmentsService:
                 detail="Another request is already pending for that time. Please choose another time.",
             )
 
+    def _refund_unbooked_online_payment(self, data: dict) -> None:
+        if data.get("paymentMethod") != "RAZORPAY" or not data.get("razorpayPaymentId"):
+            return
+        from app.services.razorpay_service import RazorpayService
+        from app.services.visitor_wallet_service import VisitorWalletService
+
+        RazorpayService().refund(
+            str(data["razorpayPaymentId"]),
+            VisitorWalletService(self.db).visit_fee(),
+        )
+
     def book_appointment(self, data: dict, *, defer_notifications: bool = False) -> dict:
         branch, dept, sub, doctor = self._validate_booking_chain(
             data["branchId"],
@@ -370,11 +381,38 @@ class AppointmentsService:
             self.db.refresh(slot)
             if slot.isBooked:
                 self.db.rollback()
+                self._refund_unbooked_online_payment(data)
                 raise HTTPException(status_code=409, detail="This time slot is no longer available.")
             slot.isBooked = True
             slot.visitId = visit.id
 
-        self.db.commit()
+        payment_method = data.get("paymentMethod")
+        captured_online: tuple | None = None
+        if payment_method:
+            from app.services.visitor_wallet_service import VisitorWalletService
+
+            VisitorWalletService(self.db).apply_booking_payment(
+                account_id=visitor_account_id or "",
+                visit=visit,
+                payment_method=str(payment_method),
+                razorpay_order_id=data.get("razorpayOrderId"),
+                razorpay_payment_id=data.get("razorpayPaymentId"),
+                razorpay_signature=data.get("razorpaySignature"),
+            )
+            if payment_method == "RAZORPAY" and visit.razorpayPaymentId and visit.feeAmount is not None:
+                captured_online = (visit.razorpayPaymentId, visit.feeAmount)
+
+        try:
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            if captured_online:
+                from decimal import Decimal
+
+                from app.services.razorpay_service import RazorpayService
+
+                RazorpayService().refund(captured_online[0], Decimal(captured_online[1]))
+            raise
         self.db.refresh(visit)
 
         if not defer_notifications:
@@ -402,6 +440,9 @@ class AppointmentsService:
             "visitorType": visit.visitorType,
             "meetingStatus": visit.meetingStatus,
             "companyName": visit.companyName,
+            "paymentMethod": visit.paymentMethod,
+            "paymentStatus": visit.paymentStatus,
+            "feeAmount": float(visit.feeAmount) if visit.feeAmount is not None else None,
         }
 
     def get_booking_status(self, booking_id: str, phone: str) -> dict:
@@ -507,7 +548,7 @@ class AppointmentsService:
             q = q.filter(Visit.status == filters["status"])
         if filters.get("branchId"):
             q = q.filter(Visit.branchId == filters["branchId"])
-        visits = q.order_by(Visit.appointmentDate.desc()).limit(100).all()
+        visits = q.order_by(Visit.appointmentDate.desc()).limit(int(filters.get("limit") or 100)).all()
         result = []
         for v in visits:
             row = model_to_dict(v)

@@ -47,7 +47,7 @@ export interface AppointmentRecord {
 }
 
 export const AppointmentService = {
-  async list(params?: { status?: string; branchId?: string }): Promise<AppointmentRecord[]> {
+  async list(params?: { status?: string; branchId?: string; limit?: number }): Promise<AppointmentRecord[]> {
     const response = await apiClient.get<AppointmentRecord[]>('/api/appointments', { params });
     return response.data;
   },
@@ -113,6 +113,10 @@ export const AppointmentService = {
     visitorType?: 'GENERAL' | 'SALES_REPRESENTATIVE' | 'VENDOR';
     companyName?: string;
     companyEmail?: string;
+    paymentMethod?: 'WALLET' | 'RAZORPAY';
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    razorpaySignature?: string;
   }) {
     const token = getVisitorToken();
     const response = await apiClient.post('/api/public/appointments', data, {

@@ -24,7 +24,7 @@ import {
   type LocalUserChoices,
   type TrackReferenceOrPlaceholder,
 } from '@livekit/components-react';
-import { RoomEvent, Track, type Room } from 'livekit-client';
+import { DisconnectReason, RoomEvent, Track, type Room } from 'livekit-client';
 import { AlertTriangle, CalendarClock, Clock, LinkIcon, PhoneOff, RefreshCw, Video } from 'lucide-react';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
@@ -48,6 +48,13 @@ declare global {
   interface Window {
     __lkRoom?: Room;
   }
+}
+
+function createSessionId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+  }
+  return Math.random().toString(36).slice(2, 14);
 }
 
 function e2eHooksEnabled(): boolean {
@@ -88,7 +95,7 @@ function ConsultationStage() {
       { source: Track.Source.Camera, withPlaceholder: true },
       { source: Track.Source.ScreenShare, withPlaceholder: false },
     ],
-    { updateOnlyOn: [RoomEvent.ActiveSpeakersChanged], onlySubscribed: false },
+    { onlySubscribed: false },
   );
   const layoutContext = useCreateLayoutContext();
   const screenShareTracks = tracks
@@ -254,9 +261,13 @@ function deviceErrorMessage(error: Error): string {
   return error.message || 'Could not access your camera or microphone.';
 }
 
+const roomOptions = { adaptiveStream: true, dynacast: false } as const;
+
 export function MeetingRoom({ joinToken }: { joinToken: string | null }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
   const [deviceError, setDeviceError] = useState<string | null>(null);
+  const sessionRef = useRef(createSessionId());
+  const rejoinCount = useRef(0);
 
   const loadAccess = useCallback(
     async (next: (access: MeetingAccess) => Phase = (access) => ({ kind: 'prejoin', access })) => {
@@ -269,7 +280,7 @@ export function MeetingRoom({ joinToken }: { joinToken: string | null }) {
       }
       setPhase({ kind: 'loading' });
       try {
-        const access = await MeetingApi.getAccess(joinToken);
+        const access = await MeetingApi.getAccess(joinToken, sessionRef.current);
         setPhase(next(access));
       } catch (err) {
         setPhase({ kind: 'error', error: toMeetingAccessError(err) });
@@ -285,19 +296,59 @@ export function MeetingRoom({ joinToken }: { joinToken: string | null }) {
   const onPreJoinSubmit = useCallback(
     (choices: LocalUserChoices) => {
       if (phase.kind !== 'prejoin') return;
+      rejoinCount.current = 0;
       setDeviceError(null);
       setPhase({ kind: 'in-call', access: phase.access, choices });
     },
     [phase],
   );
 
-  const onDisconnected = useCallback(() => {
-    setPhase((current) =>
-      current.kind === 'in-call'
-        ? { kind: 'left', access: current.access, reason: 'You left the consultation.' }
-        : current,
-    );
-  }, []);
+  const onDisconnected = useCallback(
+    (reason?: DisconnectReason) => {
+      if (reason === DisconnectReason.CLIENT_INITIATED) {
+        setPhase((current) =>
+          current.kind === 'in-call'
+            ? { kind: 'left', access: current.access, reason: 'You left the consultation.' }
+            : current,
+        );
+        return;
+      }
+      // A second join used to replace whoever was already in the room. Come back
+      // with a new identity so both the visitor and the doctor stay connected.
+      if (!joinToken || rejoinCount.current >= 2) {
+        setPhase((current) =>
+          current.kind === 'in-call'
+            ? {
+                kind: 'left',
+                access: current.access,
+                reason: 'The connection dropped. You can rejoin while the consultation is still open.',
+              }
+            : current,
+        );
+        return;
+      }
+      rejoinCount.current += 1;
+      sessionRef.current = createSessionId();
+      void MeetingApi.getAccess(joinToken, sessionRef.current)
+        .then((access) => {
+          setPhase((current) =>
+            current.kind === 'in-call' ? { kind: 'in-call', access, choices: current.choices } : current,
+          );
+        })
+        .catch(() => {
+          setPhase((current) =>
+            current.kind === 'in-call'
+              ? {
+                  kind: 'left',
+                  access: current.access,
+                  reason: 'The connection dropped. You can rejoin while the consultation is still open.',
+                }
+              : current,
+          );
+        });
+    },
+    [joinToken],
+  );
 
   if (phase.kind === 'loading') {
     return <ConnitorLoader variant="fullscreen" message="Preparing your consultation room…" />;
@@ -351,7 +402,14 @@ export function MeetingRoom({ joinToken }: { joinToken: string | null }) {
             If you left by mistake you can rejoin while the consultation window is open (until{' '}
             {formatIstDateTime(datetimeLocalToIstIso(phase.access.closesAt))}).
           </p>
-          <Button onClick={() => void loadAccess()} data-testid="meeting-rejoin">
+          <Button
+            onClick={() => {
+              sessionRef.current = createSessionId();
+              rejoinCount.current = 0;
+              void loadAccess();
+            }}
+            data-testid="meeting-rejoin"
+          >
             <Video className="mr-2 h-4 w-4" /> Rejoin
           </Button>
         </StatusCard>
@@ -409,7 +467,7 @@ export function MeetingRoom({ joinToken }: { joinToken: string | null }) {
         connect
         video={choices.videoEnabled ? { deviceId: choices.videoDeviceId || undefined } : false}
         audio={choices.audioEnabled ? { deviceId: choices.audioDeviceId || undefined } : false}
-        options={{ adaptiveStream: true, dynacast: true }}
+        options={roomOptions}
         onDisconnected={onDisconnected}
         onMediaDeviceFailure={(_failure, kind) =>
           setDeviceError(

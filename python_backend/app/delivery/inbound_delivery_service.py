@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta
@@ -34,6 +35,8 @@ from app.models import Branch
 from app.models.enums import DeliveryStatus, DeliveryType
 from app.services.notifications_service import NotificationsService
 from app.utils.timezone import now_ist
+
+logger = logging.getLogger(__name__)
 
 EDITABLE = {DeliveryStatus.DRAFT.value, DeliveryStatus.SCHEDULED.value}
 
@@ -188,6 +191,7 @@ class InboundDeliveryService:
         self._history(delivery.id, old, delivery.status, user.get("id"), "Scheduled")
         self.db.commit()
         self.db.refresh(delivery)
+        self._send_driver_pass(delivery)
         return self._serialize(delivery, full=True)
 
     def book_delivery(self, user: dict, data: dict) -> dict:
@@ -203,10 +207,8 @@ class InboundDeliveryService:
         vendor = self.db.get(Distributor, vendor_id)
         if not vendor:
             raise bad_request("Distributor not found")
-        if vendor.verificationStatus != "APPROVED":
-            raise bad_request(
-                "Distributor profile is not verified yet — wait for hospital review before booking"
-            )
+        if vendor.verificationStatus == "REJECTED":
+            raise bad_request("This distributor profile was rejected")
 
         mapping = (
             self.db.query(VendorBranchMapping)
@@ -261,6 +263,11 @@ class InboundDeliveryService:
             raise bad_request("vehicle is required")
         if not agent:
             raise bad_request("driver is required")
+        driver_digits = "".join(ch for ch in (agent.phone or "") if ch.isdigit())
+        if len(driver_digits) < 10:
+            raise bad_request(
+                "Driver mobile number is required so the WhatsApp delivery pass can be sent."
+            )
 
         if use_v2:
             if vehicle_category:
@@ -556,6 +563,15 @@ class InboundDeliveryService:
                 referenceId=delivery_id,
             )
         )
+
+    def _send_driver_pass(self, delivery: InboundDelivery) -> None:
+        agent = self.db.get(DeliveryAgent, delivery.agentId) if delivery.agentId else None
+        if agent is None or not agent.phone:
+            return
+        try:
+            NotificationsService(self.db)._send_delivery_pass_whatsapp(delivery, agent)
+        except Exception as exc:
+            logger.error("Failed to send delivery pass for %s: %s", delivery.id, exc)
 
     def _generate_qr(self, delivery: InboundDelivery) -> None:
         payload = f"{delivery.id}:{delivery.deliveryNumber}:{now_ist().isoformat()}"

@@ -16,6 +16,7 @@ import {
   type ChainStats,
   type TrendPeriod,
 } from '@/lib/services/analyticsService';
+import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -120,6 +121,7 @@ export default function SuperAdminOverview() {
     todayVisits: 0,
   });
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   // Analytics state
@@ -173,6 +175,7 @@ export default function SuperAdminOverview() {
       setVisitCategoryDist(data.visitCategoryDistribution);
       setUserRoleDist(data.userRoleDistribution);
       setChainStats(data.chainStats);
+      setReady(true);
     };
 
     const load = (attempt = 0) => {
@@ -195,6 +198,7 @@ export default function SuperAdminOverview() {
             ? getBackendUnreachableMessage()
             : 'Failed to load dashboard data. Check the console and ensure the Python API is running.';
           setError(message);
+          setReady(true);
         });
     };
 
@@ -418,6 +422,16 @@ export default function SuperAdminOverview() {
   }
 
 
+
+  if (!ready && !error) {
+    return (
+      <ConnitorLoader
+        variant="section"
+        message="Loading dashboard data…"
+        className="min-h-[50vh] py-16"
+      />
+    );
+  }
 
   if (error) {
     return (

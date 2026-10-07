@@ -108,6 +108,16 @@ export interface AmsDashboardSummary {
     status: string;
     passNumber?: string;
     passId?: string;
+    companionName?: string | null;
+  }>;
+  meetings?: Array<{
+    passId: string;
+    passNumber: string;
+    attendantName: string;
+    companionName?: string | null;
+    patient: string;
+    ward?: string | null;
+    message: string;
   }>;
 }
 
@@ -283,7 +293,11 @@ export const AttendantPassService = {
     email: string;
     phone: string;
     relationship?: string;
-  }): Promise<AttendantRow> {
+    addCompanion?: boolean;
+    companionName?: string;
+    companionPhone?: string;
+    companionRelationship?: string;
+  }): Promise<AttendantPassRow> {
     const res = await apiClient.post('/api/public/attendant-passes/apply', data);
     return res.data;
   },
@@ -408,6 +422,7 @@ export const AttendantPassService = {
     specialPermissions?: string[];
     maxEntries?: number;
     isEmergency?: boolean;
+    attendantKind?: 'FIXED' | 'VISITOR';
   }): Promise<AttendantRow> {
     const res = await apiClient.post('/api/attendant-passes/attendants', data);
     return res.data;

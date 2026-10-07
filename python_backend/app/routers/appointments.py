@@ -33,5 +33,9 @@ def list_appointments(
     db: Annotated[Session, Depends(get_db)],
     status: str | None = None,
     branchId: str | None = None,
+    limit: int = Query(100, ge=1, le=100),
 ):
-    return AppointmentsService(db).list_appointments({"status": status, "branchId": branchId}, user)
+    return AppointmentsService(db).list_appointments(
+        {"status": status, "branchId": branchId, "limit": limit},
+        user,
+    )

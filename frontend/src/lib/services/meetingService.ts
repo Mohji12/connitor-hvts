@@ -52,9 +52,10 @@ export function toMeetingAccessError(err: unknown): MeetingAccessError {
 }
 
 export const MeetingApi = {
-  async getAccess(joinToken: string): Promise<MeetingAccess> {
+  async getAccess(joinToken: string, sessionId?: string): Promise<MeetingAccess> {
     const response = await apiClient.post<MeetingAccess>('/api/public/meetings/token', {
       joinToken,
+      sessionId,
     });
     return response.data;
   },

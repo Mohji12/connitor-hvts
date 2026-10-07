@@ -2,6 +2,7 @@
 
 import useSWR from 'swr';
 import Link from 'next/link';
+import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useOverviewSessionUser } from '@/hooks/useOverviewSessionUser';
@@ -20,11 +21,21 @@ export default function SubDepartmentAdminOverview() {
     { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
-  const { data: appointments } = useSWR(
+  const { data: appointments, isLoading: appointmentsLoading } = useSWR(
     user ? '/api/appointments/subdept' : null,
     () => AppointmentService.list(),
     { refreshInterval: DASHBOARD_REFRESH_MS },
   );
+
+  if (!user || (user.subDepartmentId && isLoading && !overview)) {
+    return (
+      <ConnitorLoader
+        variant="section"
+        message="Loading section data…"
+        className="min-h-[50vh] py-16"
+      />
+    );
+  }
 
   const stats = [
     { label: 'Total Staff', value: overview?.staffCount ?? 0, icon: Users },
@@ -83,7 +94,9 @@ export default function SubDepartmentAdminOverview() {
           </Button>
         </CardHeader>
         <CardContent>
-          {!appointments?.length ? (
+          {appointmentsLoading ? (
+            <ConnitorLoader variant="inline" message="Loading appointments…" />
+          ) : !appointments?.length ? (
             <p className="text-sm text-muted-foreground">No appointments in this section.</p>
           ) : (
             <ul className="space-y-2">

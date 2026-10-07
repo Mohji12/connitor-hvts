@@ -1,7 +1,7 @@
 """
 End-to-end attendant pass workflow test (live API + DB) — Module 3:
-  Ward creates patient/admission → Public family apply → Approve →
-  Issue pass (QR emailed) → Security scan with government ID photo
+  Reception registers a fixed attendant → visitor books during visiting hours →
+  pass is issued immediately → security scans the same QR in and out.
 
 Run from python_backend/:
   python scripts/e2e_attendant_workflow_test.py
@@ -11,20 +11,21 @@ from __future__ import annotations
 import os
 import random
 import sys
-from io import BytesIO
 
 import httpx
 
-from app.constants.electronic_city_entities import ELECTRONIC_CITY_BRANCH_ID
+from app.constants.ovum_entities import OVUM_BRANCH_ID
 from app.database import SessionLocal
 from app.models.attendant_entities import Attendant, AttendantPass, AttendantPassScan
 
 API_BASE = os.environ.get("CONNITOR_API_BASE", "http://127.0.0.1:8002/api")
-WARD_EMAIL = "ward.admin@connitor-elcity.com"
-WARD_PASSWORD = "Conninter123@"
-SECURITY_EMAIL = "security@connitor-elcity.com"
-SECURITY_PASSWORD = "Conninter123@"
-BRANCH_ID = ELECTRONIC_CITY_BRANCH_ID
+PRIMARY_PHONE = os.environ.get("E2E_PRIMARY_PHONE", "8625877312")
+ALT_PHONE = os.environ.get("E2E_ALT_PHONE", "7893982875")
+WARD_EMAIL = os.environ.get("E2E_WARD_EMAIL", "kalyan-nagar@ovum.conninter.com")
+WARD_PASSWORD = os.environ.get("E2E_WARD_PASSWORD", "Conninter123@")
+SECURITY_EMAIL = os.environ.get("E2E_SECURITY_EMAIL", "security.kalyan-nagar@ovum.conninter.com")
+SECURITY_PASSWORD = os.environ.get("E2E_SECURITY_PASSWORD", "Conninter123@")
+BRANCH_ID = os.environ.get("E2E_BRANCH_ID", OVUM_BRANCH_ID)
 
 # Minimal valid JPEG (1x1 pixel)
 _JPEG_BYTES = bytes(
@@ -164,8 +165,8 @@ def main() -> None:
 
     suffix = random.randint(1000, 9999)
     mrn = f"E2E-MRN-{suffix}"
-    family_phone = f"9{random.randint(100000000, 999999999)}"
-    family_email = f"e2e.attendant.{suffix}@example.com"
+    fixed_phone = PRIMARY_PHONE
+    visitor_phone = ALT_PHONE
 
     with httpx.Client(timeout=60.0) as client:
         step(1, "Health check")
@@ -234,115 +235,182 @@ def main() -> None:
             fail(f"Lookup returned unexpected admission: {lookup}")
         ok(f"Public lookup OK — {lookup.get('patientFirstName')} / ward {lookup.get('wardName')}")
 
-        step(6, "Family applies via public form")
-        apply_res = client.post(
-            f"{API_BASE}/public/attendant-passes/apply",
-            json={
-                "admissionId": admission_id,
-                "name": "E2E Family Attendant",
-                "email": family_email,
-                "phone": family_phone,
-                "relationship": "Spouse",
-            },
-        )
-        if apply_res.status_code not in (200, 201):
-            fail(f"Public apply failed ({apply_res.status_code}): {apply_res.text}")
-        attendant = apply_res.json()
-        attendant_id = attendant.get("id")
-        if not attendant_id:
-            fail(f"No attendant id: {attendant}")
-        if attendant.get("status") != "PENDING":
-            fail(f"Expected PENDING, got {attendant.get('status')}")
-        ok(f"Attendant pending {attendant_id[:8]}…")
-
-        step(7, "Ward approves attendant")
-        approve_res = client.post(
-            f"{API_BASE}/attendant-passes/attendants/{attendant_id}/approve",
+        step(6, "Open visiting hours for this run")
+        policy_res = client.get(
+            f"{API_BASE}/attendant-passes/policy",
             headers=auth_headers(ward_token),
+            params={"branchId": BRANCH_ID},
         )
-        if approve_res.status_code != 200:
-            fail(f"Approve failed ({approve_res.status_code}): {approve_res.text}")
-        if approve_res.json().get("status") != "APPROVED":
-            fail(f"Expected APPROVED, got {approve_res.json()}")
-        ok("Attendant APPROVED")
-
-        step(8, "Ward issues pass (QR generated)")
-        issue_res = client.post(
-            f"{API_BASE}/attendant-passes/passes/{attendant_id}/issue",
+        saved_start = None
+        saved_end = None
+        if policy_res.status_code == 200:
+            saved_start = policy_res.json().get("defaultVisitStart")
+            saved_end = policy_res.json().get("defaultVisitEnd")
+        open_res = client.put(
+            f"{API_BASE}/attendant-passes/policy",
             headers=auth_headers(ward_token),
-            json={"revokeExisting": False},
+            params={"branchId": BRANCH_ID},
+            json={"defaultVisitStart": "00:00", "defaultVisitEnd": "23:59"},
         )
-        if issue_res.status_code not in (200, 201):
-            fail(f"Issue pass failed ({issue_res.status_code}): {issue_res.text}")
-        issued = issue_res.json()
-        pass_id = issued.get("id")
-        pass_number = issued.get("passNumber")
-        qr_payload = issued.get("qrPayload")
-        qr_signature = issued.get("qrSignature")
-        if not pass_id or not qr_payload or not qr_signature:
-            fail(f"Missing pass/QR fields: {issued}")
-        if issued.get("status") != "ACTIVE":
-            fail(f"Expected ACTIVE pass, got {issued.get('status')}")
-        ok(f"Pass issued {pass_number} — ACTIVE + QR")
+        if open_res.status_code != 200:
+            fail(f"Could not open visiting hours ({open_res.status_code}): {open_res.text}")
+        ok("Visiting hours opened for the test")
 
-        step(9, "One-ACTIVE-pass rule rejects second issue without revoke")
-        second = client.post(
-            f"{API_BASE}/attendant-passes/passes/{attendant_id}/issue",
-            headers=auth_headers(ward_token),
-            json={"revokeExisting": False},
-        )
-        if second.status_code not in (400, 409):
-            fail(f"Expected 400 on second issue, got {second.status_code}: {second.text}")
-        ok(f"Second issue correctly blocked ({second.status_code})")
-
-        step(10, "Security scans pass with government ID image")
-        security_token = login(client, SECURITY_EMAIL, SECURITY_PASSWORD)
-        scan_res = client.post(
-            f"{API_BASE}/attendant-passes/passes/scan",
-            headers=auth_headers(security_token),
-            data={
-                "qrPayload": qr_payload,
-                "signature": qr_signature,
-                "scanType": "ENTRY",
-                "govtIdType": "Aadhaar",
-            },
-            files={"govtIdImage": ("aadhaar.jpg", BytesIO(_JPEG_BYTES), "image/jpeg")},
-        )
-        if scan_res.status_code != 200:
-            fail(f"Scan failed ({scan_res.status_code}): {scan_res.text}")
-        scan = scan_res.json()
-        if not scan.get("valid"):
-            fail(f"Scan not valid: {scan}")
-        if scan.get("passNumber") != pass_number:
-            fail(f"Pass number mismatch: {scan}")
-        if not scan.get("govtIdImageUrl"):
-            fail(f"Missing govtIdImageUrl: {scan}")
-        ok(f"Scan valid — govt ID stored at {scan['govtIdImageUrl']}")
-
-        step(11, "Verify final records in database")
-        db = SessionLocal()
         try:
-            pass_row = db.get(AttendantPass, pass_id)
-            attendant_row = db.get(Attendant, attendant_id)
-            if not pass_row or pass_row.status != "ACTIVE":
-                fail(f"Pass not ACTIVE in DB: {getattr(pass_row, 'status', None)}")
-            if not attendant_row or attendant_row.status != "APPROVED":
-                fail(f"Attendant not APPROVED in DB: {getattr(attendant_row, 'status', None)}")
-            scans = (
-                db.query(AttendantPassScan)
-                .filter(AttendantPassScan.passId == pass_id)
-                .all()
+            step(7, "Reception registers the fixed attendant")
+            fixed_res = client.post(
+                f"{API_BASE}/attendant-passes/attendants",
+                headers=auth_headers(ward_token),
+                json={
+                    "admissionId": admission_id,
+                    "name": "E2E Fixed Attendant",
+                    "phone": fixed_phone,
+                    "relationship": "Mother",
+                    "attendantKind": "FIXED",
+                },
             )
-            if not scans:
-                fail("No AttendantPassScan row written")
-            if not scans[0].govtIdImageUrl:
-                fail("Scan row missing govtIdImageUrl")
-            ok(
-                f"DB OK | pass={pass_row.passNumber} | attendant={attendant_row.name} | "
-                f"scans={len(scans)} | id={pass_id}"
+            if fixed_res.status_code not in (200, 201):
+                fail(f"Register fixed attendant failed ({fixed_res.status_code}): {fixed_res.text}")
+            fixed_id = fixed_res.json().get("id")
+            if not fixed_id:
+                fail(f"No fixed attendant id: {fixed_res.json()}")
+            approve_fixed = client.post(
+                f"{API_BASE}/attendant-passes/attendants/{fixed_id}/approve",
+                headers=auth_headers(ward_token),
             )
+            if approve_fixed.status_code != 200:
+                fail(f"Approve fixed attendant failed ({approve_fixed.status_code}): {approve_fixed.text}")
+            issue_fixed = client.post(
+                f"{API_BASE}/attendant-passes/passes/{fixed_id}/issue",
+                headers=auth_headers(ward_token),
+                json={"revokeExisting": True},
+            )
+            if issue_fixed.status_code not in (200, 201):
+                fail(f"Issue fixed pass failed ({issue_fixed.status_code}): {issue_fixed.text}")
+            if issue_fixed.json().get("status") != "ACTIVE":
+                fail(f"Fixed pass not ACTIVE: {issue_fixed.json()}")
+            ok(f"Fixed pass issued to {fixed_phone} — WhatsApp {issue_fixed.json().get('whatsappSent')}")
+
+            step(8, "Visitor books a pass with one companion")
+            apply_res = client.post(
+                f"{API_BASE}/public/attendant-passes/apply",
+                json={
+                    "admissionId": admission_id,
+                    "name": "E2E Visitor Attendant",
+                    "phone": visitor_phone,
+                    "relationship": "Sister",
+                    "addCompanion": True,
+                    "companionName": "E2E Companion",
+                    "companionPhone": fixed_phone,
+                    "companionRelationship": "Brother",
+                },
+            )
+            if apply_res.status_code not in (200, 201):
+                fail(f"Public apply failed ({apply_res.status_code}): {apply_res.text}")
+            issued = apply_res.json()
+            pass_id = issued.get("id")
+            attendant_id = issued.get("attendantId")
+            pass_number = issued.get("passNumber")
+            qr_payload = issued.get("qrPayload")
+            qr_signature = issued.get("qrSignature")
+            if not pass_id or not attendant_id or not qr_payload or not qr_signature:
+                fail(f"Missing pass/QR fields: {issued}")
+            if issued.get("status") != "ACTIVE":
+                fail(f"Expected ACTIVE pass on booking, got {issued.get('status')}")
+            ok(f"Visitor pass {pass_number} issued to {visitor_phone} — WhatsApp {issued.get('whatsappSent')}")
+
+            step(9, "Security checks the visitor in with the same QR")
+            security_token = login(client, SECURITY_EMAIL, SECURITY_PASSWORD)
+            scan_res = client.post(
+                f"{API_BASE}/attendant-passes/passes/scan",
+                headers=auth_headers(security_token),
+                data={"qrPayload": qr_payload, "signature": qr_signature},
+            )
+            if scan_res.status_code != 200:
+                fail(f"Check-in scan failed ({scan_res.status_code}): {scan_res.text}")
+            scan = scan_res.json()
+            if not scan.get("valid") or scan.get("scanType") != "ENTRY":
+                fail(f"Expected ENTRY scan: {scan}")
+            if not scan.get("isInside"):
+                fail(f"Visitor should be inside: {scan}")
+            ok(f"Checked in {pass_number}")
+
+            step(10, "Another booking is blocked while the visitor is inside")
+            blocked = client.post(
+                f"{API_BASE}/public/attendant-passes/apply",
+                json={
+                    "admissionId": admission_id,
+                    "name": "E2E Late Visitor",
+                    "phone": visitor_phone,
+                    "relationship": "Friend",
+                },
+            )
+            if blocked.status_code not in (400, 409):
+                fail(f"Expected booking block, got {blocked.status_code}: {blocked.text}")
+            ok("New booking blocked while someone is inside")
+
+            summary = client.get(
+                f"{API_BASE}/attendant-passes/dashboard/summary",
+                headers=auth_headers(security_token),
+                params={"branchId": BRANCH_ID},
+            )
+            if summary.status_code != 200:
+                fail(f"Dashboard summary failed ({summary.status_code}): {summary.text}")
+            meetings = summary.json().get("meetings") or []
+            if not any(item.get("passId") == pass_id for item in meetings):
+                fail(f"Meeting line missing for this patient: {meetings}")
+            ok("Dashboard shows the second attendant is meeting")
+
+            step(11, "Security checks the visitor out with the same QR")
+            exit_res = client.post(
+                f"{API_BASE}/attendant-passes/passes/scan",
+                headers=auth_headers(security_token),
+                data={"qrPayload": qr_payload, "signature": qr_signature},
+            )
+            if exit_res.status_code != 200:
+                fail(f"Check-out scan failed ({exit_res.status_code}): {exit_res.text}")
+            exited = exit_res.json()
+            if exited.get("scanType") != "EXIT" or exited.get("isInside"):
+                fail(f"Expected EXIT and outside: {exited}")
+            ok(f"Checked out {pass_number}")
+
+            step(12, "Verify final records in database")
+            db = SessionLocal()
+            try:
+                pass_row = db.get(AttendantPass, pass_id)
+                attendant_row = db.get(Attendant, attendant_id)
+                if not pass_row or pass_row.status != "USED":
+                    fail(f"Pass not USED in DB: {getattr(pass_row, 'status', None)}")
+                if not attendant_row or attendant_row.status != "APPROVED":
+                    fail(f"Attendant not APPROVED in DB: {getattr(attendant_row, 'status', None)}")
+                scans = (
+                    db.query(AttendantPassScan)
+                    .filter(AttendantPassScan.passId == pass_id)
+                    .all()
+                )
+                kinds = {row.scanType for row in scans}
+                if kinds != {"ENTRY", "EXIT"}:
+                    fail(f"Expected ENTRY and EXIT scans, got {kinds}")
+                ok(
+                    f"DB OK | pass={pass_row.passNumber} | attendant={attendant_row.name} | "
+                    f"scans={len(scans)} | id={pass_id}"
+                )
+            finally:
+                db.close()
         finally:
-            db.close()
+            restore_body = {}
+            if saved_start:
+                restore_body["defaultVisitStart"] = saved_start
+            if saved_end:
+                restore_body["defaultVisitEnd"] = saved_end
+            if restore_body:
+                client.put(
+                    f"{API_BASE}/attendant-passes/policy",
+                    headers=auth_headers(ward_token),
+                    params={"branchId": BRANCH_ID},
+                    json=restore_body,
+                )
+                ok("Visiting hours restored")
 
     print("\n=== ALL E2E STEPS PASSED (Module 3 — Attendant) ===")
 

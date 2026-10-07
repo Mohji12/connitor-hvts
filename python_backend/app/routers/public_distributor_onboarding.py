@@ -6,6 +6,7 @@ import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -13,6 +14,11 @@ from app.delivery.onboarding_service import DistributorOnboardingService
 from app.delivery.utils import bad_request
 
 router = APIRouter()
+
+
+class DistributorPhoneOtpBody(BaseModel):
+    email: str
+    otp: str | None = None
 
 
 @router.get("/branches")
@@ -53,3 +59,19 @@ async def apply_distributor_onboarding(
             files[key] = upload
 
     return await DistributorOnboardingService(db).apply(data, files)
+
+
+@router.post("/resend-phone-otp")
+def resend_distributor_phone_otp(
+    body: DistributorPhoneOtpBody,
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorOnboardingService(db).resend_phone_otp(body.email)
+
+
+@router.post("/verify-phone")
+def verify_distributor_phone(
+    body: DistributorPhoneOtpBody,
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorOnboardingService(db).verify_phone_otp(body.email, body.otp or "")

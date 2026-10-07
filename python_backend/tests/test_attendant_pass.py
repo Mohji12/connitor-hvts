@@ -89,11 +89,22 @@ def _seed_admission(db, branch_id: str) -> Admission:
     return admission
 
 
-def test_public_apply_creates_pending(db):
+@pytest.fixture(autouse=True)
+def _no_attendant_whatsapp():
+    with patch(
+        "app.attendant.pass_service.AttendantPassService._send_attendant_pass_whatsapp",
+        return_value=False,
+    ):
+        yield
+
+
+def test_public_apply_issues_pass_during_visiting_hours(db):
     branch = db.query(Branch).first()
     admission = _seed_admission(db, branch.id)
-    with patch("app.attendant.approval_link_service.AttendantApprovalLinkService.notify_ward_admins") as notify:
-        notify.return_value = {"approvalUrl": "http://example/x", "emailsSent": 0, "recipients": []}
+    noon = datetime(2026, 10, 6, 12, 0, 0)
+    with patch("app.attendant.pass_service.now_ist", return_value=noon), patch.object(
+        EmailService, "send_attendant_pass_email"
+    ):
         result = AttendantPassService(db).public_apply(
             {
                 "admissionId": admission.id,
@@ -101,10 +112,34 @@ def test_public_apply_creates_pending(db):
                 "email": "anita@example.com",
                 "phone": "9222222222",
                 "relationship": "Sister",
+                "addCompanion": True,
+                "companionName": "Ramesh",
+                "companionPhone": "9333333331",
+                "companionRelationship": "Brother",
             }
         )
-    assert result["status"] == "PENDING"
-    assert result["email"] == "anita@example.com"
+    assert result["status"] == "ACTIVE"
+    assert result["passNumber"]
+    assert result["qrPayload"]
+    assert result["attendant"]["attendantKind"] == "VISITOR"
+    assert result["attendant"]["companionName"] == "Ramesh"
+
+
+def test_public_apply_refuses_outside_visiting_hours(db):
+    branch = db.query(Branch).first()
+    admission = _seed_admission(db, branch.id)
+    night = datetime(2026, 10, 6, 21, 0, 0)
+    with patch("app.attendant.pass_service.now_ist", return_value=night):
+        with pytest.raises(Exception) as exc:
+            AttendantPassService(db).public_apply(
+                {
+                    "admissionId": admission.id,
+                    "name": "Anita",
+                    "email": "anita@example.com",
+                    "phone": "9222222222",
+                }
+            )
+    assert "visiting" in str(exc.value.detail).lower()
 
 
 def test_one_active_pass_rule(db):
@@ -120,6 +155,7 @@ def test_one_active_pass_rule(db):
             "name": "Visitor One",
             "email": "v1@example.com",
             "phone": "9333333333",
+            "attendantKind": "FIXED",
         },
     )
     svc.approve_attendant(user, a1["id"])
@@ -135,6 +171,7 @@ def test_one_active_pass_rule(db):
             "name": "Visitor Two",
             "email": "v2@example.com",
             "phone": "9444444444",
+            "attendantKind": "FIXED",
         },
     )
     svc.approve_attendant(user, a2["id"])
@@ -349,9 +386,6 @@ async def test_entry_exit_duration_and_inside_block(db):
     assert entry["isInside"] is True
     assert entry["enteredAt"] is not None
     db.refresh(pass_row)
-    assert pass_row.exitQrPayload
-    assert pass_row.exitQrSignature
-    assert pass_row.exitQrPayload.startswith("PASS-EXIT:")
 
     lookup = svc.lookup_admission_by_mrn(branch.id, "MRN-100")
     assert lookup["hasAttendantInside"] is True
@@ -367,24 +401,12 @@ async def test_entry_exit_duration_and_inside_block(db):
         )
     assert "currently inside" in str(blocked.value.detail).lower()
 
-    # Entry QR while inside must not check out
-    with pytest.raises(Exception) as entry_blocked:
-        await svc.scan_pass(
+    with patch.object(svc, "_notify_visit_exit"):
+        exit_result = await svc.scan_pass(
             security,
             qr_payload=pass_row.qrPayload,
             signature=pass_row.qrSignature,
             govt_id_file=None,
-            scan_type="ENTRY",
-        )
-    assert "checkout qr" in str(entry_blocked.value.detail).lower()
-
-    with patch.object(svc, "_notify_visit_exit"):
-        exit_result = await svc.scan_pass(
-            security,
-            qr_payload=pass_row.exitQrPayload,
-            signature=pass_row.exitQrSignature,
-            govt_id_file=None,
-            scan_type="EXIT",
         )
     assert exit_result["scanType"] == "EXIT"
     assert exit_result["isInside"] is False
@@ -397,10 +419,9 @@ async def test_entry_exit_duration_and_inside_block(db):
     lookup2 = svc.lookup_admission_by_mrn(branch.id, "MRN-100")
     assert lookup2["hasAttendantInside"] is False
 
-    with patch(
-        "app.attendant.approval_link_service.AttendantApprovalLinkService.notify_ward_admins"
-    ) as notify:
-        notify.return_value = {"emailsSent": 0, "recipients": []}
+    with patch("app.attendant.pass_service.now_ist", return_value=datetime(2026, 7, 22, 13, 0, 0)), patch.object(
+        EmailService, "send_attendant_pass_email"
+    ):
         again = svc.public_apply(
             {
                 "admissionId": admission.id,
@@ -409,4 +430,4 @@ async def test_entry_exit_duration_and_inside_block(db):
                 "phone": "9888888888",
             }
         )
-    assert again["status"] == "PENDING"
+    assert again["status"] == "ACTIVE"

@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -195,6 +195,19 @@ def create_agent(
     db: Annotated[Session, Depends(get_db)],
 ):
     return AgentVehicleService(db).create_agent(user, body.model_dump())
+
+
+@router.post("/agents/{agent_id}/photo")
+async def upload_agent_photo(
+    agent_id: str,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+    file: UploadFile = File(...),
+):
+    content = await file.read()
+    return AgentVehicleService(db).save_agent_photo(
+        user, agent_id, content, file.content_type or "image/jpeg"
+    )
 
 
 @router.get("/vehicles")

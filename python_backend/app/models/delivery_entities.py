@@ -162,6 +162,7 @@ class DeliveryAgent(Base):
     email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     licenseNumber: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    photoStorageKey: Mapped[str | None] = mapped_column(String(512), nullable=True)
     userId: Mapped[str | None] = mapped_column(String(36), ForeignKey("User.id"), nullable=True)
     isActive: Mapped[bool] = mapped_column(Boolean, default=True)
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist)

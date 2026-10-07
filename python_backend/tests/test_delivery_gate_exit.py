@@ -243,8 +243,11 @@ def test_mark_exit_emails_distributor_and_driver(db):
 
     with patch(
         "app.services.messaging_service.EmailService._deliver_email"
-    ) as deliver:
+    ) as deliver, patch(
+        "app.services.messaging_service.WhatsAppService.send_order_delivered"
+    ) as whatsapp:
         deliver.return_value = None
+        whatsapp.return_value = True
         result = gate.mark_exit(user, delivery.id)
 
     assert result["status"] == DeliveryStatus.EXITED.value
@@ -252,3 +255,33 @@ def test_mark_exit_emails_distributor_and_driver(db):
     emailed = {call.args[0].lower() for call in deliver.call_args_list}
     assert "vendor@exit.test" in emailed
     assert "driver@exit.test" in emailed
+    whatsapp.assert_called_once()
+    sent = whatsapp.call_args.kwargs
+    assert sent["recipient_name"] == "Driver Exit"
+    assert sent["hospital_name"] == "Test Chain"
+    assert sent["branch_name"] == "Test Branch"
+    assert sent["order_id"] == "DEL-EXIT-001"
+    assert sent["po_number"] == "—"
+    assert sent["items"] == "5 Medicines"
+    assert sent["total_quantity"] == "5"
+    assert sent["delivered_by"] == "Driver Exit"
+    assert sent["vehicle_number"] == "KA01EXIT"
+    assert sent["delivery_reference"] == "DEL-EXIT-001"
+    assert sent["receiving_department"] == "Receiving"
+
+
+def test_scan_reads_compact_pass_qr(db):
+    import json
+
+    from app.services.delivery_pass_image import delivery_scan_text
+
+    branch = db.query(Branch).first()
+    delivery, user, _payload, _signature = _seed_received_delivery(db, branch.id)
+    qr = db.query(DeliveryQrCode).filter(DeliveryQrCode.deliveryId == delivery.id).one()
+    scanned = json.loads(delivery_scan_text(qr.id))
+
+    result = DeliveryGateService(db).scan_qr(user, scanned["qrPayload"], scanned["signature"])
+
+    assert result["valid"] is True
+    assert result["qrKind"] == "ENTRY"
+    assert result["delivery"]["deliveryNumber"] == "DEL-EXIT-001"

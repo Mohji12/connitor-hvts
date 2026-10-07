@@ -1,12 +1,11 @@
 """Delivery fee calculators.
 
-v2 (default booking): package units + vehicle type base fee + over-capacity handling.
+v2 (default booking): the delivery-slot price for the vehicle.
 Legacy: volume fill-ratio × unload minutes × rate/min (kept for older quotes).
 """
 
 from __future__ import annotations
 
-import math
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
@@ -22,12 +21,25 @@ PACKAGE_WEIGHT: dict[str, int] = {
     "Custom": 10,
 }
 
+# Slot length is the price. Each vehicle books one of these delivery slots.
+SLOT_TIERS: list[tuple[int, int]] = [
+    (10, 49),
+    (20, 99),
+    (30, 299),
+    (45, 499),
+    (60, 999),
+]
+
+VEHICLE_TIER_INDEX: dict[str, int] = {
+    "Bike": 0,
+    "Auto": 1,
+    "SCV": 2,
+    "LCV": 3,
+    "MCV": 4,
+}
+
 VEHICLE_BASE_FEE: dict[str, int] = {
-    "Bike": 48,
-    "Auto": 149,
-    "SCV": 349,
-    "MCV": 1449,
-    "LCV": 1999,
+    name: SLOT_TIERS[index][1] for name, index in VEHICLE_TIER_INDEX.items()
 }
 
 VEHICLE_CAPACITY: dict[str, int] = {
@@ -61,11 +73,9 @@ def compute_consignment_fee(
     Conninter Delivery Booking v2 pricing.
 
     units = sum(package_weight[type] * qty)
-    base = vehicle base fee
-    over = max(0, units - vehicle_capacity)
-    handling = ceil(over/5)*25 if over else 0
-    slot_minutes = 10 + ceil(over/5)*5 if over else 10
-    total = base + handling
+    The fee is the delivery-slot price for that vehicle:
+    10 min ₹49, 20 min ₹99, 30 min ₹299, 45 min ₹499, 60 min ₹999.
+    A load over the vehicle capacity moves up one slot.
     """
     vt = (vehicle_type or "").strip()
     if vt not in VEHICLE_BASE_FEE:
@@ -111,13 +121,12 @@ def compute_consignment_fee(
         )
 
     capacity = VEHICLE_CAPACITY[vt]
-    base = VEHICLE_BASE_FEE[vt]
     over = max(0, units - capacity)
-    blocks = math.ceil(over / 5) if over else 0
-    handling = blocks * 25
-    slot_minutes = 10 + (blocks * 5 if over else 0)
-    total = base + handling
-    fee = Decimal(str(total)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    tier_index = VEHICLE_TIER_INDEX[vt]
+    if over > 0:
+        tier_index = min(tier_index + 1, len(SLOT_TIERS) - 1)
+    slot_minutes, price = SLOT_TIERS[tier_index]
+    fee = Decimal(str(price)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     return {
         "pricingModel": "consignment_v2",
@@ -125,8 +134,8 @@ def compute_consignment_fee(
         "capacityUnits": capacity,
         "usedUnits": units,
         "overUnits": over,
-        "baseFee": float(base),
-        "handlingFee": float(handling),
+        "baseFee": float(price),
+        "handlingFee": 0.0,
         "walletFee": float(fee),
         "slotMinutes": slot_minutes,
         "unloadMinutes": float(slot_minutes),

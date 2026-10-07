@@ -60,7 +60,11 @@ class VisitorUploadFallbackTests(unittest.TestCase):
                         "image/jpeg",
                     )
                     relative = key.removeprefix("local:")
-                    self.assertIsNone(service.get_presigned_url(key, ttl_seconds=60))
+                    url = service.get_presigned_url(key, ttl_seconds=60)
+                    self.assertIsNotNone(url)
+                    self.assertTrue(
+                        url.startswith(f"/api/public/visitor-accounts/assets/{relative}?")
+                    )
                     exp = 9_999_999_999
                     sig = _sign_local_asset(relative, exp, "test-secret")
                     path = resolve_local_asset(relative, exp, sig)

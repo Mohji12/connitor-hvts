@@ -191,6 +191,10 @@ class Settings(BaseSettings):
     hvts_test_mode: bool = Field(default=False, validation_alias="HVTS_TEST_MODE")
     delivery_module_enabled: bool = Field(default=True, validation_alias="DELIVERY_MODULE_ENABLED")
     delivery_wallet_enabled: bool = Field(default=False, validation_alias="DELIVERY_WALLET_ENABLED")
+    visitor_visit_fee_inr: int = Field(default=200, validation_alias="VISITOR_VISIT_FEE_INR")
+    razorpay_key_id: str | None = Field(default=None, validation_alias="RAZORPAY_KEY_ID")
+    razorpay_key_secret: str | None = Field(default=None, validation_alias="RAZORPAY_KEY_SECRET")
+    razorpay_webhook_secret: str | None = Field(default=None, validation_alias="RAZORPAY_WEBHOOK_SECRET")
     delivery_full_unload_minutes: float = Field(
         default=60.0, validation_alias="DELIVERY_FULL_UNLOAD_MINUTES"
     )
@@ -246,6 +250,46 @@ class Settings(BaseSettings):
         default="en_US",
         validation_alias="WHATSAPP_TEMPLATE_APPOINTMENT_APPROVAL_LANGUAGE",
         description="conninter_doctor_visit_approval language. Match the approved template (English US).",
+    )
+    whatsapp_template_visit_rejected: str = Field(
+        default="conninter_visit_rejected",
+        validation_alias="WHATSAPP_TEMPLATE_VISIT_REJECTED",
+        description="Sent to the visitor when the doctor rejects the visit.",
+    )
+    whatsapp_template_visit_rejected_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_VISIT_REJECTED_LANGUAGE",
+        description="conninter_visit_rejected language. The approved copy is English (US).",
+    )
+    whatsapp_template_delivery_pass: str = Field(
+        default="conninter_delivery_pass",
+        validation_alias="WHATSAPP_TEMPLATE_DELIVERY_PASS",
+        description="Image header plus body sent to the driver when a distributor allots a delivery.",
+    )
+    whatsapp_template_delivery_pass_language: str = Field(
+        default="en_GB",
+        validation_alias="WHATSAPP_TEMPLATE_DELIVERY_PASS_LANGUAGE",
+        description="conninter_delivery_pass language.",
+    )
+    whatsapp_template_order_delivered: str = Field(
+        default="conninter_hospital_order_delivered",
+        validation_alias="WHATSAPP_TEMPLATE_ORDER_DELIVERED",
+        description="Sent when security scans the delivery checkout QR.",
+    )
+    whatsapp_template_order_delivered_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_ORDER_DELIVERED_LANGUAGE",
+        description="conninter_hospital_order_delivered is approved as English (US).",
+    )
+    whatsapp_template_attendant_pass: str = Field(
+        default="conninter_patient_attendant_pass",
+        validation_alias="WHATSAPP_TEMPLATE_ATTENDANT_PASS",
+        description="Sent when a fixed or visitor attendant pass is issued.",
+    )
+    whatsapp_template_attendant_pass_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_ATTENDANT_PASS_LANGUAGE",
+        description="conninter_patient_attendant_pass language.",
     )
     whatsapp_template_language: str = Field(
         default="en_GB",

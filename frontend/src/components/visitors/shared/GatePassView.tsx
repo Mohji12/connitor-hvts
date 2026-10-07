@@ -315,7 +315,7 @@ export function GatePassView({
 
         {/* QR Code for security scan */}
         {(showQRCode || qrCodeDataUrl) && (
-          <div className="border-t pt-4 flex flex-col items-center gap-2">
+          <div className="-mx-6 flex flex-col items-center gap-2 border-t pt-4">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">
               Scan at Security Desk
             </p>
@@ -324,7 +324,7 @@ export function GatePassView({
               <img
                 src={qrCodeDataUrl}
                 alt="Check-in QR code"
-                className="h-40 w-40 rounded-lg border bg-white p-2"
+                className="block w-full"
               />
             ) : (
               <div className="w-40 h-40 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">

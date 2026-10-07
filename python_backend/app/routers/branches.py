@@ -45,6 +45,7 @@ def list_branches(chain_id: str, user: Annotated[dict, Depends(get_current_user)
                 Role.SUPER_ADMIN.value,
                 Role.CHAIN_ADMIN.value,
                 Role.BRANCH_ADMIN.value,
+                Role.HOSPITAL_ADMIN.value,
                 Role.SECURITY.value,
                 Role.SECURITY_SUPERVISOR.value,
             )

@@ -175,6 +175,197 @@ def test_meeting_pass_template_sends_header_image_and_six_fields(mock_post: Magi
 
 
 @patch("app.services.wapblaster_client.httpx.post")
+def test_delivery_pass_template_field_order(mock_post: MagicMock) -> None:
+    from app.services.wapblaster_client import send_wapblaster_delivery_pass
+
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"result": "success"}
+    mock_post.return_value = response
+
+    with patch("app.services.wapblaster_client.get_settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            HVTS_TEST_MODE=False,
+            WHATSAPP_PROVIDER="wapblaster",
+            WAPBLASTER_API_BASE="https://www.wapblaster.com/api",
+            WAPBLASTER_VENDOR_UID="vendor-uid",
+            WAPBLASTER_ACCESS_TOKEN="test-token",
+        )
+        send_wapblaster_delivery_pass(
+            "8625877312",
+            template_name="conninter_delivery_pass",
+            template_language="en_GB",
+            driver_name="Sushobhit",
+            deliver_to="Central Store",
+            po_number="123456",
+            item_text="12 Carton (4S, 4M, 4L)",
+            vehicle_text="KA 01 AB 1234- Bike",
+            date_text="03 Oct 2026",
+            time_text="10:30 AM – 10:45 AM",
+            image_url="https://example.com/delivery-pass.png",
+        )
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["template_name"] == "conninter_delivery_pass"
+    assert payload["template_language"] == "en_GB"
+    assert payload["field_1"] == "Sushobhit"
+    assert payload["field_2"] == "Central Store"
+    assert payload["field_3"] == "123456"
+    assert payload["field_4"] == "12 Carton (4S, 4M, 4L)"
+    assert payload["field_5"] == "KA 01 AB 1234- Bike"
+    assert payload["field_6"] == "03 Oct 2026"
+    assert payload["field_7"] == "10:30 AM – 10:45 AM"
+    assert "field_8" not in payload
+    assert payload["header_image"] == "https://example.com/delivery-pass.png"
+
+
+@patch("app.services.wapblaster_client.httpx.post")
+def test_visit_rejected_template_field_order(mock_post: MagicMock) -> None:
+    from app.services.wapblaster_client import send_wapblaster_visit_rejected
+
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"result": "success"}
+    mock_post.return_value = response
+
+    with patch("app.services.wapblaster_client.get_settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            HVTS_TEST_MODE=False,
+            WHATSAPP_PROVIDER="wapblaster",
+            WAPBLASTER_API_BASE="https://www.wapblaster.com/api",
+            WAPBLASTER_VENDOR_UID="vendor-uid",
+            WAPBLASTER_ACCESS_TOKEN="test-token",
+        )
+        send_wapblaster_visit_rejected(
+            "8625877312",
+            template_name="conninter_visit_rejected",
+            template_language="en_GB",
+            visitor_name="Mohan Gola",
+            doctor_name="Sharma",
+            hospital_name="Ovum Woman & Child Speciality Hospital",
+            department="Fertility & IVF",
+            requested_date="05 Oct 2026",
+            requested_time="02:30 PM",
+            visit_id="604818",
+        )
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["template_name"] == "conninter_visit_rejected"
+    assert payload["template_language"] == "en_GB"
+    assert payload["field_1"] == "Mohan Gola"
+    assert payload["field_2"] == "Sharma"
+    assert payload["field_3"] == "Ovum Woman & Child Speciality Hospital"
+    assert payload["field_4"] == "Fertility & IVF"
+    assert payload["field_5"] == "05 Oct 2026"
+    assert payload["field_6"] == "02:30 PM"
+    assert payload["field_7"] == "604818"
+    assert "button_0" not in payload
+
+
+@patch("app.services.wapblaster_client.httpx.post")
+def test_order_delivered_template_field_order(mock_post: MagicMock) -> None:
+    from app.services.wapblaster_client import send_wapblaster_order_delivered
+
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"result": "success"}
+    mock_post.return_value = response
+
+    with patch("app.services.wapblaster_client.get_settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            HVTS_TEST_MODE=False,
+            WHATSAPP_PROVIDER="wapblaster",
+            WAPBLASTER_API_BASE="https://www.wapblaster.com/api",
+            WAPBLASTER_VENDOR_UID="vendor-uid",
+            WAPBLASTER_ACCESS_TOKEN="test-token",
+        )
+        send_wapblaster_order_delivered(
+            "8625877312",
+            template_name="conninter_hospital_order_delivered",
+            template_language="en_US",
+            recipient_name="Stores Team",
+            hospital_name="Ovum Hospitals",
+            branch_name="Kalyan Nagar",
+            branch_address="Kalyan Nagar, Bengaluru",
+            receiving_department="Central Store",
+            order_id="DLV-2026-000023",
+            po_number="PO-19",
+            order_date="06 Oct 2026",
+            items="12 Carton (4S, 4M, 4L)",
+            total_quantity="12",
+            delivered_by="Sushobhit",
+            vehicle_number="KA 01 AB 1234",
+            delivery_date="06 Oct 2026",
+            delivery_time="7:40 PM",
+            delivery_reference="GRN-23",
+        )
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["template_name"] == "conninter_hospital_order_delivered"
+    assert payload["template_language"] == "en_US"
+    assert payload["field_1"] == "Stores Team"
+    assert payload["field_2"] == "Ovum Hospitals"
+    assert payload["field_3"] == "Kalyan Nagar"
+    assert payload["field_4"] == "Kalyan Nagar, Bengaluru"
+    assert payload["field_5"] == "Central Store"
+    assert payload["field_6"] == "DLV-2026-000023"
+    assert payload["field_7"] == "PO-19"
+    assert payload["field_8"] == "06 Oct 2026"
+    assert payload["field_9"] == "12 Carton (4S, 4M, 4L)"
+    assert payload["field_10"] == "12"
+    assert payload["field_11"] == "Sushobhit"
+    assert payload["field_12"] == "KA 01 AB 1234"
+    assert payload["field_13"] == "06 Oct 2026"
+    assert payload["field_14"] == "7:40 PM"
+    assert payload["field_15"] == "GRN-23"
+    assert "field_16" not in payload
+    assert "header_image" not in payload
+
+
+@patch("app.services.wapblaster_client.httpx.post")
+def test_attendant_pass_template_field_order(mock_post: MagicMock) -> None:
+    from app.services.wapblaster_client import send_wapblaster_attendant_pass
+
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"result": "success"}
+    mock_post.return_value = response
+
+    with patch("app.services.wapblaster_client.get_settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            HVTS_TEST_MODE=False,
+            WHATSAPP_PROVIDER="wapblaster",
+            WAPBLASTER_API_BASE="https://www.wapblaster.com/api",
+            WAPBLASTER_VENDOR_UID="vendor-uid",
+            WAPBLASTER_ACCESS_TOKEN="test-token",
+        )
+        send_wapblaster_attendant_pass(
+            "8625877312",
+            template_name="conninter_patient_attendant_pass",
+            template_language="en_US",
+            attendant_name="Anita Rao",
+            patient_name="Ravi Kumar",
+            patient_id="MRN-1001",
+            relationship="Sister",
+            issued_on="07 Oct 2026",
+            validity="07 Oct 2026 11:00-16:00",
+            image_url="https://example.com/attendant-pass.png",
+        )
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["template_name"] == "conninter_patient_attendant_pass"
+    assert payload["template_language"] == "en_US"
+    assert payload["field_1"] == "Anita Rao"
+    assert payload["field_2"] == "Ravi Kumar"
+    assert payload["field_3"] == "MRN-1001"
+    assert payload["field_4"] == "Sister"
+    assert payload["field_5"] == "07 Oct 2026"
+    assert payload["field_6"] == "07 Oct 2026 11:00-16:00"
+    assert "field_7" not in payload
+    assert payload["header_image"] == "https://example.com/attendant-pass.png"
+
+
+@patch("app.services.wapblaster_client.httpx.post")
 def test_phone_otp_template_sends_full_code_without_buttons(mock_post: MagicMock) -> None:
     from app.services.wapblaster_client import send_wapblaster_phone_otp
 

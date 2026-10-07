@@ -133,9 +133,24 @@ function SecurityDashboard(): React.ReactElement {
     return () => clearInterval(interval);
   }, []);
 
-  if (!user) {
-    return <></>;
+  if (!sessionUser) {
+    return <ConnitorLoader variant="fullscreen" message="Loading dashboard…" />;
   }
+
+  if (!user) {
+    return <ConnitorLoader variant="section" message="Opening your dashboard…" className="min-h-[50vh] py-16" />;
+  }
+
+  const panel = (
+    <SecurityTabPanel
+      activeTab={activeTab}
+      branchId={branchId}
+      branchName={branchName}
+      authToken={authToken}
+      appointmentsRefresh={appointmentsRefresh}
+      onCheckInSuccess={handleCheckInSuccess}
+    />
+  );
 
   if (isDesktop) {
     return (
@@ -162,132 +177,98 @@ function SecurityDashboard(): React.ReactElement {
             </span>
           </div>
         </div>
-
-        <OnSpotQrPanel branchId={branchId} branchName={branchName} />
-
-        <section
-          className="bg-card rounded-lg border border-border shadow-sm"
-          aria-labelledby="appointments-heading"
-        >
-          <div className="px-4 py-3 border-b border-border">
-            <h2 id="appointments-heading" className="text-lg font-semibold text-card-foreground">
-              Today&apos;s Appointments
-            </h2>
-          </div>
-          <div className="p-4">
-            <TodayAppointmentsTab branchId={branchId} refreshKey={appointmentsRefresh} />
-          </div>
-        </section>
-
-        <section
-          className="bg-card rounded-lg border border-border shadow-sm"
-          aria-labelledby="visitor-passes-heading"
-        >
-          <div className="px-4 py-3 border-b border-border">
-            <h2 id="visitor-passes-heading" className="text-lg font-semibold text-card-foreground">
-              Visitor passes
-            </h2>
-          </div>
-          <div className="p-4">
-            <VisitorPassesTab branchId={branchId} refreshKey={appointmentsRefresh} />
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section
-            className="bg-card rounded-lg border border-border shadow-sm"
-            aria-labelledby="delivery-scan-heading"
-          >
-            <div className="px-4 py-3 border-b border-border">
-              <h2 id="delivery-scan-heading" className="text-lg font-semibold text-card-foreground">
-                Delivery Scan
-              </h2>
-            </div>
-            <div className="p-4">
-              <DeliveryScanTab branchId={branchId} />
-            </div>
-          </section>
-
-          <section
-            className="bg-card rounded-lg border border-border shadow-sm"
-            aria-labelledby="deliveries-heading"
-          >
-            <div className="px-4 py-3 border-b border-border">
-              <h2 id="deliveries-heading" className="text-lg font-semibold text-card-foreground">
-                Today&apos;s Deliveries
-              </h2>
-            </div>
-            <div className="p-4">
-              <TodayDeliveriesTab branchId={branchId} />
-            </div>
-          </section>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <section
-            className="bg-card rounded-lg border border-border shadow-sm"
-            aria-labelledby="check-in-heading"
-          >
-            <div className="px-4 py-3 border-b border-border">
-              <h2 id="check-in-heading" className="text-lg font-semibold text-card-foreground">
-                Quick Check-In
-              </h2>
-            </div>
-            <div className="p-4">
-              <CheckInTab branchId={branchId} onCheckInSuccess={handleCheckInSuccess} />
-            </div>
-          </section>
-
-          <section
-            className="bg-card rounded-lg border border-border shadow-sm"
-            aria-labelledby="attendant-scan-heading"
-          >
-            <div className="px-4 py-3 border-b border-border">
-              <h2 id="attendant-scan-heading" className="text-lg font-semibold text-card-foreground">
-                Attendant Pass Scan
-              </h2>
-            </div>
-            <div className="p-4">
-              <AttendantPassScanTab branchId={branchId} />
-            </div>
-          </section>
-
-          <section
-            className="bg-card rounded-lg border border-border shadow-sm xl:col-span-2"
-            aria-labelledby="logs-heading"
-          >
-            <div className="px-4 py-3 border-b border-border">
-              <h2 id="logs-heading" className="text-lg font-semibold text-card-foreground">
-                Visitor Logs
-              </h2>
-            </div>
-            <div className="p-4">
-              <LogsTab branchId={branchId} authToken={authToken} />
-            </div>
-          </section>
-        </div>
+        {panel}
       </div>
     );
   }
 
+  return <div className="p-4 space-y-4">{panel}</div>;
+}
+
+function SecuritySection({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}): React.ReactElement {
   return (
-    <div className="p-4 space-y-4">
-      <OnSpotQrPanel branchId={branchId} branchName={branchName} />
-      {activeTab === 'check-in' ? (
-        <CheckInTab branchId={branchId} onCheckInSuccess={handleCheckInSuccess} />
-      ) : activeTab === 'appointments' ? (
+    <section className="bg-card rounded-lg border border-border shadow-sm" aria-labelledby={id}>
+      <div className="px-4 py-3 border-b border-border">
+        <h2 id={id} className="text-lg font-semibold text-card-foreground">
+          {title}
+        </h2>
+      </div>
+      <div className="p-4">{children}</div>
+    </section>
+  );
+}
+
+function SecurityTabPanel({
+  activeTab,
+  branchId,
+  branchName,
+  authToken,
+  appointmentsRefresh,
+  onCheckInSuccess,
+}: {
+  activeTab: SecurityTab;
+  branchId: string;
+  branchName?: string;
+  authToken: string;
+  appointmentsRefresh: number;
+  onCheckInSuccess: () => void;
+}): React.ReactElement {
+  if (activeTab === 'appointments') {
+    return (
+      <SecuritySection id="appointments-heading" title="Today's Appointments">
         <TodayAppointmentsTab branchId={branchId} refreshKey={appointmentsRefresh} />
-      ) : activeTab === 'visitor-passes' ? (
+      </SecuritySection>
+    );
+  }
+  if (activeTab === 'visitor-passes') {
+    return (
+      <SecuritySection id="visitor-passes-heading" title="Visitor passes">
         <VisitorPassesTab branchId={branchId} refreshKey={appointmentsRefresh} />
-      ) : activeTab === 'delivery-scan' ? (
-        <DeliveryScanTab branchId={branchId} />
-      ) : activeTab === 'attendant-scan' ? (
-        <AttendantPassScanTab branchId={branchId} />
-      ) : activeTab === 'deliveries' ? (
-        <TodayDeliveriesTab branchId={branchId} />
-      ) : (
+      </SecuritySection>
+    );
+  }
+  if (activeTab === 'logs') {
+    return (
+      <SecuritySection id="logs-heading" title="Visitor Logs">
         <LogsTab branchId={branchId} authToken={authToken} />
-      )}
+      </SecuritySection>
+    );
+  }
+  if (activeTab === 'delivery-scan') {
+    return (
+      <SecuritySection id="delivery-scan-heading" title="Delivery Scan">
+        <DeliveryScanTab branchId={branchId} />
+      </SecuritySection>
+    );
+  }
+  if (activeTab === 'attendant-scan') {
+    return (
+      <SecuritySection id="attendant-scan-heading" title="Attendant Pass Scan">
+        <AttendantPassScanTab branchId={branchId} />
+      </SecuritySection>
+    );
+  }
+  if (activeTab === 'deliveries') {
+    return (
+      <SecuritySection id="deliveries-heading" title="Today's Deliveries">
+        <TodayDeliveriesTab branchId={branchId} />
+      </SecuritySection>
+    );
+  }
+  return (
+    <div className="space-y-6">
+      <OnSpotQrPanel branchId={branchId} branchName={branchName} />
+      <SecuritySection id="check-in-heading" title="Quick Check-In">
+        <CheckInTab branchId={branchId} onCheckInSuccess={onCheckInSuccess} />
+      </SecuritySection>
     </div>
   );
 }

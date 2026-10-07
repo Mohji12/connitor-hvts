@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import useSWR from 'swr';
+import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useOverviewSessionUser } from '@/hooks/useOverviewSessionUser';
 import { IS_DEMO_MODE } from '@/lib/demo-config';
@@ -121,7 +122,7 @@ export default function SecurityOverview() {
   }, [demoUser?.branchId]);
 
   // Fetch active visitors
-  const { data: activeVisitors = [] } = useSWR<ActiveVisitor[]>(
+  const { data: activeVisitors = [], isLoading: activeLoading } = useSWR<ActiveVisitor[]>(
     'active-visitors',
     async () => {
       try {
@@ -136,7 +137,7 @@ export default function SecurityOverview() {
   );
 
   // Fetch today's summary
-  const { data: summary = [] } = useSWR<VisitorSummary[]>(
+  const { data: summary = [], isLoading: summaryLoading } = useSWR<VisitorSummary[]>(
     ['visitor-summary', todayISO],
     async () => {
       try {
@@ -151,7 +152,7 @@ export default function SecurityOverview() {
   );
 
   // Fetch visitor trends based on period
-  const { data: visitorTrends } = useSWR(
+  const { data: visitorTrends, isLoading: trendsLoading } = useSWR(
     branchId ? ['security-visitor-trends', branchId, trendPeriod] : null,
     () => AnalyticsService.getSecurityVisitorTrends(branchId!, trendPeriod),
     { refreshInterval: DASHBOARD_REFRESH_MS },
@@ -266,6 +267,16 @@ export default function SecurityOverview() {
     { value: 'yearly', label: 'Yearly' },
   ];
 
+  if (activeLoading || summaryLoading) {
+    return (
+      <ConnitorLoader
+        variant="section"
+        message="Loading security data…"
+        className="min-h-[50vh] py-16"
+      />
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 lg:p-8 pb-4 lg:pb-8 min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
       {/* Header */}
@@ -366,11 +377,13 @@ export default function SecurityOverview() {
           </CardHeader>
           <CardContent>
             <div className="h-72 min-w-0">
-              {visitorTrends ? (
+              {trendsLoading ? (
+                <ConnitorLoader variant="section" message="Loading trends…" className="h-full" />
+              ) : visitorTrends ? (
                 <Line data={lineChartData} options={lineOptions} />
               ) : (
                 <div className="flex items-center justify-center h-full text-slate-400">
-                  <p>Loading chart data...</p>
+                  <p>No trend data yet.</p>
                 </div>
               )}
             </div>

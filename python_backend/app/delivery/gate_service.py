@@ -27,6 +27,17 @@ from app.utils.timezone import now_ist
 logger = logging.getLogger(__name__)
 
 
+def _signature_matches(expected: str, provided: str) -> bool:
+    """Accept the full HMAC or the 16+ hex prefix printed on the pass."""
+    provided = (provided or "").strip()
+    expected = (expected or "").strip()
+    if not provided or not expected or len(provided) > len(expected):
+        return False
+    if len(provided) != len(expected) and len(provided) < 16:
+        return False
+    return hmac.compare_digest(expected[: len(provided)], provided)
+
+
 class DeliveryGateService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -239,13 +250,23 @@ class DeliveryGateService:
         self, user: dict, qr_payload: str, signature: str
     ) -> tuple[InboundDelivery, DeliveryQrCode]:
         secret = get_settings().jwt_secret
-        expected = hmac.new(secret.encode(), qr_payload.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, signature):
-            raise bad_request("Invalid QR signature")
-
         qr = self.db.query(DeliveryQrCode).filter(DeliveryQrCode.qrPayload == qr_payload).first()
+        if qr is None:
+            qr = self.db.query(DeliveryQrCode).filter(DeliveryQrCode.id == qr_payload).first()
         if not qr:
             raise not_found("QR code")
+
+        candidates = [qr.qrPayload]
+        if qr.id and qr.id not in candidates:
+            candidates.append(qr.id)
+        if not any(
+            _signature_matches(
+                hmac.new(secret.encode(), text.encode(), hashlib.sha256).hexdigest(),
+                signature,
+            )
+            for text in candidates
+        ):
+            raise bad_request("Invalid QR signature")
         if qr.expiresAt < now_ist():
             raise bad_request("QR code expired")
 

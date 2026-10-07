@@ -21,7 +21,7 @@ class AnalyticsHelperTests(unittest.TestCase):
     def test_duration_summary_empty(self) -> None:
         query = MagicMock()
         query.filter.return_value = query
-        query.all.return_value = []
+        query.with_entities.return_value.one.return_value = (None, None, None, 0)
         result = self.service._duration_summary(query)
         self.assertEqual(result["count"], 0)
         self.assertEqual(result["avgMinutes"], 0)
@@ -29,9 +29,7 @@ class AnalyticsHelperTests(unittest.TestCase):
     def test_duration_summary_with_visits(self) -> None:
         query = MagicMock()
         query.filter.return_value = query
-        visit_a = MagicMock(totalDurationMinutes=60)
-        visit_b = MagicMock(totalDurationMinutes=120)
-        query.all.return_value = [visit_a, visit_b]
+        query.with_entities.return_value.one.return_value = (90, 60, 120, 2)
         result = self.service._duration_summary(query)
         self.assertEqual(result["count"], 2)
         self.assertEqual(result["avgMinutes"], 90)

@@ -35,6 +35,8 @@ from app.routers import (
     visitor_portal,
     visitor_accounts,
     visitor_auth,
+    visitor_wallet,
+    razorpay_webhooks,
     visitors,
     visitor_passes,
     visit_slot_allotment,
@@ -71,6 +73,9 @@ api_router.include_router(
 api_router.include_router(visitor_portal.router, prefix="/public/visitor-portal", tags=["visitor-portal"])
 api_router.include_router(visitor_accounts.router, prefix="/public/visitor-accounts", tags=["visitor-accounts"])
 api_router.include_router(visitor_auth.router, prefix="/public/visitor-auth", tags=["visitor-auth"])
+api_router.include_router(
+    visitor_wallet.router, prefix="/public/visitor-wallet", tags=["visitor-wallet"]
+)
 api_router.include_router(
     public_urgent_passcodes.router,
     prefix="/public/urgent-passcodes",
@@ -122,5 +127,6 @@ api_router.include_router(livekit_webhooks.router, prefix="/webhooks", tags=["we
 api_router.include_router(twilio_webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(whatsapp_webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(wapblaster_webhooks.router, prefix="/webhooks", tags=["webhooks"])
+api_router.include_router(razorpay_webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(delivery.router, prefix="/delivery", tags=["delivery"])
 api_router.include_router(attendant_passes.router, prefix="/attendant-passes", tags=["attendant-passes"])

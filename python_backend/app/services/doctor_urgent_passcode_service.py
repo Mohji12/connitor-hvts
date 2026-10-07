@@ -197,6 +197,10 @@ class DoctorUrgentPasscodeService:
         slot_id: str | None = None,
         appointment_date: str | None = None,
         purpose: str | None = None,
+        payment_method: str | None = None,
+        razorpay_order_id: str | None = None,
+        razorpay_payment_id: str | None = None,
+        razorpay_signature: str | None = None,
     ) -> dict:
         """Visitor books after register; auto-APPROVED because passcode was shared."""
         from app.services.appointments_service import AppointmentsService
@@ -293,6 +297,20 @@ class DoctorUrgentPasscodeService:
         )
         self.db.add(visit)
         self.db.flush()
+
+        if not payment_method:
+            raise HTTPException(status_code=400, detail="Choose wallet or online payment.")
+        from app.services.visitor_wallet_service import VisitorWalletService
+
+        VisitorWalletService(self.db).apply_booking_payment(
+            account_id=visitor_account["accountId"],
+            visit=visit,
+            payment_method=payment_method,
+            razorpay_order_id=razorpay_order_id,
+            razorpay_payment_id=razorpay_payment_id,
+            razorpay_signature=razorpay_signature,
+            immediate_debit=True,
+        )
 
         from app.services.visitor_pass_service import VisitorPassService
 

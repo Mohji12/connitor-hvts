@@ -110,23 +110,18 @@ class AnalyticsService:
             "checkOuts": int(check_outs or 0),
         }
 
-    def get_visitor_trends(self, period: str = "weekly", branch_ids: list[str] | None = None) -> dict:
-        now = now_ist()
-        data = []
+    def _trend_buckets(self, period: str, now: datetime) -> list[tuple[datetime, datetime, str]]:
+        buckets: list[tuple[datetime, datetime, str]] = []
         if period == "daily":
             for i in range(6, -1, -1):
                 start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
                 end = start + timedelta(days=1) - timedelta(seconds=1)
-                point = self._count_visits_range(start, end, branch_ids)
-                point["label"] = start.strftime("%a %d")
-                data.append(point)
+                buckets.append((start, end, start.strftime("%a %d")))
         elif period == "weekly":
             for i in range(3, -1, -1):
                 end = now - timedelta(days=i * 7)
                 start = (end - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
-                point = self._count_visits_range(start, end, branch_ids)
-                point["label"] = f"Week {4 - i}"
-                data.append(point)
+                buckets.append((start, end, f"Week {4 - i}"))
         elif period == "monthly":
             for i in range(5, -1, -1):
                 month = now.month - i
@@ -139,17 +134,71 @@ class AnalyticsService:
                     end = datetime(year + 1, 1, 1) - timedelta(seconds=1)
                 else:
                     end = datetime(year, month + 1, 1) - timedelta(seconds=1)
-                point = self._count_visits_range(start, end, branch_ids)
-                point["label"] = start.strftime("%b")
-                data.append(point)
+                buckets.append((start, end, start.strftime("%b")))
         else:
             for i in range(4, -1, -1):
                 year = now.year - i
                 start = datetime(year, 1, 1)
                 end = datetime(year, 12, 31, 23, 59, 59)
-                point = self._count_visits_range(start, end, branch_ids)
-                point["label"] = str(year)
-                data.append(point)
+                buckets.append((start, end, str(year)))
+        return buckets
+
+    def get_visitor_trends(self, period: str = "weekly", branch_ids: list[str] | None = None) -> dict:
+        """One grouped query for every bucket, instead of a round trip per week or month."""
+        buckets = self._trend_buckets(period, now_ist())
+        if not buckets:
+            return {"period": period, "data": []}
+
+        expressions = []
+        for start, end, _label in buckets:
+            expressions.append(
+                func.sum(case((and_(Visit.createdAt >= start, Visit.createdAt <= end), 1), else_=0))
+            )
+            expressions.append(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                Visit.checkInTime.isnot(None),
+                                Visit.checkInTime >= start,
+                                Visit.checkInTime <= end,
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                )
+            )
+            expressions.append(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                Visit.checkOutTime.isnot(None),
+                                Visit.checkOutTime >= start,
+                                Visit.checkOutTime <= end,
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                )
+            )
+        query = self.db.query(*expressions).select_from(Visit)
+        if branch_ids is not None:
+            query = query.filter(Visit.branchId.in_(branch_ids))
+        row = query.one()
+        data = []
+        for index, (_start, _end, label) in enumerate(buckets):
+            base = index * 3
+            data.append(
+                {
+                    "visits": int(row[base] or 0),
+                    "checkIns": int(row[base + 1] or 0),
+                    "checkOuts": int(row[base + 2] or 0),
+                    "label": label,
+                }
+            )
         return {"period": period, "data": data}
 
     def get_visit_status_distribution(self) -> list[dict]:
@@ -253,19 +302,42 @@ class AnalyticsService:
         branch = self.db.get(Branch, branch_id)
         if not branch:
             raise ValueError("Branch not found")
+        staff_count = (
+            self.db.query(func.count(User.id))
+            .filter(User.branchId == branch_id, User.role == Role.STAFF.value)
+            .scalar_subquery()
+        )
+        admin_count = (
+            self.db.query(func.count(User.id))
+            .filter(User.branchId == branch_id, User.role == Role.DEPARTMENT_ADMIN.value)
+            .scalar_subquery()
+        )
+        visitor_count = (
+            self.db.query(func.count(Visitor.id))
+            .filter(Visitor.branchId == branch_id)
+            .scalar_subquery()
+        )
+        active_count = (
+            self.db.query(func.count(Visit.id))
+            .filter(Visit.branchId == branch_id, Visit.status == VisitStatus.CHECKED_IN.value)
+            .scalar_subquery()
+        )
+        today_count = (
+            self.db.query(func.count(Visit.id))
+            .filter(Visit.branchId == branch_id, Visit.createdAt >= today)
+            .scalar_subquery()
+        )
+        total_staff, department_admins, total_visitors, active_visits, today_visits = self.db.query(
+            staff_count, admin_count, visitor_count, active_count, today_count
+        ).one()
         return {
             "branchId": branch_id,
             "branchName": branch.name,
-            "totalStaff": self.db.query(User)
-            .filter(User.branchId == branch_id, User.role == Role.STAFF.value)
-            .count(),
-            "totalVisitors": self.db.query(Visitor).filter(Visitor.branchId == branch_id).count(),
-            "activeVisits": self.db.query(Visit)
-            .filter(Visit.branchId == branch_id, Visit.status == VisitStatus.CHECKED_IN.value)
-            .count(),
-            "todayVisits": self.db.query(Visit)
-            .filter(Visit.branchId == branch_id, Visit.createdAt >= today)
-            .count(),
+            "totalStaff": int(total_staff or 0),
+            "departmentAdminCount": int(department_admins or 0),
+            "totalVisitors": int(total_visitors or 0),
+            "activeVisits": int(active_visits or 0),
+            "todayVisits": int(today_visits or 0),
         }
 
     def get_all_branches_with_stats(self) -> list[dict]:
@@ -389,13 +461,111 @@ class AnalyticsService:
         )
 
     def _compute_department_stats_for_branch(self, branch_id: str) -> list[dict]:
+        """Department cards for a hospital in a few grouped queries, not one pass per department."""
         departments = (
             self.db.query(Department)
             .filter(Department.branchId == branch_id, Department.isActive == True)  # noqa: E712
             .order_by(Department.name)
             .all()
         )
-        return [self.get_department_overview(dept.id) for dept in departments]
+        if not departments:
+            return []
+        department_ids = [dept.id for dept in departments]
+        today_start, today_end = self._today_bounds()
+        status_keys = (
+            VisitStatus.REQUEST_SENT.value,
+            VisitStatus.APPROVED.value,
+            VisitStatus.CHECKED_IN.value,
+            VisitStatus.CHECKED_OUT.value,
+            VisitStatus.REJECTED.value,
+        )
+
+        sub_counts = dict(
+            self.db.query(SubDepartment.departmentId, func.count(SubDepartment.id))
+            .filter(
+                SubDepartment.departmentId.in_(department_ids),
+                SubDepartment.isActive == True,  # noqa: E712
+            )
+            .group_by(SubDepartment.departmentId)
+            .all()
+        )
+        staff_counts = dict(
+            self.db.query(User.departmentId, func.count(User.id))
+            .filter(
+                User.departmentId.in_(department_ids),
+                User.role == Role.STAFF.value,
+                User.isActive == True,  # noqa: E712
+            )
+            .group_by(User.departmentId)
+            .all()
+        )
+        status_rows = (
+            self.db.query(Visit.departmentId, Visit.status, func.count(Visit.id))
+            .filter(
+                Visit.departmentId.in_(department_ids),
+                Visit.appointmentDate.isnot(None),
+            )
+            .group_by(Visit.departmentId, Visit.status)
+            .all()
+        )
+        today_counts = dict(
+            self.db.query(Visit.departmentId, func.count(Visit.id))
+            .filter(
+                Visit.departmentId.in_(department_ids),
+                Visit.appointmentDate.isnot(None),
+                Visit.appointmentDate >= today_start,
+                Visit.appointmentDate <= today_end,
+            )
+            .group_by(Visit.departmentId)
+            .all()
+        )
+        duration_rows = {
+            dept_id: (avg_v, min_v, max_v, count_v)
+            for dept_id, avg_v, min_v, max_v, count_v in self.db.query(
+                Visit.departmentId,
+                func.avg(Visit.totalDurationMinutes),
+                func.min(Visit.totalDurationMinutes),
+                func.max(Visit.totalDurationMinutes),
+                func.count(Visit.id),
+            )
+            .filter(
+                Visit.departmentId.in_(department_ids),
+                Visit.appointmentDate.isnot(None),
+                Visit.status == VisitStatus.CHECKED_OUT.value,
+                Visit.totalDurationMinutes.isnot(None),
+            )
+            .group_by(Visit.departmentId)
+            .all()
+        }
+        status_by_dept: dict[str, dict[str, int]] = {}
+        for dept_id, status, count in status_rows:
+            status_by_dept.setdefault(dept_id, {})[status] = int(count or 0)
+
+        cards = []
+        for dept in departments:
+            counts = status_by_dept.get(dept.id, {})
+            avg_v, min_v, max_v, count_v = duration_rows.get(dept.id, (0, 0, 0, 0))
+            duration_count = int(count_v or 0)
+            cards.append(
+                {
+                    "departmentId": dept.id,
+                    "departmentName": dept.name,
+                    "subDepartmentCount": int(sub_counts.get(dept.id, 0) or 0),
+                    "staffCount": int(staff_counts.get(dept.id, 0) or 0),
+                    "todayAppointments": int(today_counts.get(dept.id, 0) or 0),
+                    "pendingAppointments": counts.get(VisitStatus.REQUEST_SENT.value, 0),
+                    "activeVisits": counts.get(VisitStatus.CHECKED_IN.value, 0),
+                    "completedAppointments": counts.get(VisitStatus.CHECKED_OUT.value, 0),
+                    "statusBreakdown": {status: counts.get(status, 0) for status in status_keys},
+                    "visitDuration": {
+                        "avgMinutes": round(float(avg_v or 0), 1) if duration_count else 0,
+                        "minMinutes": int(min_v or 0) if duration_count else 0,
+                        "maxMinutes": int(max_v or 0) if duration_count else 0,
+                        "count": duration_count,
+                    },
+                }
+            )
+        return cards
 
     def _today_bounds(self) -> tuple[datetime, datetime]:
         today_start = now_ist().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -417,18 +587,27 @@ class AnalyticsService:
         }
 
     def _duration_summary(self, base_query) -> dict:
-        visits = base_query.filter(
-            Visit.status == VisitStatus.CHECKED_OUT.value,
-            Visit.totalDurationMinutes.isnot(None),
-        ).all()
-        if not visits:
+        avg_v, min_v, max_v, count_v = (
+            base_query.filter(
+                Visit.status == VisitStatus.CHECKED_OUT.value,
+                Visit.totalDurationMinutes.isnot(None),
+            )
+            .with_entities(
+                func.avg(Visit.totalDurationMinutes),
+                func.min(Visit.totalDurationMinutes),
+                func.max(Visit.totalDurationMinutes),
+                func.count(Visit.id),
+            )
+            .one()
+        )
+        count = int(count_v or 0)
+        if count == 0:
             return {"avgMinutes": 0, "minMinutes": 0, "maxMinutes": 0, "count": 0}
-        durations = [v.totalDurationMinutes for v in visits if v.totalDurationMinutes is not None]
         return {
-            "avgMinutes": round(sum(durations) / len(durations), 1),
-            "minMinutes": min(durations),
-            "maxMinutes": max(durations),
-            "count": len(durations),
+            "avgMinutes": round(float(avg_v or 0), 1),
+            "minMinutes": int(min_v or 0),
+            "maxMinutes": int(max_v or 0),
+            "count": count,
         }
 
     def get_department_overview(self, department_id: str) -> dict:

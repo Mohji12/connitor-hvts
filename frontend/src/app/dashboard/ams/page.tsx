@@ -11,6 +11,7 @@ import {
   type AmsStats,
 } from '@/features/attendant-management/ui';
 import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
+import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -26,6 +27,7 @@ const EMPTY_STATS: AmsStats = {
 export default function AmsDashboardPage(): React.ReactElement {
   const user = useAuthSession<{ branchId?: string }>();
   const branchId = user?.branchId;
+  const [loading, setLoading] = React.useState(true);
   const [stats, setStats] = React.useState<AmsStats>(EMPTY_STATS);
   const [activity, setActivity] = React.useState<
     Array<{
@@ -35,7 +37,11 @@ export default function AmsDashboardPage(): React.ReactElement {
       ward?: string | null;
       bed?: string | null;
       status: string;
+      companionName?: string | null;
     }>
+  >([]);
+  const [meetings, setMeetings] = React.useState<
+    Array<{ message: string; companionName?: string | null; ward?: string | null; passNumber: string }>
   >([]);
 
   const load = React.useCallback(() => {
@@ -44,15 +50,22 @@ export default function AmsDashboardPage(): React.ReactElement {
       .then((data) => {
         setStats(data.stats);
         setActivity(data.recentActivity ?? []);
+        setMeetings(data.meetings ?? []);
+        setLoading(false);
       })
-      .catch(() => undefined);
+      .catch(() => setLoading(false));
   }, [branchId]);
 
   React.useEffect(() => {
+    if (!user) return;
+    if (!branchId) {
+      setLoading(false);
+      return;
+    }
     load();
     const id = window.setInterval(load, DASHBOARD_REFRESH_MS);
     return () => window.clearInterval(id);
-  }, [load]);
+  }, [user, branchId, load]);
 
   return (
     <AmsPageShell
@@ -78,6 +91,31 @@ export default function AmsDashboardPage(): React.ReactElement {
         </div>
       }
     >
+      {loading ? (
+        <ConnitorLoader
+          variant="section"
+          message="Loading attendant data…"
+          className="min-h-[40vh] py-16"
+        />
+      ) : (
+        <>
+      {meetings.length > 0 && (
+        <section className="space-y-2">
+          {meetings.map((meeting) => (
+            <div
+              key={meeting.passNumber}
+              className="rounded-xl border border-[#0052CC]/20 bg-[#4A90E2]/10 px-4 py-3 text-sm text-[#001B71]"
+            >
+              <p className="font-medium">{meeting.message}</p>
+              {meeting.companionName ? (
+                <p className="mt-1">With {meeting.companionName}</p>
+              ) : null}
+              {meeting.ward ? <p className="mt-1 text-slate-700">{meeting.ward}</p> : null}
+            </div>
+          ))}
+        </section>
+      )}
+
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-slate-800">Today&apos;s Statistics</h2>
         <AmsKpiStrip stats={stats} />
@@ -116,7 +154,14 @@ export default function AmsDashboardPage(): React.ReactElement {
                     <td className="py-2 pr-3">
                       {row.time ? new Date(row.time).toLocaleTimeString() : '—'}
                     </td>
-                    <td className="py-2 pr-3 font-medium">{row.name}</td>
+                    <td className="py-2 pr-3 font-medium">
+                      {row.name}
+                      {row.companionName ? (
+                        <span className="block text-xs font-normal text-slate-600">
+                          With {row.companionName}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="py-2 pr-3">
                       {row.patient}
                       {row.bed ? ` · Bed ${row.bed}` : ''}
@@ -130,6 +175,8 @@ export default function AmsDashboardPage(): React.ReactElement {
           </table>
         </CardContent>
       </Card>
+        </>
+      )}
     </AmsPageShell>
   );
 }

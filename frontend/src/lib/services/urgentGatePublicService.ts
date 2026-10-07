@@ -52,6 +52,10 @@ export const UrgentGatePublicService = {
     slotId?: string;
     appointmentDate?: string;
     purpose?: string;
+    paymentMethod: 'WALLET' | 'RAZORPAY';
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    razorpaySignature?: string;
   }): Promise<UrgentGateBookResult> {
     const res = await apiClient.post<UrgentGateBookResult>(
       '/api/public/urgent-passcodes/book',

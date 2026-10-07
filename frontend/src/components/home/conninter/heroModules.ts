@@ -13,6 +13,7 @@ import type { ShowcaseModule } from './ModuleToggle';
 export type HeroStepStatus = 'done' | 'active' | 'pending';
 
 export type HeroModule = {
+  eyebrow?: string;
   /** Serif lead + script accent (editorial hero typography) */
   heading: { lead: string; accent: string };
   subtext: string;
@@ -64,12 +65,13 @@ export type HeroModule = {
 
 export const heroModules: Record<ShowcaseModule, HeroModule> = {
   visitor: {
+    eyebrow: 'Conninter Expert Connect',
     heading: {
-      lead: 'Schedule hospital visits in',
-      accent: 'minutes, not hours.',
+      lead: 'The right healthcare\nexpert.',
+      accent: 'For the decisions\nthat matter.',
     },
     subtext:
-      "India's most advanced platform for coordinating medical reps and hospital visitor management. Find hospitals, check real-time slot availability, and book your visit — all in one place.",
+      'Connect with verified healthcare professionals, clinical experts and industry specialists for expert calls, product feedback, advisory boards and market insights.',
     searchPlaceholder: 'Search hospitals, specialties, or departments',
     ctaHref: '/book-appointment',
     quickActionHref: '/portal',

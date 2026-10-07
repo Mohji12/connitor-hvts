@@ -91,6 +91,7 @@ export interface VerifyCheckInOtpResponse {
   visit: VisitInfo;
   canCheckIn: boolean;
   canCheckOut?: boolean;
+  checkInBlockedReason?: string | null;
 }
 
 /**

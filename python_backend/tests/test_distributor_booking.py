@@ -135,6 +135,7 @@ def test_delivery_slot_booking(db):
         distributorId=dist.id,
         name="Driver One",
         email="driver@test.com",
+        phone="9111111111",
         isActive=True,
     )
     db.add_all([vehicle, agent])
@@ -162,7 +163,7 @@ def test_delivery_slot_booking(db):
 
     assert result["status"] == "SCHEDULED"
     assert result["poNumber"] == "PO-1001"
-    assert result["pricing"]["walletFee"] == 149
+    assert result["pricing"]["walletFee"] == 99
     assert result["pricing"]["usedUnits"] == 5
     db.refresh(slot)
     assert slot.bookedCount == 1
@@ -203,6 +204,7 @@ def test_book_delivery_sends_driver_assignment_email(db):
         distributorId=dist.id,
         name="Mail Driver",
         email="maildriver@test.com",
+        phone="9222222222",
         isActive=True,
     )
     db.add_all([vehicle, agent])
@@ -257,6 +259,7 @@ def test_book_delivery_dummy_payment_zero_balance(db):
         distributorId=dist.id,
         name="Dummy Driver",
         email="dummydriver@test.com",
+        phone="9333333333",
         isActive=True,
     )
     db.add_all([vehicle, agent])
@@ -281,7 +284,7 @@ def test_book_delivery_dummy_payment_zero_balance(db):
 
     assert result["status"] == "SCHEDULED"
     assert result["paymentMethod"] == "DUMMY"
-    assert result["pricing"]["walletFee"] == 48
+    assert result["pricing"]["walletFee"] == 49
     db.refresh(wallet)
     assert float(wallet.balance) == 0.0
 
@@ -295,9 +298,9 @@ def test_book_delivery_dummy_payment_zero_balance(db):
     credit = next(t for t in txs if t.referenceType == "DUMMY_PAYMENT")
     debit = next(t for t in txs if t.referenceType == "DELIVERY")
     assert credit.transactionType == "CREDIT"
-    assert float(credit.amount) == 48.0
+    assert float(credit.amount) == 49.0
     assert debit.transactionType == "DEBIT"
-    assert float(debit.amount) == -48.0
+    assert float(debit.amount) == -49.0
 
 
 def test_bulk_create_slots(db):

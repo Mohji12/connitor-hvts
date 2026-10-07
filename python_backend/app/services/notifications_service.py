@@ -6,7 +6,16 @@ import random
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import Branch, Department, Notification, SubDepartment, User, Visit, Visitor
+from app.models import (
+    Branch,
+    Department,
+    Notification,
+    SubDepartment,
+    User,
+    Visit,
+    Visitor,
+    VisitorAccount,
+)
 from app.models.enums import AppointmentMode, Role
 from app.services.calendar_service import AppointmentCalendarDetails, CalendarService
 from app.services.livekit_service import meeting_host_url, meeting_join_url
@@ -110,6 +119,19 @@ class NotificationsService:
     def _visitor_name(self, visitor: Visitor) -> str:
         middle = f" {visitor.middleName}" if visitor.middleName else ""
         return f"{visitor.firstName}{middle} {visitor.lastName}".strip()
+
+    def _visitor_phone(self, visitor: Visitor) -> str:
+        """Visitor mobile, falling back to the signed-in account number."""
+        phone = (visitor.phone or "").strip()
+        if phone:
+            return phone
+        account_id = getattr(visitor, "visitorAccountId", None)
+        if not account_id:
+            return ""
+        account = self.db.get(VisitorAccount, account_id)
+        if account is None:
+            return ""
+        return (account.phone or "").strip()
 
     def _add_notification(self, recipient_id: str, visit_id: str, message: str) -> None:
         self.db.add(Notification(recipientId=recipient_id, visitId=visit_id, message=message))
@@ -792,10 +814,31 @@ class NotificationsService:
             status="cancelled",
             sequence=2,
         )
-        self.sms.send_message(
-            visitor.phone,
-            f"Appointment with Dr. {doctor.name} was not approved. Reason: {rejection_reason}",
-        )
+        phone = self._visitor_phone(visitor)
+        if not phone:
+            logger.warning("Visit %s rejected but the visitor has no phone for WhatsApp", visit.id)
+            return
+        branch = self.db.get(Branch, visit.branchId)
+        requested_date, requested_time = self._appointment_date_and_time(visit)
+        sent = False
+        try:
+            sent = self.whatsapp.send_visit_rejected(
+                phone,
+                visitor_name=name,
+                doctor_name=self._doctor_display_name(doctor),
+                hospital_name=branch.name if branch and branch.name else "Hospital",
+                department=self._department_name(visit),
+                requested_date=requested_date,
+                requested_time=requested_time,
+                visit_id=visit.smsApprovalCode or visit.id,
+            )
+        except Exception as exc:
+            logger.error("Failed to WhatsApp visit rejection to %s: %s", phone, exc)
+        if not sent:
+            self.sms.send_message(
+                phone,
+                f"Appointment with Dr. {doctor.name} was not approved. Reason: {rejection_reason}",
+            )
 
     def notify_visitor_id_verified(self, visit: Visit, visitor: Visitor, doctor: User | None) -> None:
         name = self._visitor_name(visitor)
@@ -1149,7 +1192,52 @@ class NotificationsService:
             except Exception as exc:
                 logger.error("Failed to email driver %s: %s", agent.email, exc)
 
+        if agent and agent.phone:
+            try:
+                self._send_delivery_pass_whatsapp(delivery, agent)
+            except Exception as exc:
+                logger.error("Failed to WhatsApp delivery pass to %s: %s", agent.phone, exc)
+
         self.db.commit()
+
+    def _send_delivery_pass_whatsapp(self, delivery, agent) -> None:
+        """Send the glassy delivery pass to the allotted driver."""
+        from app.services.delivery_pass_image import assemble_delivery_pass, render_delivery_pass
+        from app.services.s3_storage_service import S3StorageService
+
+        if not agent.phone:
+            return
+        from sqlalchemy.orm import joinedload
+
+        from app.models.delivery_entities import InboundDelivery
+
+        loaded = (
+            self.db.query(InboundDelivery)
+            .options(joinedload(InboundDelivery.qrCodes), joinedload(InboundDelivery.items))
+            .filter(InboundDelivery.id == delivery.id)
+            .first()
+        )
+        if loaded is not None:
+            delivery = loaded
+        content = assemble_delivery_pass(self.db, delivery)
+        image_bytes = render_delivery_pass(content, scale=2)
+        image_url = S3StorageService().publish_delivery_pass_png(delivery.id, image_bytes)
+        if not image_url:
+            logger.warning("No public delivery-pass URL for %s; WhatsApp skipped", delivery.id)
+            return
+        sent = self.whatsapp.send_delivery_pass(
+            agent.phone,
+            driver_name=content.driver_name,
+            deliver_to=content.deliver_to,
+            po_number=content.po_number,
+            item_text=content.item_text,
+            vehicle_text=content.vehicle_text,
+            date_text=content.date_text,
+            time_text=content.time_text,
+            image_url=image_url,
+        )
+        if not sent:
+            logger.warning("Delivery pass template was not sent for %s", delivery.id)
 
     def _notify_delivery_hold_parties(
         self, delivery, *, subject: str, message: str
@@ -1428,8 +1516,173 @@ class NotificationsService:
             except Exception as exc:
                 logger.error("Failed delivery exit email to %s: %s", to_email, exc)
 
+        try:
+            self._send_order_delivered_whatsapp(
+                delivery,
+                branch=branch,
+                vendor=vendor,
+                agent=agent,
+                vehicle=vehicle,
+                driver_name=driver_name,
+                vehicle_no=vehicle_no,
+                goods=goods,
+                boxes=boxes,
+                exit_time=exit_time,
+            )
+        except Exception as exc:
+            logger.error("Failed order-delivered WhatsApp for %s: %s", delivery.id, exc)
+
         self.db.commit()
         return {"emailsSent": len(sent), "recipients": sent}
+
+    def _order_delivered_phones(self, vendor, agent) -> list[tuple[str, str]]:
+        """Distributor and driver mobiles. The greeting uses each person's name."""
+        from app.models.delivery_entities import DeliveryAgent, Distributor
+        from app.utils.phone import normalize_phone
+
+        targets: list[tuple[str, str]] = []
+        seen: set[str] = set()
+
+        def add(phone: str | None, name: str) -> None:
+            if not phone or not str(phone).strip():
+                return
+            try:
+                key = normalize_phone(str(phone))
+            except Exception:
+                key = str(phone).strip()
+            if not key or key in seen:
+                return
+            seen.add(key)
+            targets.append((str(phone).strip(), name))
+
+        if isinstance(vendor, Distributor):
+            vendor_label = (vendor.contactPerson or vendor.vendorName or "Distributor").strip()
+            add(vendor.phone, vendor_label)
+            add(getattr(vendor, "dispatchPhone", None), vendor_label)
+            for dist_user in (
+                self.db.query(User)
+                .filter(
+                    User.role == Role.DISTRIBUTOR.value,
+                    User.distributorId == vendor.id,
+                    User.isActive == True,  # noqa: E712
+                )
+                .all()
+            ):
+                add(dist_user.phone, dist_user.name or vendor_label)
+
+        if isinstance(agent, DeliveryAgent):
+            driver_label = (agent.name or "Driver").strip() or "Driver"
+            add(agent.phone, driver_label)
+            if agent.userId:
+                agent_user = self.db.get(User, agent.userId)
+                if agent_user:
+                    add(agent_user.phone, agent_user.name or driver_label)
+        return targets
+
+    def _send_order_delivered_whatsapp(
+        self,
+        delivery,
+        *,
+        branch,
+        vendor,
+        agent,
+        vehicle,
+        driver_name: str,
+        vehicle_no: str,
+        goods: str,
+        boxes: int,
+        exit_time,
+    ) -> None:
+        """conninter_hospital_order_delivered after the checkout QR is scanned."""
+        from app.models import HospitalChain
+        from app.models.delivery_entities import DockAssignment, GrnRecord, ReceivingDock
+        from app.services.delivery_pass_image import item_line
+        from app.utils.timezone import format_ist_clock
+
+        hospital_name = branch.name if branch else "Hospital"
+        if branch is not None:
+            chain = getattr(branch, "hospitalChain", None)
+            if chain is None and getattr(branch, "hospitalChainId", None):
+                chain = self.db.get(HospitalChain, branch.hospitalChainId)
+            chain_name = getattr(chain, "name", None) if chain is not None else None
+            if isinstance(chain_name, str) and chain_name.strip():
+                hospital_name = chain_name.strip()
+        branch_name = branch.name if branch else "—"
+        branch_address = self._branch_address(branch) if branch else "—"
+
+        dock = (
+            self.db.query(ReceivingDock)
+            .join(DockAssignment, DockAssignment.dockId == ReceivingDock.id)
+            .filter(DockAssignment.deliveryId == delivery.id)
+            .order_by(DockAssignment.assignedAt.desc())
+            .first()
+        )
+        receiving_department = (
+            dock.dockName.strip() if dock is not None and (dock.dockName or "").strip() else "Receiving"
+        )
+
+        grn = (
+            self.db.query(GrnRecord)
+            .filter(GrnRecord.deliveryId == delivery.id)
+            .first()
+        )
+        delivery_reference = (
+            grn.grnNumber.strip()
+            if grn is not None and (grn.grnNumber or "").strip()
+            else delivery.deliveryNumber
+        )
+
+        order_day = getattr(delivery, "expectedDeliveryDate", None)
+        if order_day is not None and hasattr(order_day, "strftime") and not hasattr(order_day, "hour"):
+            order_date = order_day.strftime("%d %b %Y")
+        else:
+            order_source = delivery.createdAt or delivery.expectedArrivalTime
+            order_date = format_ist_datetime(order_source, "%d %b %Y") if order_source else "—"
+        delivery_date = format_ist_datetime(exit_time, "%d %b %Y") if exit_time else "—"
+        delivery_time = format_ist_clock(exit_time) if exit_time else "—"
+
+        items = list(getattr(delivery, "items", None) or [])
+        item_text = item_line(delivery, items)
+        quantity = str(boxes) if boxes else "—"
+        plate = vehicle.registrationNumber if vehicle is not None else vehicle_no
+        plate = (plate or "—").strip() or "—"
+
+        details = {
+            "hospital_name": hospital_name,
+            "branch_name": branch_name or "—",
+            "branch_address": branch_address or "—",
+            "receiving_department": receiving_department,
+            "order_id": delivery.deliveryNumber,
+            "po_number": (delivery.poNumber or "").strip() or "—",
+            "order_date": order_date or "—",
+            "items": item_text or goods or "—",
+            "total_quantity": quantity,
+            "delivered_by": driver_name or "Driver",
+            "vehicle_number": plate,
+            "delivery_date": delivery_date or "—",
+            "delivery_time": delivery_time or "—",
+            "delivery_reference": delivery_reference or delivery.deliveryNumber,
+        }
+        for phone, recipient_name in self._order_delivered_phones(vendor, agent):
+            try:
+                sent = self.whatsapp.send_order_delivered(
+                    phone,
+                    recipient_name=recipient_name,
+                    **details,
+                )
+                if not sent:
+                    logger.warning(
+                        "Order delivered template was not sent to %s for %s",
+                        phone,
+                        delivery.deliveryNumber,
+                    )
+            except Exception as exc:
+                logger.error(
+                    "Failed order-delivered WhatsApp to %s for %s: %s",
+                    phone,
+                    delivery.deliveryNumber,
+                    exc,
+                )
 
     def _add_system_notification(self, recipient_id: str, message: str) -> None:
         self.db.add(Notification(recipientId=recipient_id, visitId=None, message=message))

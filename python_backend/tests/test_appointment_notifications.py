@@ -356,6 +356,29 @@ class AppointmentNotificationsTests(unittest.TestCase):
         self.assertIn("Online", sms_text)
         self.assertIn("no physical check-in", sms_text.lower())
 
+    def test_doctor_rejection_sends_visit_rejected_template(self) -> None:
+        visit = _visit()
+        visit.smsApprovalCode = "604818"
+        visit.departmentId = None
+        visit.department = "Fertility"
+        visitor = _visitor()
+        doctor = _doctor()
+        self.db.get.return_value = _branch()
+        self.service.whatsapp.send_visit_rejected.return_value = True
+
+        self.service.notify_visitor_rejection(visit, visitor, doctor, "Not available")
+
+        self.service.whatsapp.send_visit_rejected.assert_called_once_with(
+            visitor.phone,
+            visitor_name="Rahul Mehta",
+            doctor_name="Arjun Desai",
+            hospital_name="Apollo Chennai",
+            department="Fertility",
+            requested_date="10 Jun 2026",
+            requested_time="10:00 AM",
+            visit_id="604818",
+        )
+
     def test_check_in_rejects_online_visit(self) -> None:
         visit = _visit()
         visit.status = VisitStatus.APPROVED.value

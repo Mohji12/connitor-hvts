@@ -21,7 +21,7 @@ import {
   type HierarchyOverview,
   type VisitorTrends,
 } from '@/lib/services/analyticsService';
-import { UserService } from '@/lib/services/userService';
+import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Building2, Users, Activity, Layers, Calendar } from 'lucide-react';
@@ -40,30 +40,25 @@ export default function HospitalAdminOverview() {
   const user = useOverviewSessionUser<SessionUser>();
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('weekly');
 
-  const { data: overview } = useSWR<BranchStats>(
+  const { data: overview, isLoading: overviewLoading } = useSWR<BranchStats>(
     user?.branchId ? '/api/analytics/hospital-admin/overview' : null,
     () => AnalyticsService.getHospitalAdminOverview(),
     { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
-  const { data: visitorTrends } = useSWR<VisitorTrends>(
+  const { data: visitorTrends, isLoading: trendsLoading } = useSWR<VisitorTrends>(
     user?.branchId ? [`/api/analytics/hospital-admin/visitor-trends`, trendPeriod] : null,
     () => AnalyticsService.getHospitalAdminVisitorTrends(trendPeriod),
     { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
-  const { data: departmentStats } = useSWR<HierarchyOverview[]>(
+  const { data: departmentStats, isLoading: departmentsLoading } = useSWR<HierarchyOverview[]>(
     user?.branchId ? '/api/analytics/hospital-admin/departments/stats' : null,
     () => AnalyticsService.getHospitalAdminDepartmentStats(),
     { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
-  const { data: users } = useSWR<User[]>(
-    user?.branchId ? `/api/users/branch-${user.branchId}` : null,
-    () => UserService.getAll({ branchId: user!.branchId }),
-  );
-
-  const deptAdminCount = users?.filter((u) => u.role === 'DEPARTMENT_ADMIN').length ?? 0;
+  const deptAdminCount = overview?.departmentAdminCount ?? 0;
 
   const lineChartData = useMemo(() => {
     if (!visitorTrends) return { labels: [], datasets: [] };
@@ -81,6 +76,16 @@ export default function HospitalAdminOverview() {
       ],
     };
   }, [visitorTrends]);
+
+  if (!user || (user.branchId && (overviewLoading || departmentsLoading))) {
+    return (
+      <ConnitorLoader
+        variant="section"
+        message="Loading hospital data…"
+        className="min-h-[50vh] py-16"
+      />
+    );
+  }
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -150,14 +155,18 @@ export default function HospitalAdminOverview() {
             </div>
           </CardHeader>
           <CardContent className="h-64">
-            <Line
-              data={lineChartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-              }}
-            />
+            {trendsLoading ? (
+              <ConnitorLoader variant="inline" message="Loading trends…" />
+            ) : (
+              <Line
+                data={lineChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                }}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -169,7 +178,7 @@ export default function HospitalAdminOverview() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 max-h-64 overflow-y-auto">
-            {!departmentStats?.length && (
+            {!departmentsLoading && !departmentStats?.length && (
               <p className="text-sm text-muted-foreground">No departments yet.</p>
             )}
             {departmentStats?.map((dept) => (

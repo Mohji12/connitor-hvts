@@ -124,7 +124,12 @@ const HowItWorksSection = () => {
                 <FlowConnectors variant="outgoing" vertical />
               </motion.div>
 
-              <OutputsPanel reducedMotion={!!reducedMotion} items={flow.outputs} choreo={choreo} />
+              <OutputsPanel
+                reducedMotion={!!reducedMotion}
+                title={flow.outputsTitle}
+                items={flow.outputs}
+                choreo={choreo}
+              />
             </motion.div>
           </AnimatePresence>
         </motion.div>

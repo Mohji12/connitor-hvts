@@ -147,16 +147,31 @@ def test_confirm_verify_and_auto_book(db):
         count=5,
     )
 
+    from decimal import Decimal
+
+    from app.services.visitor_wallet_service import VisitorWalletService
+
+    VisitorWalletService(db).credit_recharge(
+        account.id,
+        Decimal("500"),
+        razorpay_order_id="order_urgent_test",
+        razorpay_payment_id="pay_urgent_test",
+    )
+    db.commit()
+
     with patch.object(svc.notifications, "notify_visitor_booking_received"):
         booked = svc.book_with_gate_token(
             {"accountId": account.id},
             token=handoff["gateToken"],
+            payment_method="WALLET",
         )
     assert booked["status"] == VisitStatus.APPROVED.value
     assert booked["entryQrPayload"]
     assert booked["exitQrPayload"]
     visit = db.get(Visit, booked["visitId"])
     assert visit.visitSubType == "URGENT_PASSCODE"
+    assert visit.paymentStatus == "CAPTURED"
+    assert float(visit.feeAmount) == 200.0
     assert visit.entryQrPayload.startswith("{")
     row = db.query(DoctorUrgentPasscode).filter(DoctorUrgentPasscode.code == code).one()
     assert row.status == "REDEEMED"

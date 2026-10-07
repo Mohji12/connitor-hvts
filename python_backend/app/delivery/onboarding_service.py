@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import timedelta
 from typing import Any
 
 from fastapi import UploadFile
@@ -245,6 +246,7 @@ class DistributorOnboardingService:
             role=Role.DISTRIBUTOR.value if hasattr(Role, "DISTRIBUTOR") else "DISTRIBUTOR",
             passwordHash=hash_password(data["password"]),
             isActive=True,
+            phoneVerified=False,
             distributorId=dist.id,
         )
         # Role enum may not have DISTRIBUTOR — use string
@@ -334,6 +336,9 @@ class DistributorOnboardingService:
 
         self.db.commit()
         self.db.refresh(dist)
+        self.db.refresh(user)
+
+        phone_sent = self._send_registration_otp(user)
 
         try:
             self._notify_application_received(dist)
@@ -347,11 +352,71 @@ class DistributorOnboardingService:
             "email": dist.email,
             "onboardingStatus": dist.onboardingStatus,
             "verificationStatus": dist.verificationStatus,
+            "phoneVerificationRequired": True,
+            "phoneOtpSent": phone_sent,
             "message": (
-                "Application submitted. You can sign in, but delivery booking unlocks after "
-                "hospital verification and branch approval."
+                "Application submitted. Enter the WhatsApp code sent to your mobile "
+                "before you sign in. Delivery booking unlocks after hospital verification "
+                "and branch approval."
             ),
         }
+
+    def _send_registration_otp(self, user: User) -> bool:
+        import bcrypt
+        import random
+
+        from app.config import get_settings, is_test_mode_enabled
+        from app.services.messaging_service import SmsService
+
+        settings = get_settings()
+        otp = f"{random.randint(100000, 999999)}"
+        if is_test_mode_enabled(settings):
+            otp = settings.e2e_fixed_otp if len(settings.e2e_fixed_otp) == 6 else "123456"
+        user.otp = bcrypt.hashpw(otp.encode(), bcrypt.gensalt()).decode()
+        user.otpExpires = now_ist() + timedelta(minutes=5)
+        self.db.commit()
+        if is_test_mode_enabled(settings):
+            return True
+        try:
+            SmsService().send_profile_phone_otp(user.phone, otp, valid_minutes=5)
+            return True
+        except Exception as exc:
+            logger.error("Distributor WhatsApp OTP failed for %s: %s", user.id, exc)
+            return False
+
+    def resend_phone_otp(self, email: str) -> dict:
+        normalized = (email or "").strip().lower()
+        user = self.db.query(User).filter(User.email == normalized, User.role == "DISTRIBUTOR").first()
+        if not user:
+            raise not_found("Distributor account")
+        if user.phoneVerified:
+            return {"message": "Phone already verified", "phoneVerified": True}
+        sent = self._send_registration_otp(user)
+        if not sent:
+            raise bad_request("Could not send the WhatsApp code. Try again.")
+        return {"message": "WhatsApp code sent", "phoneVerified": False}
+
+    def verify_phone_otp(self, email: str, otp: str) -> dict:
+        import bcrypt
+
+        normalized = (email or "").strip().lower()
+        code = (otp or "").strip()
+        user = self.db.query(User).filter(User.email == normalized, User.role == "DISTRIBUTOR").first()
+        if not user:
+            raise not_found("Distributor account")
+        if user.phoneVerified:
+            return {"message": "Phone already verified", "phoneVerified": True}
+        if not user.otp or not user.otpExpires:
+            raise bad_request("Request a WhatsApp code first")
+        if user.otpExpires < now_ist():
+            raise bad_request("That code has expired. Request a new one.")
+        if not bcrypt.checkpw(code.encode(), user.otp.encode()):
+            raise bad_request("Incorrect code")
+        user.phoneVerified = True
+        user.otp = None
+        user.otpExpires = None
+        self.db.commit()
+        return {"message": "Phone verified. You can sign in now.", "phoneVerified": True}
 
     def _notify_application_received(self, dist: Distributor) -> None:
         if not dist.email:
@@ -365,7 +430,8 @@ class DistributorOnboardingService:
             f"We received your distributor application for {dist.vendorName} "
             f"({dist.vendorCode}).\n"
             "Hospital staff will review your details and documents. "
-            "You can sign in now; booking unlocks after approval.\n\n"
+            "You can sign in after you verify the WhatsApp code sent to your mobile. "
+            "Booking unlocks after hospital approval.\n\n"
             "— Connitor"
         )
         html = f"<p>{text.replace(chr(10), '<br/>')}</p>"

@@ -68,9 +68,11 @@ class AttendantPassService:
         return f"{h:02d}:{m:02d}"
 
     def _default_visit_window(self, branch_id: str) -> tuple[str, str]:
-        """Hospital default visiting hours for every inpatient, every day (IST)."""
-        _ = branch_id  # reserved for future PassPolicy overrides
-        return DEFAULT_VISIT_START, DEFAULT_VISIT_END
+        """Branch pass-policy visiting hours for every inpatient, every day (IST)."""
+        policy = self._get_or_create_policy(branch_id)
+        start = (getattr(policy, "defaultVisitStart", None) or DEFAULT_VISIT_START).strip()
+        end = (getattr(policy, "defaultVisitEnd", None) or DEFAULT_VISIT_END).strip()
+        return start or DEFAULT_VISIT_START, end or DEFAULT_VISIT_END
 
     def get_visiting_hours(self, admission_id: str, *, on_date: date | None = None) -> dict:
         admission = self.db.get(Admission, admission_id)
@@ -263,17 +265,21 @@ class AttendantPassService:
         secret = get_settings().jwt_secret
         return hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
-    def _active_pass_for_admission(self, admission_id: str) -> AttendantPass | None:
+    def _active_pass_for_admission(
+        self, admission_id: str, *, kind: str | None = None
+    ) -> AttendantPass | None:
         now = now_ist()
-        rows = (
+        query = (
             self.db.query(AttendantPass)
             .join(Attendant, Attendant.id == AttendantPass.attendantId)
             .filter(
                 Attendant.admissionId == admission_id,
                 AttendantPass.status == "ACTIVE",
             )
-            .all()
         )
+        if kind:
+            query = query.filter(Attendant.attendantKind == kind)
+        rows = query.all()
         for pass_row in rows:
             expired_at = pass_row.expiresAt or pass_row.validTo
             if expired_at and expired_at < now:
@@ -288,8 +294,10 @@ class AttendantPassService:
     def _is_inside(pass_row: AttendantPass) -> bool:
         return bool(pass_row.enteredAt and not pass_row.exitedAt)
 
-    def _inside_pass_for_admission(self, admission_id: str) -> AttendantPass | None:
-        rows = (
+    def _inside_pass_for_admission(
+        self, admission_id: str, *, visitors_only: bool = True
+    ) -> AttendantPass | None:
+        query = (
             self.db.query(AttendantPass)
             .join(Attendant, Attendant.id == AttendantPass.attendantId)
             .filter(
@@ -297,8 +305,11 @@ class AttendantPassService:
                 AttendantPass.enteredAt.isnot(None),
                 AttendantPass.exitedAt.is_(None),
             )
-            .order_by(AttendantPass.enteredAt.desc())
-            .all()
+        )
+        if visitors_only:
+            query = query.filter(Attendant.attendantKind != "FIXED")
+        rows = (
+            query.order_by(AttendantPass.enteredAt.desc()).all()
         )
         for pass_row in rows:
             if pass_row.status == "EXPIRED":
@@ -346,23 +357,52 @@ class AttendantPassService:
         return self._serialize_admission(admission)
 
     def register_attendant(self, user: dict, data: dict) -> dict:
-        return self._create_attendant(data)
+        return self._create_attendant(data, notify_ward=False)
 
     def public_apply(self, data: dict) -> dict:
-        return self._create_attendant(data)
+        """Book a visitor pass during hospital hours and send it immediately."""
+        admission_id = data["admissionId"]
+        if self._inside_pass_for_admission(admission_id):
+            raise bad_request(
+                "An attendant is currently inside for this patient. "
+                "They must check out at security before another person can apply."
+            )
+        self.assert_within_visiting_hours(admission_id)
+        if data.get("addCompanion"):
+            missing = [
+                label
+                for key, label in (
+                    ("companionName", "companion name"),
+                    ("companionPhone", "companion phone"),
+                    ("companionRelationship", "companion relationship"),
+                )
+                if not str(data.get(key) or "").strip()
+            ]
+            if missing:
+                raise bad_request(f"Add the {', '.join(missing)} for the extra person.")
+        created = self._create_attendant(
+            {**data, "attendantKind": "VISITOR"},
+            notify_ward=False,
+        )
+        self.approve_attendant({"id": None, "role": "PUBLIC"}, created["id"])
+        return self.issue_pass({"id": None, "role": "PUBLIC"}, created["id"])
 
-    def _create_attendant(self, data: dict) -> dict:
+    def _create_attendant(self, data: dict, *, notify_ward: bool = True) -> dict:
         admission = self.db.get(Admission, data["admissionId"])
         if not admission:
             raise not_found("Admission")
         if admission.status != "ACTIVE":
             raise bad_request("Admission is not active")
-        inside = self._inside_pass_for_admission(admission.id)
-        if inside:
-            raise bad_request(
-                "An attendant is currently inside for this patient. "
-                "They must check out at security before another person can apply."
-            )
+        kind = (data.get("attendantKind") or "VISITOR").strip().upper()
+        if kind not in ("FIXED", "VISITOR"):
+            kind = "VISITOR"
+        if kind != "FIXED":
+            inside = self._inside_pass_for_admission(admission.id)
+            if inside:
+                raise bad_request(
+                    "An attendant is currently inside for this patient. "
+                    "They must check out at security before another person can apply."
+                )
         email = AuthService.normalize_email(data.get("email") or f"{str(data['phone']).strip()}@placeholder.local")
         permissions = data.get("specialPermissions")
         if isinstance(permissions, list):
@@ -381,6 +421,10 @@ class AttendantPassService:
             specialPermissions=(permissions or None),
             maxEntries=data.get("maxEntries"),
             isEmergency=bool(data.get("isEmergency")),
+            attendantKind=kind,
+            companionName=(str(data.get("companionName") or "").strip() or None),
+            companionPhone=(str(data.get("companionPhone") or "").strip() or None),
+            companionRelationship=(str(data.get("companionRelationship") or "").strip() or None),
             status="PENDING",
         )
         self.db.add(attendant)
@@ -397,16 +441,17 @@ class AttendantPassService:
         assert attendant is not None
 
         notify: dict = {"emailsSent": 0, "recipients": []}
-        try:
-            from app.attendant.approval_link_service import AttendantApprovalLinkService
+        if notify_ward and kind != "VISITOR":
+            try:
+                from app.attendant.approval_link_service import AttendantApprovalLinkService
 
-            notify = AttendantApprovalLinkService(self.db).notify_ward_admins(attendant)
-        except Exception as exc:
-            logger.error(
-                "Failed to notify ward for attendant %s: %s",
-                attendant.id,
-                exc,
-            )
+                notify = AttendantApprovalLinkService(self.db).notify_ward_admins(attendant)
+            except Exception as exc:
+                logger.error(
+                    "Failed to notify ward for attendant %s: %s",
+                    attendant.id,
+                    exc,
+                )
 
         result = self._serialize_attendant(attendant)
         result["wardNotified"] = bool(notify.get("emailsSent"))
@@ -444,7 +489,12 @@ class AttendantPassService:
         if attendant.status != "APPROVED":
             raise bad_request("Attendant must be approved before pass issuance")
 
-        existing = self._active_pass_for_admission(attendant.admissionId)
+        kind = (getattr(attendant, "attendantKind", None) or "VISITOR").upper()
+        existing = (
+            self._active_pass_for_admission(attendant.admissionId, kind="FIXED")
+            if kind == "FIXED"
+            else None
+        )
         if existing:
             if not revoke_existing:
                 raise bad_request(
@@ -481,7 +531,7 @@ class AttendantPassService:
             expiresAt=end,
             maxEntries=entries,
             entriesUsed=0,
-            approvedById=user.get("id"),
+            approvedById=user.get("id") if user.get("role") != "PUBLIC" else None,
         )
         self.db.add(pass_row)
         self.db.flush()
@@ -494,8 +544,10 @@ class AttendantPassService:
         self.db.refresh(pass_row)
 
         email_sent = self._email_pass(attendant, pass_row)
+        whatsapp_sent = self._send_attendant_pass_whatsapp(attendant, pass_row)
         result = self._serialize_pass(pass_row, full=True)
         result["emailSent"] = email_sent
+        result["whatsappSent"] = whatsapp_sent
         return result
 
     def revoke_pass(self, user: dict, pass_id: str) -> dict:
@@ -558,21 +610,13 @@ class AttendantPassService:
         ):
             raise bad_request("Pass belongs to another branch")
 
-        # QR kind decides action — exit QR always EXIT; entry QR never auto-exits
-        if is_exit_qr:
+        attendant = pass_row.attendant or self.db.get(Attendant, pass_row.attendantId)
+        kind = (getattr(attendant, "attendantKind", None) or "VISITOR").upper() if attendant else "VISITOR"
+        # The booking QR checks in while they are outside and checks out while they are inside.
+        if is_exit_qr or self._is_inside(pass_row):
             requested = "EXIT"
         else:
-            requested = (scan_type or "ENTRY").upper()
-            if requested == "EXIT":
-                raise bad_request(
-                    "Use the checkout QR emailed after check-in — the check-in QR cannot exit"
-                )
-            if self._is_inside(pass_row):
-                raise bad_request(
-                    "Already checked in — use the checkout QR emailed to the attendant"
-                )
-            if requested != "ENTRY":
-                raise bad_request("scanType must be ENTRY or EXIT")
+            requested = "ENTRY"
 
         image_url: str | None = None
         outside_hours = False
@@ -580,39 +624,36 @@ class AttendantPassService:
         checkout_email_sent = False
         if requested == "ENTRY":
             if self._is_inside(pass_row):
-                raise bad_request("Attendant is already inside — use the emailed checkout QR")
+                raise bad_request("Attendant is already inside — scan the same pass QR to check out")
             max_entries = pass_row.maxEntries
             used = int(pass_row.entriesUsed or 0)
             if pass_row.exitedAt:
                 if max_entries is not None and used >= max_entries:
                     raise bad_request("Maximum allowed entries for this pass have been used")
-                # Allow another entry cycle when under maxEntries (or unlimited)
             elif used > 0 and max_entries is not None and used >= max_entries:
                 raise bad_request("Maximum allowed entries for this pass have been used")
-            attendant = pass_row.attendant or self.db.get(Attendant, pass_row.attendantId)
-            if attendant:
+            if attendant and kind != "FIXED":
+                other = self._inside_pass_for_admission(attendant.admissionId)
+                if other and other.id != pass_row.id:
+                    raise bad_request(
+                        "Another attendant is meeting this patient. "
+                        "They must check out before this pass can be used."
+                    )
                 hours = self.get_visiting_hours(attendant.admissionId)
                 visiting_hours_summary = hours.get("summary")
                 if not self.is_within_visiting_hours(attendant.admissionId):
-                    # Security may still admit (emergency / late arrival). Record as override.
-                    outside_hours = True
-                    logger.warning(
-                        "Attendant ENTRY outside visiting hours for admission %s (%s)",
-                        attendant.admissionId,
-                        visiting_hours_summary,
+                    raise bad_request(
+                        "Visiting time is not active. Try again when visiting hours are open: "
+                        f"{visiting_hours_summary}."
                     )
-            if not govt_id_file or not govt_id_file.filename:
-                raise bad_request("Government ID image is required for entry")
-            image_url = await self.gcp.upload_visitor_document(
-                govt_id_file, pass_row.id, "attendant-govt-id"
-            )
+            if govt_id_file and govt_id_file.filename:
+                image_url = await self.gcp.upload_visitor_document(
+                    govt_id_file, pass_row.id, "attendant-govt-id"
+                )
             pass_row.enteredAt = now_ist()
             pass_row.exitedAt = None
             pass_row.durationMinutes = None
             pass_row.entriesUsed = used + 1
-            exit_payload = f"PASS-EXIT:{pass_row.id}:{pass_row.attendantId}:{pass_row.enteredAt.isoformat()}"
-            pass_row.exitQrPayload = exit_payload
-            pass_row.exitQrSignature = self._sign_payload(exit_payload)
         else:
             if not self._is_inside(pass_row):
                 raise bad_request("Attendant is not inside — scan the check-in QR first")
@@ -644,7 +685,8 @@ class AttendantPassService:
         notify_result: dict = {"emailsSent": 0, "recipients": []}
         if requested == "ENTRY":
             attendant = pass_row.attendant or self.db.get(Attendant, pass_row.attendantId)
-            if attendant:
+            kind = (getattr(attendant, "attendantKind", None) or "VISITOR").upper() if attendant else "VISITOR"
+            if attendant and kind == "FIXED":
                 checkout_email_sent = self._email_checkout_qr(attendant, pass_row)
         elif requested == "EXIT":
             try:
@@ -862,7 +904,7 @@ class AttendantPassService:
         patient = admission.patient
         if not patient:
             patient = self.db.get(Patient, admission.patientId)
-        active_pass = self._active_pass_for_admission(admission.id)
+        active_pass = self._active_pass_for_admission(admission.id, kind="VISITOR")
         inside = self._inside_pass_for_admission(admission.id)
         hours = self.get_visiting_hours(admission.id)
         return {
@@ -925,6 +967,10 @@ class AttendantPassService:
             "specialPermissions": getattr(attendant, "specialPermissions", None),
             "maxEntries": getattr(attendant, "maxEntries", None),
             "isEmergency": bool(getattr(attendant, "isEmergency", False)),
+            "attendantKind": getattr(attendant, "attendantKind", None) or "VISITOR",
+            "companionName": getattr(attendant, "companionName", None),
+            "companionPhone": getattr(attendant, "companionPhone", None),
+            "companionRelationship": getattr(attendant, "companionRelationship", None),
             "status": attendant.status,
             "admissionId": attendant.admissionId,
             "branchId": attendant.branchId,
@@ -1046,12 +1092,19 @@ class AttendantPassService:
             att = p.attendant
             adm = att.admission if att else None
             patient = adm.patient if adm else None
+            kind = (getattr(att, "attendantKind", None) or "VISITOR").upper() if att else "VISITOR"
             if p.exitedAt:
-                status = "Exited"
+                status = "Checked out"
                 when = p.exitedAt
+            elif p.enteredAt and kind != "FIXED":
+                status = "Meeting"
+                when = p.enteredAt
             elif p.enteredAt:
                 status = "Entered"
                 when = p.enteredAt
+            elif p.status == "ACTIVE":
+                status = "Booked"
+                when = p.createdAt
             else:
                 status = p.status
                 when = p.createdAt
@@ -1069,6 +1122,46 @@ class AttendantPassService:
                     "status": status,
                     "passNumber": p.passNumber,
                     "passId": p.id,
+                    "attendantKind": kind,
+                    "companionName": getattr(att, "companionName", None) if att else None,
+                }
+            )
+
+        meeting_rows = (
+            self.db.query(AttendantPass)
+            .options(
+                joinedload(AttendantPass.attendant)
+                .joinedload(Attendant.admission)
+                .joinedload(Admission.patient)
+            )
+            .join(Attendant, Attendant.id == AttendantPass.attendantId)
+            .filter(
+                AttendantPass.branchId == branch_id,
+                Attendant.attendantKind != "FIXED",
+                AttendantPass.enteredAt.isnot(None),
+                AttendantPass.exitedAt.is_(None),
+                AttendantPass.status != "EXPIRED",
+            )
+            .order_by(AttendantPass.enteredAt.desc())
+            .all()
+        )
+        meetings = []
+        for p in meeting_rows:
+            att = p.attendant
+            adm = att.admission if att else None
+            patient = adm.patient if adm else None
+            patient_name = (
+                f"{patient.firstName} {patient.lastName}".strip() if patient else "this patient"
+            )
+            meetings.append(
+                {
+                    "passId": p.id,
+                    "passNumber": p.passNumber,
+                    "attendantName": att.name if att else "Attendant",
+                    "companionName": getattr(att, "companionName", None) if att else None,
+                    "patient": patient_name,
+                    "ward": adm.wardName if adm else None,
+                    "message": f"For {patient_name}, the second attendant is meeting.",
                 }
             )
 
@@ -1082,6 +1175,7 @@ class AttendantPassService:
                 "emergencyPasses": emergency_today,
             },
             "recentActivity": activity,
+            "meetings": meetings,
         }
 
     def search_attendants(
@@ -1410,6 +1504,108 @@ class AttendantPassService:
             }
             for b in branches
         ]
+
+    def _send_attendant_pass_whatsapp(self, attendant: Attendant, pass_row: AttendantPass) -> bool:
+        """Send conninter_patient_attendant_pass. A rejected template does not undo the pass."""
+        if not attendant.phone:
+            return False
+        admission = attendant.admission or self.db.get(Admission, attendant.admissionId)
+        patient = admission.patient if admission else None
+        if admission and not patient:
+            patient = self.db.get(Patient, admission.patientId)
+        branch = self.db.get(Branch, attendant.branchId)
+        hospital = "Hospital"
+        if branch is not None:
+            chain = getattr(branch, "hospitalChain", None)
+            chain_name = getattr(chain, "name", None) if chain is not None else None
+            if isinstance(chain_name, str) and chain_name.strip():
+                hospital = chain_name.strip()
+            elif branch.name:
+                hospital = branch.name
+        patient_name = (
+            f"{patient.firstName} {patient.lastName}".strip() if patient else "Patient"
+        )
+        hours = self.get_visiting_hours(attendant.admissionId) if admission else {}
+        window = (hours.get("defaultWindow") or {}) if isinstance(hours, dict) else {}
+        visiting = (
+            f"{window.get('startTime', DEFAULT_VISIT_START)}-{window.get('endTime', DEFAULT_VISIT_END)}"
+        )
+        issued_on = format_ist_datetime(pass_row.createdAt or now_ist(), "%d %b %Y")
+        valid_day = format_ist_datetime(pass_row.validTo or pass_row.expiresAt or now_ist(), "%d %b %Y")
+        validity = f"{valid_day} {visiting}"
+        relationship = (attendant.relationship or "").strip() or "—"
+        companion = (attendant.companionName or "").strip() or None
+        card_relationship = relationship
+        if companion:
+            card_relationship = companion if relationship == "—" else f"{relationship} · with {companion}"
+        security_phone = ""
+        if branch is not None and isinstance(getattr(branch, "phone", None), str):
+            security_phone = branch.phone.strip()
+        image_url = ""
+        try:
+            from app.services.attendant_pass_image import AttendantPassContent, render_attendant_pass
+            from app.services.meeting_pass_image import hospital_logo_bytes
+            from app.services.s3_storage_service import S3StorageService
+
+            qr_bytes = None
+            if pass_row.qrPayload and pass_row.qrSignature:
+                qr_bytes = EmailService()._build_delivery_qr_png(pass_row.qrPayload, pass_row.qrSignature)
+            card = render_attendant_pass(
+                AttendantPassContent(
+                    attendant_name=attendant.name,
+                    attendant_phone=attendant.phone,
+                    pass_number=pass_row.passNumber,
+                    issued_on=issued_on,
+                    patient_name=patient_name,
+                    patient_id=(patient.mrn if patient and patient.mrn else "—"),
+                    relationship=card_relationship,
+                    validity=validity,
+                    hospital_name=hospital,
+                    ward_name=(admission.wardName if admission and admission.wardName else ""),
+                    companion=companion,
+                    security_phone=security_phone or None,
+                    qr_png=qr_bytes,
+                    photo_png=self._attendant_photo_bytes(attendant),
+                    logo_png=hospital_logo_bytes(
+                        getattr(branch, "hospitalChainId", None) if branch is not None else None
+                    ),
+                ),
+                scale=2,
+            )
+            image_url = S3StorageService().publish_attendant_pass_png(pass_row.id, card) or ""
+        except Exception as exc:
+            logger.error("Failed to render attendant pass card for %s: %s", pass_row.id, exc)
+        try:
+            from app.services.messaging_service import WhatsAppService
+
+            return WhatsAppService().send_attendant_pass(
+                attendant.phone,
+                attendant_name=attendant.name,
+                patient_name=patient_name,
+                patient_id=(patient.mrn if patient and patient.mrn else "—"),
+                relationship=relationship,
+                issued_on=issued_on,
+                validity=validity,
+                image_url=image_url,
+            )
+        except Exception as exc:
+            logger.error("Failed attendant pass WhatsApp to %s: %s", attendant.phone, exc)
+            return False
+
+    def _attendant_photo_bytes(self, attendant: Attendant) -> bytes | None:
+        photo_url = (getattr(attendant, "photoUrl", None) or "").strip()
+        if not photo_url or photo_url.startswith("data:"):
+            return None
+        try:
+            if photo_url.startswith("http"):
+                import httpx
+
+                response = httpx.get(photo_url, timeout=15.0, follow_redirects=True)
+                response.raise_for_status()
+                return response.content
+        except Exception as exc:
+            logger.warning("Attendant photo skipped for %s: %s", attendant.id, exc)
+        return None
 
     def _email_pass(self, attendant: Attendant, pass_row: AttendantPass) -> bool:
         if not attendant.email or "@placeholder.local" in attendant.email:

@@ -130,7 +130,7 @@ export const EnginePanel = ({ reducedMotion, flow, choreo }: Props) => {
                     <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#7C3AED]" strokeWidth={2} />
                     <div>
                       <p className="text-[13px] font-medium text-[#1E293B]">{cell.title}</p>
-                      <p className="sr-only">{cell.detail}</p>
+                      <p className="text-xs leading-snug text-[#64748B]">{cell.detail}</p>
                     </div>
                   </div>
                 </TooltipTrigger>

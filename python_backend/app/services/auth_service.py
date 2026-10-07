@@ -98,6 +98,11 @@ class AuthService:
                 status_code=401,
                 detail="Invalid login ID or password.",
             )
+        if user.role == "DISTRIBUTOR" and user.phoneVerified is False:
+            raise HTTPException(
+                status_code=403,
+                detail="Verify the WhatsApp code sent to your mobile before you sign in.",
+            )
         return self._issue_access_token(user)
 
     def login(self, email: str) -> dict:
@@ -112,6 +117,11 @@ class AuthService:
             raise HTTPException(
                 status_code=403,
                 detail="Account is not active. Complete email verification or contact your administrator.",
+            )
+        if user.role == "DISTRIBUTOR" and user.phoneVerified is False:
+            raise HTTPException(
+                status_code=403,
+                detail="Verify the WhatsApp code sent to your mobile before you sign in.",
             )
 
         settings = get_settings()
@@ -141,6 +151,11 @@ class AuthService:
 
     def verify_otp(self, email: str, otp: str) -> dict:
         user = self._load_user_by_email(email)
+        if user.role == "DISTRIBUTOR" and user.phoneVerified is False:
+            raise HTTPException(
+                status_code=403,
+                detail="Verify the WhatsApp code sent to your mobile before you sign in.",
+            )
 
         settings = get_settings()
         if not is_test_mode_enabled(settings):

@@ -12,6 +12,7 @@ import {
   type BranchStats,
   type TrendPeriod,
 } from '@/lib/services/analyticsService';
+import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -75,6 +76,7 @@ export default function ChainAdminOverview() {
   const [visitorTrends, setVisitorTrends] = useState<VisitorTrends | null>(null);
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('weekly');
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -85,6 +87,7 @@ export default function ChainAdminOverview() {
     if (!user || !chainId) return;
     if (user.role !== 'CHAIN_ADMIN') {
       setError('Only chain admins may view this dashboard.');
+      setReady(true);
       return;
     }
     
@@ -101,8 +104,12 @@ export default function ChainAdminOverview() {
         setVisitorTrends(trends);
         setBranches(branchList);
         setStaff(userList.filter((u) => u.role === 'STAFF' || u.role === 'BRANCH_ADMIN'));
+        setReady(true);
       })
-      .catch(() => setError('Failed to fetch data.'));
+      .catch(() => {
+        setError('Failed to fetch data.');
+        setReady(true);
+      });
   }, [user, chainId, trendPeriod]);
 
   // Update trends when period changes
@@ -235,11 +242,13 @@ export default function ChainAdminOverview() {
     },
   };
 
-  if (!user) {
+  if (!user || (!ready && !error)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="text-slate-500">Loading dashboard...</div>
-      </div>
+      <ConnitorLoader
+        variant="section"
+        message="Loading dashboard data…"
+        className="min-h-[50vh] py-16"
+      />
     );
   }
 

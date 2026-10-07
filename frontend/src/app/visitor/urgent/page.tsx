@@ -27,6 +27,10 @@ import {
   type UrgentGateSession,
 } from '@/lib/services/urgentGatePublicService';
 import { todayIstDateIso } from '@/lib/datetime';
+import {
+  VisitPaymentChoice,
+  type VisitPaymentResult,
+} from '@/features/visitor-wallet/VisitPaymentChoice';
 
 function UrgentGateInner(): React.ReactElement {
   const searchParams = useSearchParams();
@@ -74,7 +78,7 @@ function UrgentGateInner(): React.ReactElement {
       .catch(() => setSlots([]));
   }, [session?.host.id, slotDate, useWalkIn]);
 
-  const book = async () => {
+  const book = async (payment: VisitPaymentResult) => {
     if (!token || !loggedIn) return;
     setBooking(true);
     try {
@@ -82,6 +86,10 @@ function UrgentGateInner(): React.ReactElement {
         token,
         slotId: useWalkIn ? undefined : slotId || undefined,
         purpose: session?.purpose || undefined,
+        paymentMethod: payment.paymentMethod,
+        razorpayOrderId: payment.razorpayOrderId,
+        razorpayPaymentId: payment.razorpayPaymentId,
+        razorpaySignature: payment.razorpaySignature,
       });
       setResult(booked);
       toast.success('Visit approved', { description: booked.message });
@@ -231,19 +239,14 @@ function UrgentGateInner(): React.ReactElement {
                 </div>
               </>
             )}
-            <Button
-              className="w-full bg-emerald-600 hover:bg-emerald-700"
-              disabled={booking || (!useWalkIn && !slotId)}
-              onClick={() => void book()}
-            >
-              {booking ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Booking…
-                </>
-              ) : (
-                'Confirm visit & get QR codes'
-              )}
-            </Button>
+            <VisitPaymentChoice
+              returnTo={returnTo}
+              busy={booking || (!useWalkIn && !slotId)}
+              onPay={book}
+            />
+            <p className="text-xs text-muted-foreground">
+              This visit is already approved, so the wallet fee is deducted as soon as you pay.
+            </p>
           </div>
         )}
       </CardContent>

@@ -20,13 +20,21 @@ HOSPITAL_LOGO_DIR = ASSETS_DIR / "hospital-logos"
 # Coordinates match meeting_pass_blank.png at 525x1024.
 _BASE_WIDTH = 525
 _BASE_HEIGHT = 1024
-_PHOTO_CENTER = (119, 209)
+_PHOTO_CENTER = (124, 236)
 _PHOTO_RADIUS = 68
-_IDENTITY_BOX = (246, 158, 518, 330)
-_NAVY = (11, 31, 75)
-_BLACK = (20, 24, 32)
-_BLUE = (0, 102, 204)
-_PAGE = (248, 248, 248)
+_IDENTITY_BOX = (258, 192, 504, 268)
+# Value lines sit on the printed underlines and stop at the end of each line.
+_LEFT_VALUE = (108, 130)
+_RIGHT_VALUE = (354, 128)
+# Open band between the date card and "Valid for today only" (text starts ~y=710).
+# Divider is the printed line at x=262. The QR and logo fill that band.
+_CARD_TOP = 518
+_CARD_SIZE = 150
+_DIVIDER_X = 262
+_NAVY = (16, 32, 84)
+_BLACK = (20, 28, 48)
+_BLUE = (0, 112, 214)
+_CARD = (230, 241, 251)
 
 _ROLE_LABELS = {
     "SALES_REPRESENTATIVE": "Medical Representative",
@@ -102,11 +110,14 @@ def _fit_text(
 ) -> None:
     cleaned = " ".join((text or "").split()) or "—"
     font = _load_font(size, bold=bold)
-    while size > 11:
-        if draw.textlength(cleaned, font=font) <= max_width:
-            break
+    while size > 8 and draw.textlength(cleaned, font=font) > max_width:
         size -= 1
         font = _load_font(size, bold=bold)
+    if draw.textlength(cleaned, font=font) > max_width:
+        trimmed = cleaned
+        while trimmed and draw.textlength(trimmed + "…", font=font) > max_width:
+            trimmed = trimmed[:-1].rstrip()
+        cleaned = (trimmed or "—") + "…"
     draw.text(origin, cleaned, font=font, fill=fill)
 
 
@@ -120,24 +131,76 @@ def _paste_circle(base: Image.Image, photo_png: bytes, center: tuple[int, int], 
     base.paste(photo, (center[0] - radius, center[1] - radius), photo)
 
 
-def _paste_logo(base: Image.Image, logo_png: bytes, box: tuple[int, int, int, int]) -> None:
-    logo = Image.open(io.BytesIO(logo_png)).convert("RGBA")
+def _trim_logo(logo: Image.Image) -> Image.Image:
+    """Drop the blank margin so the mark lines up with the QR card."""
+    pixels = logo.load()
+    min_x, min_y = logo.size
+    max_x = max_y = 0
+    found = False
+    for y in range(logo.size[1]):
+        for x in range(logo.size[0]):
+            red, green, blue, alpha = pixels[x, y]
+            if alpha > 20 and not (red > 245 and green > 245 and blue > 245):
+                found = True
+                min_x = min(min_x, x)
+                min_y = min(min_y, y)
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+    if not found:
+        return logo
+    return logo.crop((min_x, min_y, max_x + 1, max_y + 1))
+
+
+def _paste_logo(
+    base: Image.Image,
+    logo_png: bytes,
+    box: tuple[int, int, int, int],
+    *,
+    plate: bool = True,
+) -> None:
+    logo = _trim_logo(Image.open(io.BytesIO(logo_png)).convert("RGBA"))
     left, top, right, bottom = box
-    max_w = right - left
-    max_h = bottom - top
-    logo.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
-    x = left + (max_w - logo.width) // 2
-    y = top + (max_h - logo.height) // 2
+    logo.thumbnail((right - left, bottom - top), Image.Resampling.LANCZOS)
+    x = left + (right - left - logo.width) // 2
+    y = top + (bottom - top - logo.height) // 2
+    if plate:
+        card = Image.new("RGBA", (right - left, bottom - top), (255, 255, 255, 255))
+        base.paste(card, (left, top), card)
     base.paste(logo, (x, y), logo)
 
 
+def _qr_module_image(payload: str) -> Image.Image:
+    """One pixel per module, pure black on white, with the standard quiet zone."""
+    code = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=1,
+        border=1,
+    )
+    code.add_data(payload)
+    code.make(fit=True)
+    return code.make_image(fill_color="#000000", back_color="#ffffff").convert("RGB")
+
+
+def _fit_qr_image(module: Image.Image, size: int) -> Image.Image:
+    """Scale the QR so it fills the square. Nearest-neighbor keeps module edges sharp."""
+    side = max(int(size), 1)
+    return module.resize((side, side), Image.Resampling.NEAREST)
+
+
 def _qr_png(payload: str, size: int) -> bytes:
-    image = qrcode.make(payload)
-    fitted = image.get_image().convert("RGB")
-    fitted = fitted.resize((size, size), Image.Resampling.NEAREST)
+    fitted = _fit_qr_image(_qr_module_image(payload), size)
     buffer = io.BytesIO()
     fitted.save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+def paste_crisp_qr(base: Image.Image, qr_png: bytes, left: int, top: int, side: int) -> None:
+    """Paste a QR into a white square without blurring module edges."""
+    module = Image.open(io.BytesIO(qr_png)).convert("RGB")
+    plate = Image.new("RGBA", (side, side), (255, 255, 255, 255))
+    base.paste(plate, (left, top), plate)
+    fitted = _fit_qr_image(module, side)
+    base.paste(fitted, (left, top))
 
 
 def check_in_qr_png(visit, *, size: int = 190) -> bytes:
@@ -338,49 +401,47 @@ def render_meeting_pass(content: MeetingPassContent) -> bytes:
             pass
 
     draw = ImageDraw.Draw(base)
-    draw.rectangle(_IDENTITY_BOX, fill=_PAGE)
+    draw.rounded_rectangle(_IDENTITY_BOX, radius=18, fill=_CARD)
 
-    _fit_text(draw, (252, 168), content.visitor_name, max_width=250, size=26, fill=_NAVY)
-    _fit_text(draw, (252, 202), content.role_label, max_width=250, size=16, fill=_BLACK)
-    next_y = 228
+    _fit_text(draw, (268, 196), content.visitor_name, max_width=224, size=18, fill=_NAVY)
+    _fit_text(draw, (268, 218), content.role_label, max_width=224, size=13, fill=_BLACK)
+    next_y = 234
     if content.company_name:
-        _fit_text(draw, (252, next_y), content.company_name, max_width=250, size=16, fill=_BLUE)
-        next_y = 254
-    _fit_text(draw, (252, next_y), "Professional Meeting", max_width=250, size=16, fill=_BLUE)
+        _fit_text(draw, (268, next_y), content.company_name, max_width=224, size=12, fill=_BLUE)
+        next_y = 250
+    _fit_text(draw, (268, next_y), "Professional Meeting", max_width=224, size=13, fill=_BLUE)
 
-    _fit_text(draw, (46, 392), content.doctor_name, max_width=210, size=15, fill=_NAVY)
-    _fit_text(draw, (277, 392), content.department, max_width=220, size=15, fill=_NAVY)
-    _fit_text(draw, (46, 468), content.date_text, max_width=210, size=15, fill=_NAVY)
-    _fit_text(draw, (277, 468), content.time_text, max_width=220, size=15, fill=_NAVY)
+    left_x, left_width = _LEFT_VALUE
+    right_x, right_width = _RIGHT_VALUE
+    _fit_text(draw, (left_x, 396), content.doctor_name, max_width=left_width, size=12, fill=_NAVY)
+    _fit_text(draw, (right_x, 396), content.department, max_width=right_width, size=12, fill=_NAVY)
+    _fit_text(draw, (left_x, 482), content.date_text, max_width=left_width, size=12, fill=_NAVY)
+    _fit_text(draw, (right_x, 482), content.time_text, max_width=right_width, size=12, fill=_NAVY)
 
+    card_bottom = _CARD_TOP + _CARD_SIZE
     if content.qr_png:
         try:
-            qr = Image.open(io.BytesIO(content.qr_png)).convert("RGBA")
-            qr = qr.resize((190, 190), Image.Resampling.NEAREST)
-            base.paste(qr, (28, 530), qr if qr.mode == "RGBA" else None)
+            left_edge = 16
+            right_edge = _DIVIDER_X - 6
+            left = left_edge + (right_edge - left_edge - _CARD_SIZE) // 2
+            paste_crisp_qr(base, content.qr_png, left, _CARD_TOP, _CARD_SIZE)
         except Exception:
             pass
-
     if content.logo_png:
         try:
-            _paste_logo(base, content.logo_png, (270, 555, 500, 720))
+            _paste_logo(
+                base,
+                content.logo_png,
+                (_DIVIDER_X + 8, _CARD_TOP, 512, card_bottom),
+                plate=False,
+            )
         except Exception:
             pass
 
-    flat = _fit_whatsapp_header(base.convert("RGB"))
+    flat = base.convert("RGB")
     buffer = io.BytesIO()
     flat.save(buffer, format="PNG")
     return buffer.getvalue()
 
 
-def _fit_whatsapp_header(image: Image.Image) -> Image.Image:
-    """Place the full pass on a square canvas.
 
-    WhatsApp center-crops a template header to 1:1. The blank artwork is
-    525x1024, so that crop was cutting off the Conninter logo and the footer.
-    """
-    margin = 28
-    side = max(image.width, image.height) + margin * 2
-    canvas = Image.new("RGB", (side, side), _PAGE)
-    canvas.paste(image, ((side - image.width) // 2, (side - image.height) // 2))
-    return canvas

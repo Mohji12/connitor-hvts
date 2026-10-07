@@ -76,7 +76,15 @@ class AgentVehicleService:
         email = AuthService.normalize_email(data["email"])
         existing = self.db.query(DeliveryAgent).filter(DeliveryAgent.email == email).first()
         if existing:
-            raise bad_request("A driver with this email already exists")
+            if existing.distributorId != dist_id:
+                raise bad_request("A driver with this email already exists")
+            if data.get("name"):
+                existing.name = data["name"].strip()
+            if data.get("phone"):
+                existing.phone = data["phone"]
+            self.db.commit()
+            self.db.refresh(existing)
+            return self._serialize_agent(existing)
 
         agent = DeliveryAgent(
             distributorId=dist_id,
@@ -87,6 +95,24 @@ class AgentVehicleService:
             isActive=True,
         )
         self.db.add(agent)
+        self.db.commit()
+        self.db.refresh(agent)
+        return self._serialize_agent(agent)
+
+    def save_agent_photo(self, user: dict, agent_id: str, content: bytes, mime: str) -> dict:
+        dist_id = self._distributor_id(user)
+        agent = self.db.get(DeliveryAgent, agent_id)
+        if not agent or agent.distributorId != dist_id:
+            raise bad_request("Invalid driver")
+        if mime == "image/jpg":
+            mime = "image/jpeg"
+        if not mime.startswith("image/"):
+            raise bad_request("Driver photo must be an image")
+        from app.services.s3_storage_service import S3StorageService
+
+        agent.photoStorageKey = S3StorageService().upload_visitor_asset(
+            agent.id, "driver-photo", content, mime
+        )
         self.db.commit()
         self.db.refresh(agent)
         return self._serialize_agent(agent)
@@ -229,7 +255,17 @@ class AgentVehicleService:
             "phone": agent.phone,
             "licenseNumber": agent.licenseNumber,
             "isActive": agent.isActive,
+            "photoUrl": AgentVehicleService._photo_url(agent.photoStorageKey),
         }
+
+    @staticmethod
+    def _photo_url(storage_key: str | None) -> str | None:
+        key = (storage_key or "").strip()
+        if not key:
+            return None
+        from app.services.s3_storage_service import S3StorageService
+
+        return S3StorageService().get_presigned_url(key)
 
     @staticmethod
     def _serialize_vehicle(vehicle: DeliveryVehicle) -> dict:

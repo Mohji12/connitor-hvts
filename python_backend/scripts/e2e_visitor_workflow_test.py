@@ -7,7 +7,7 @@ Run from python_backend/:
 """
 from __future__ import annotations
 
-import random
+import os
 import sys
 from datetime import datetime, timedelta
 
@@ -25,7 +25,8 @@ from app.models import Visit
 from app.models.enums import VisitStatus
 from app.services.visit_approval_link_service import VisitApprovalLinkService
 
-API_BASE = "http://127.0.0.1:8001/api"
+API_BASE = os.environ.get("CONNITOR_API_BASE", "http://127.0.0.1:8002/api")
+PRIMARY_PHONE = os.environ.get("E2E_PRIMARY_PHONE", "8625877312")
 SECURITY_EMAIL = "rameshwar.tiwari@apollochennai.com"
 SECURITY_PASSWORD = "Conninter123@"
 
@@ -59,13 +60,14 @@ def auth_token(client: httpx.Client) -> str:
 def main() -> None:
     print("=== E2E: Visitor booking -> Doctor approval -> Security check-in ===\n")
 
-    visitor_phone = f"9{random.randint(100000000, 999999999)}"
+    visitor_phone = PRIMARY_PHONE
     appt_dt = (datetime.now() + timedelta(days=2)).replace(hour=15, minute=0, second=0, microsecond=0)
     appt_iso = appt_dt.strftime("%Y-%m-%dT%H:%M:%S")
 
     with httpx.Client(timeout=60.0) as client:
         step(1, "Health check")
-        health = client.get("http://127.0.0.1:8001/")
+        root = API_BASE.rstrip("/").removesuffix("/api")
+        health = client.get(f"{root}/")
         if health.status_code != 200:
             fail(f"Backend not reachable ({health.status_code})")
         ok("Backend is up")
@@ -81,7 +83,8 @@ def main() -> None:
             "phone": visitor_phone,
             "email": f"e2e.visitor.{visitor_phone}@example.com",
             "appointmentDate": appt_iso,
-            "purpose": "E2E workflow test — cardiology follow-up",
+            "purpose": "E2E workflow test cardiology follow-up",
+            "itemsCarrying": "None",
             "appointmentMode": "IN_PERSON",
         }
         book_res = client.post(f"{API_BASE}/public/appointments", json=book_payload)

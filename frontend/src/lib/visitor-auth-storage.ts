@@ -17,6 +17,7 @@ export function isVisitorPortalApiPath(url: string | undefined): boolean {
   if (!url) return false;
   return (
     url.includes('/api/public/visitor-portal') ||
-    url.includes('/api/public/visitor-accounts')
+    url.includes('/api/public/visitor-accounts') ||
+    url.includes('/api/public/visitor-wallet')
   );
 }

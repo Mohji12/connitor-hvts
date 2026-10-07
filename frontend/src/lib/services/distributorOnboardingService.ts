@@ -80,4 +80,14 @@ export const DistributorOnboardingService = {
     });
     return res.data;
   },
+
+  async resendPhoneOtp(email: string): Promise<{ message: string }> {
+    const res = await apiClient.post('/api/public/distributor-onboarding/resend-phone-otp', { email });
+    return res.data;
+  },
+
+  async verifyPhone(email: string, otp: string): Promise<{ message: string; phoneVerified: boolean }> {
+    const res = await apiClient.post('/api/public/distributor-onboarding/verify-phone', { email, otp });
+    return res.data;
+  },
 };

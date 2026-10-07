@@ -134,19 +134,30 @@ class S3StorageService:
         base = get_public_api_base_url(self.settings)
         if not base and self.settings.runtime == "production":
             base = "https://api.conninter.com"
-        if not base:
-            return None
         quoted = quote(relative, safe="/")
-        return f"{base}/api/public/visitor-accounts/assets/{quoted}?exp={exp}&sig={sig}"
+        path = f"/api/public/visitor-accounts/assets/{quoted}?exp={exp}&sig={sig}"
+        if not base:
+            return path
+        return f"{base}{path}"
+
+    def publish_delivery_pass_png(self, delivery_id: str, content: bytes) -> str | None:
+        """Upload a delivery pass and return an HTTPS URL WhatsApp can fetch."""
+        return self._publish_png(f"delivery-passes/{delivery_id}/{int(time.time())}.png", content, delivery_id)
+
+    def publish_attendant_pass_png(self, pass_id: str, content: bytes) -> str | None:
+        """Upload an attendant pass QR and return an HTTPS URL WhatsApp can fetch."""
+        return self._publish_png(f"attendant-passes/{pass_id}/{int(time.time())}.png", content, pass_id)
 
     def publish_gate_pass_png(self, visit_id: str, content: bytes) -> str | None:
         """Upload a gate-pass QR and return an HTTPS URL WhatsApp can fetch."""
+        return self._publish_png(f"gate-passes/{visit_id}/{int(time.time())}.png", content, visit_id)
+
+    def _publish_png(self, key: str, content: bytes, owner_id: str) -> str | None:
         if not content:
             return None
         if not self._client or not self.settings.aws_s3_bucket:
-            logger.warning("S3 not configured; cannot publish gate-pass QR for visit %s", visit_id)
+            logger.warning("S3 not configured; cannot publish pass image for %s", owner_id)
             return None
-        key = f"gate-passes/{visit_id}/{int(time.time())}.png"
         bucket = self.settings.aws_s3_bucket
         region = self.settings.aws_region or "us-east-1"
         if self.settings.s3_public_acl:
@@ -174,7 +185,7 @@ class S3StorageService:
                 ExpiresIn=7 * 24 * 3600,
             )
         except Exception:
-            logger.warning("S3 gate-pass upload failed for visit %s", visit_id, exc_info=True)
+            logger.warning("S3 pass upload failed for %s", owner_id, exc_info=True)
             return None
 
     async def upload_from_upload_file(

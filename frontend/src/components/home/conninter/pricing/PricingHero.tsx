@@ -2,16 +2,16 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ClientButton } from '@/components/home/conninter/ClientButton';
-import type { Audience, Billing } from "./pricingData";
+import type { Billing, PricingFocus } from "./pricingData";
 
 type Props = {
   billing: Billing;
   onBillingChange: (b: Billing) => void;
-  audience: Audience;
-  onAudienceChange: (a: Audience) => void;
+  focus: PricingFocus;
+  onFocusChange: (focus: PricingFocus) => void;
 };
 
-export const PricingHero = ({ billing, onBillingChange, audience, onAudienceChange }: Props) => {
+export const PricingHero = ({ billing, onBillingChange, focus, onFocusChange }: Props) => {
   return (
     <div className="relative z-[100] mx-auto max-w-[1200px] px-4 text-center lg:px-8">
       <motion.p
@@ -39,7 +39,11 @@ export const PricingHero = ({ billing, onBillingChange, audience, onAudienceChan
         transition={{ duration: 0.5, delay: 0.2 }}
         className="mx-auto mt-3 max-w-[520px] text-[17px] font-normal leading-relaxed text-white/60"
       >
-        Start free for 14 days. No credit card required. Upgrade, downgrade, or cancel anytime.
+        {focus === "visit"
+          ? "Monthly hospital plans. Annual billing is 20% less."
+          : focus === "delivery"
+            ? "Per delivery. Choose the vehicle that matches the load."
+            : "What a visitor pays for an on-site visit, a digital meeting, or a group session."}
       </motion.p>
 
       <motion.div
@@ -50,6 +54,8 @@ export const PricingHero = ({ billing, onBillingChange, audience, onAudienceChan
         className="relative z-[110] mx-auto mt-8 flex w-full max-w-[280px] flex-col items-center sm:max-w-none"
       >
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+          {focus === "visit" && (
+          <>
           <div className="relative h-12 w-[280px] shrink-0 rounded-full bg-white/[0.08] p-1 shadow-inner backdrop-blur-md">
             {/* Thumb: width = half of inner track; x = 100% moves exactly one column (translate % is of self) */}
             <motion.div
@@ -90,6 +96,8 @@ export const PricingHero = ({ billing, onBillingChange, audience, onAudienceChan
               </motion.span>
             )}
           </AnimatePresence>
+          </>
+          )}
         </div>
 
         <motion.div
@@ -99,15 +107,21 @@ export const PricingHero = ({ billing, onBillingChange, audience, onAudienceChan
           transition={{ delay: 0.5, duration: 0.2 }}
           className="relative z-[120] mt-5 inline-flex h-10 items-center rounded-full border border-white/15 bg-[#001B71] p-1 shadow-[0_4px_20px_rgba(0,0,0,0.2)]"
         >
-          {(["hospitals", "companies"] as const).map((a) => (
+          {(
+            [
+              ["visit", "Visiting"],
+              ["delivery", "Delivery"],
+              ["visitor", "Visitor"],
+            ] as const
+          ).map(([item, label]) => (
             <ClientButton
-              key={a}
-              onClick={() => onAudienceChange(a)}
-              className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-                audience === a ? "bg-white text-[#001B71] shadow-sm" : "text-white/55 hover:text-white/80"
+              key={item}
+              onClick={() => onFocusChange(item)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5 ${
+                focus === item ? "bg-white text-[#001B71] shadow-sm" : "text-white/55 hover:text-white/80"
               }`}
             >
-              For {a === "hospitals" ? "Hospitals" : "Companies"}
+              {label}
             </ClientButton>
           ))}
         </motion.div>

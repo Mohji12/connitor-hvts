@@ -1,7 +1,9 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from decimal import Decimal
+
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -22,6 +24,7 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(50))
     userType: Mapped[str | None] = mapped_column(String(50), nullable=True)
     isActive: Mapped[bool] = mapped_column(Boolean, default=True)
+    phoneVerified: Mapped[bool] = mapped_column(Boolean, default=True)
     otp: Mapped[str | None] = mapped_column(String(191), nullable=True)
     otpExpires: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     passwordHash: Mapped[str | None] = mapped_column(String(191), nullable=True)
@@ -255,6 +258,11 @@ class Visit(Base):
     confirmationTokenHash: Mapped[str | None] = mapped_column(String(191), unique=True, nullable=True, index=True)
     confirmationTokenExpiresAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     confirmationTokenUsedAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    paymentMethod: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    paymentStatus: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    feeAmount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    razorpayOrderId: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    razorpayPaymentId: Mapped[str | None] = mapped_column(String(64), nullable=True)
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist)
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist, onupdate=now_ist)
 

@@ -44,6 +44,10 @@ class AttendantBody(BaseModel):
     specialPermissions: list[str] | str | None = None
     maxEntries: int | None = None
     isEmergency: bool = False
+    attendantKind: str | None = None
+    companionName: str | None = None
+    companionPhone: str | None = None
+    companionRelationship: str | None = None
 
 
 class IssuePassBody(BaseModel):

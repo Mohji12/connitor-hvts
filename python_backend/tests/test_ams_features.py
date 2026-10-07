@@ -20,6 +20,15 @@ from app.utils.passwords import hash_password
 from app.utils.timezone import now_ist
 
 
+@pytest.fixture(autouse=True)
+def _no_attendant_whatsapp():
+    with patch(
+        "app.attendant.pass_service.AttendantPassService._send_attendant_pass_whatsapp",
+        return_value=False,
+    ):
+        yield
+
+
 @pytest.fixture()
 def db():
     engine = create_engine(

@@ -170,28 +170,47 @@ class GatePassService:
             raise HTTPException(status_code=400, detail="CHECKIN_OTP_EXPIRED")
 
         can_check_in = visit.status == VisitStatus.APPROVED.value
+        check_in_blocked: str | None = None
         if can_check_in:
             from app.services.visit_slot_extension_service import VisitSlotExtensionService
 
-            VisitSlotExtensionService(self.db).assert_ready_for_check_in(visit)
-        if visit.visitor:
+            try:
+                VisitSlotExtensionService(self.db).assert_ready_for_check_in(visit)
+            except HTTPException as exc:
+                check_in_blocked = str(exc.detail)
+                can_check_in = False
+        if visit.visitor and can_check_in:
             self.notifications.notify_visitor_otp_verified(visit, visit.visitor, visit.staff)
         return {
             "success": True,
             "visitId": visit.id,
             "visitorId": visit.visitorId,
-            "visitor": {
-                "id": visit.visitor.id,
-                "firstName": visit.visitor.firstName,
-                "lastName": visit.visitor.lastName,
-                "phone": visit.visitor.phone,
-                "email": visit.visitor.email,
-                "photo": visit.visitor.photo,
-                "company": visit.visitor.company,
-            },
+            "visitor": self._visitor_payload(visit),
             "visit": model_to_dict_visit(visit),
             "canCheckIn": can_check_in,
+            "checkInBlockedReason": check_in_blocked,
         }
+
+    def _visitor_payload(self, visit: Visit) -> dict:
+        visitor = visit.visitor
+        return {
+            "id": visitor.id,
+            "firstName": visitor.firstName,
+            "lastName": visitor.lastName,
+            "phone": visitor.phone,
+            "email": visitor.email,
+            "photo": self._public_photo(visitor.photo),
+            "company": visitor.company,
+        }
+
+    def _public_photo(self, photo: str | None) -> str | None:
+        if not photo or photo == "pending":
+            return None
+        if photo.startswith(("http://", "https://", "/")):
+            return photo
+        from app.services.s3_storage_service import S3StorageService
+
+        return S3StorageService().get_presigned_url(photo)
 
     def _parse_qr_payload(self, qr_payload: str) -> tuple[str | None, str | None, str | None]:
         """Returns (visit_id, visit_code, qr_type) where qr_type is entry|exit|None."""
@@ -273,15 +292,7 @@ class GatePassService:
                 "visitId": visit.id,
                 "visitorId": visit.visitorId,
                 "qrType": "exit",
-                "visitor": {
-                    "id": visit.visitor.id,
-                    "firstName": visit.visitor.firstName,
-                    "lastName": visit.visitor.lastName,
-                    "phone": visit.visitor.phone,
-                    "email": visit.visitor.email,
-                    "photo": visit.visitor.photo,
-                    "company": visit.visitor.company,
-                },
+                "visitor": self._visitor_payload(visit),
                 "visit": model_to_dict_visit(visit),
                 "canCheckIn": False,
                 "canCheckOut": True,
@@ -298,15 +309,7 @@ class GatePassService:
                 "visitId": visit.id,
                 "visitorId": visit.visitorId,
                 "qrType": "entry",
-                "visitor": {
-                    "id": visit.visitor.id,
-                    "firstName": visit.visitor.firstName,
-                    "lastName": visit.visitor.lastName,
-                    "phone": visit.visitor.phone,
-                    "email": visit.visitor.email,
-                    "photo": visit.visitor.photo,
-                    "company": visit.visitor.company,
-                },
+                "visitor": self._visitor_payload(visit),
                 "visit": model_to_dict_visit(visit),
                 "canCheckIn": False,
                 "canCheckOut": True,
@@ -320,9 +323,13 @@ class GatePassService:
 
         from app.services.visit_slot_extension_service import VisitSlotExtensionService
 
-        VisitSlotExtensionService(self.db).assert_ready_for_check_in(visit)
+        check_in_blocked: str | None = None
+        try:
+            VisitSlotExtensionService(self.db).assert_ready_for_check_in(visit)
+        except HTTPException as exc:
+            check_in_blocked = str(exc.detail)
 
-        if visit.visitor:
+        if visit.visitor and check_in_blocked is None:
             self.notifications.notify_visitor_otp_verified(visit, visit.visitor, visit.staff)
 
         return {
@@ -330,18 +337,11 @@ class GatePassService:
             "visitId": visit.id,
             "visitorId": visit.visitorId,
             "qrType": "entry",
-            "visitor": {
-                "id": visit.visitor.id,
-                "firstName": visit.visitor.firstName,
-                "lastName": visit.visitor.lastName,
-                "phone": visit.visitor.phone,
-                "email": visit.visitor.email,
-                "photo": visit.visitor.photo,
-                "company": visit.visitor.company,
-            },
+            "visitor": self._visitor_payload(visit),
             "visit": model_to_dict_visit(visit),
-            "canCheckIn": True,
+            "canCheckIn": check_in_blocked is None,
             "canCheckOut": False,
+            "checkInBlockedReason": check_in_blocked,
         }
 
 

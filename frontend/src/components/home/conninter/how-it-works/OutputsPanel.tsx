@@ -11,6 +11,7 @@ import type { Choreography, OutputItem } from "./howItWorksData";
 
 type Props = {
   reducedMotion: boolean;
+  title: string;
   items: OutputItem[];
   choreo: Choreography;
 };
@@ -50,7 +51,7 @@ function OutputRow({
   );
 }
 
-export const OutputsPanel = ({ reducedMotion, items, choreo }: Props) => {
+export const OutputsPanel = ({ reducedMotion, title, items, choreo }: Props) => {
   const isTablet = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
   const [open, setOpen] = useState(false);
   const showCollapse = isTablet && items.length > 5;
@@ -59,7 +60,7 @@ export const OutputsPanel = ({ reducedMotion, items, choreo }: Props) => {
 
   return (
     <div className="min-w-0 lg:w-[28%] lg:max-w-none">
-      <h3 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#64748B]">YOUR DOWNSTREAM STACK</h3>
+      <h3 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#64748B]">{title}</h3>
       {!showCollapse && (
         <div className="flex flex-col gap-1.5">
           {items.map((item, index) => (

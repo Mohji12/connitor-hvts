@@ -2,20 +2,19 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { PricingComparison } from "./pricing/PricingComparison";
 import { PricingFaq } from "./pricing/PricingFaq";
 import { PricingHero } from "./pricing/PricingHero";
-import { PricingPlanCard } from "./pricing/PricingPlanCard";
+import { DeliveryPricingCard } from "./pricing/DeliveryPricingCard";
+import { HospitalPricingCard } from "./pricing/HospitalPricingCard";
+import { VisitorPricingCard } from "./pricing/VisitorPricingCard";
 import { PricingTestimonial } from "./pricing/PricingTestimonial";
-import type { Audience, Billing } from "./pricing/pricingData";
-import { getPlans } from "./pricing/pricingData";
+import type { Billing, PricingFocus } from "./pricing/pricingData";
+import { deliveryPrices, hospitalPlans, visitorPrices } from "./pricing/pricingData";
 
 const PricingSection = () => {
   const [billing, setBilling] = useState<Billing>("monthly");
-  const [audience, setAudience] = useState<Audience>("hospitals");
-  const isLg = useMediaQuery("(min-width: 1024px)");
-  const plans = getPlans(audience);
+  const [focus, setFocus] = useState<PricingFocus>("visit");
 
   return (
     <section id="pricing" className="relative overflow-hidden bg-[#F7F9FC] pb-20">
@@ -31,37 +30,43 @@ const PricingSection = () => {
         <PricingHero
           billing={billing}
           onBillingChange={setBilling}
-          audience={audience}
-          onAudienceChange={setAudience}
+          focus={focus}
+          onFocusChange={setFocus}
         />
       </div>
 
       {/* Cards sit below hero in stacking order; gentler -mt so they don’t cover the toggle row */}
-      <div className="relative z-0 mx-auto -mt-10 max-w-[1200px] px-4 pb-8 md:-mt-12 lg:px-8">
+      <div className={`relative z-0 mx-auto -mt-10 px-4 pb-8 md:-mt-12 lg:px-8 ${focus === "delivery" ? "max-w-[1400px]" : "max-w-[1200px]"}`}>
         <AnimatePresence mode="wait">
           <motion.div
-            key={audience}
+            key={focus}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3 }}
-            className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"
+            className={
+              focus === "delivery"
+                ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5"
+                : "grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"
+            }
           >
-            {plans.map((plan, index) => (
-              <PricingPlanCard
-                key={plan.id}
-                plan={plan}
-                billing={billing}
-                index={index}
-                isLg={isLg}
-              />
-            ))}
+            {focus === "visit"
+              ? hospitalPlans.map((plan, index) => (
+                  <HospitalPricingCard key={plan.id} plan={plan} billing={billing} index={index} />
+                ))
+              : focus === "delivery"
+                ? deliveryPrices.map((option, index) => (
+                    <DeliveryPricingCard key={option.id} option={option} index={index} />
+                  ))
+                : visitorPrices.map((plan, index) => (
+                    <VisitorPricingCard key={plan.id} plan={plan} index={index} />
+                  ))}
           </motion.div>
         </AnimatePresence>
       </div>
 
       <div className="relative z-10 bg-[#F7F9FC] pt-8">
-        <PricingComparison audience={audience} />
+        {focus === "visit" && <PricingComparison audience="hospitals" />}
         <PricingTestimonial />
         <PricingFaq />
       </div>

@@ -203,8 +203,9 @@ def send_wapblaster_template(
             response.status_code,
             body_text,
         )
-        response.raise_for_status()
-        raise RuntimeError(body_text or "WapBlaster template was not accepted")
+        raise RuntimeError(
+            body_text or f"WapBlaster template was not accepted ({response.status_code})"
+        )
 
     logger.info(
         "WapBlaster template %s sent to %s",
@@ -278,6 +279,41 @@ def send_wapblaster_appointment_approval(
         send_wapblaster_text(phone, fallback)
 
 
+def send_wapblaster_visit_rejected(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    visitor_name: str,
+    doctor_name: str,
+    hospital_name: str,
+    department: str,
+    requested_date: str,
+    requested_time: str,
+    visit_id: str,
+) -> None:
+    """Visitor notice when a doctor rejects a visit.
+
+    Body order matches conninter_visit_rejected: visitor, doctor, hospital,
+    department, date, time, visit id.
+    """
+    fields = [
+        visitor_name or "Visitor",
+        doctor_name or "Doctor",
+        hospital_name or "Hospital",
+        department or "—",
+        requested_date or "—",
+        requested_time or "—",
+        visit_id or "—",
+    ]
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=fields,
+    )
+
+
 def send_wapblaster_meeting_pass(
     phone: str,
     *,
@@ -307,6 +343,150 @@ def send_wapblaster_meeting_pass(
         items_carrying or "—",
         requested_date or "—",
         requested_time or "—",
+    ]
+    media = (image_url or "").strip()
+    extra = None
+    if media.startswith("http"):
+        extra = {
+            "header_image": media,
+            "header_image_url": media,
+            "header_media_url": media,
+            "media_url": media,
+        }
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=fields,
+        extra=extra,
+    )
+
+
+def send_wapblaster_delivery_pass(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    driver_name: str,
+    deliver_to: str,
+    po_number: str,
+    item_text: str,
+    vehicle_text: str,
+    date_text: str,
+    time_text: str,
+    image_url: str,
+) -> None:
+    """Driver delivery pass. Header image is the composed glassy card.
+
+    Body order matches the approved conninter_delivery_pass: driver name,
+    delivery to, PO number, item details, vehicle, date, time.
+    """
+    fields = [
+        driver_name or "Driver",
+        deliver_to or "Hospital",
+        po_number or "—",
+        item_text or "—",
+        vehicle_text or "—",
+        date_text or "—",
+        time_text or "—",
+    ]
+    media = (image_url or "").strip()
+    extra = None
+    if media.startswith("http"):
+        extra = {
+            "header_image": media,
+            "header_image_url": media,
+            "header_media_url": media,
+            "media_url": media,
+        }
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=fields,
+        extra=extra,
+    )
+
+
+def send_wapblaster_order_delivered(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    recipient_name: str,
+    hospital_name: str,
+    branch_name: str,
+    branch_address: str,
+    receiving_department: str,
+    order_id: str,
+    po_number: str,
+    order_date: str,
+    items: str,
+    total_quantity: str,
+    delivered_by: str,
+    vehicle_number: str,
+    delivery_date: str,
+    delivery_time: str,
+    delivery_reference: str,
+) -> None:
+    """Hospital order delivered. Body matches conninter_hospital_order_delivered.
+
+    {{1}} name, {{2}} hospital, {{3}} branch, {{4}} address, {{5}} receiving
+    department, {{6}} order id, {{7}} PO, {{8}} order date, {{9}} items,
+    {{10}} quantity, {{11}} delivered by, {{12}} vehicle, {{13}} delivery date,
+    {{14}} delivery time, {{15}} delivery reference.
+    """
+    fields = [
+        recipient_name or "Team",
+        hospital_name or "Hospital",
+        branch_name or "—",
+        branch_address or "—",
+        receiving_department or "Receiving",
+        order_id or "—",
+        po_number or "—",
+        order_date or "—",
+        items or "—",
+        total_quantity or "—",
+        delivered_by or "Driver",
+        vehicle_number or "—",
+        delivery_date or "—",
+        delivery_time or "—",
+        delivery_reference or order_id or "—",
+    ]
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=fields,
+    )
+
+
+def send_wapblaster_attendant_pass(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    attendant_name: str,
+    patient_name: str,
+    patient_id: str,
+    relationship: str,
+    issued_on: str,
+    validity: str,
+    image_url: str,
+) -> None:
+    """Patient attendant pass. Header image is the pass card.
+
+    Body matches conninter_patient_attendant_pass:
+    {{1}} attendant name, {{2}} patient name, {{3}} patient ID,
+    {{4}} relationship, {{5}} issued on, {{6}} validity.
+    """
+    fields = [
+        attendant_name or "Attendant",
+        patient_name or "Patient",
+        patient_id or "—",
+        relationship or "—",
+        issued_on or "—",
+        validity or "—",
     ]
     media = (image_url or "").strip()
     extra = None

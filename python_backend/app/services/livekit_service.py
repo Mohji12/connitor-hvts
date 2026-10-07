@@ -61,6 +61,11 @@ class ParticipantAccess:
     window: JoinWindow
 
 
+def _session_suffix(session_id: str | None) -> str:
+    cleaned = "".join(ch for ch in (session_id or "") if ch.isalnum())[:16]
+    return f"-{cleaned}" if cleaned else ""
+
+
 def room_name_for_visit(visit_id: str) -> str:
     return f"visit-{visit_id}"
 
@@ -156,15 +161,30 @@ class LiveKitService:
             raise HTTPException(status_code=404, detail="Online appointment not found.")
         return visit
 
-    def _participant_identity(self, visit: Visit, role: MeetingRole) -> tuple[str, str]:
+    def _participant_identity(
+        self, visit: Visit, role: MeetingRole, session_id: str | None = None
+    ) -> tuple[str, str]:
+        """Host and guest stay distinct, and each browser session gets its own identity.
+
+        LiveKit disconnects the existing participant when a second client connects
+        with the same identity. A shared join link, or a rejoin, used to knock the
+        other person out of the room.
+        """
+        suffix = _session_suffix(session_id)
         if role == "host":
             name = visit.staff.name if visit.staff else (visit.staffName or "Doctor")
-            return f"doctor-{visit.staffId or visit.id}", f"Dr. {name}".replace("Dr. Dr.", "Dr.")
+            return f"doctor-{visit.staffId or visit.id}{suffix}", f"Dr. {name}".replace("Dr. Dr.", "Dr.")
         visitor = visit.visitor
         name = f"{visitor.firstName} {visitor.lastName}".strip() if visitor else "Visitor"
-        return f"visitor-{visit.visitorId}", name or "Visitor"
+        return f"visitor-{visit.visitorId or visit.id}{suffix}", name or "Visitor"
 
-    def mint_participant_token(self, join_token: str, *, at: datetime | None = None) -> ParticipantAccess:
+    def mint_participant_token(
+        self,
+        join_token: str,
+        *,
+        at: datetime | None = None,
+        session_id: str | None = None,
+    ) -> ParticipantAccess:
         visit_id, role = self._decode_join_token(join_token)
         visit = self._load_visit(visit_id)
 
@@ -194,7 +214,7 @@ class LiveKitService:
                 detail="Video consultations are not configured on this server (LIVEKIT_* missing).",
             )
 
-        identity, display_name = self._participant_identity(visit, role)
+        identity, display_name = self._participant_identity(visit, role, session_id)
         room_name = visit.meetingRoomName or room_name_for_visit(visit.id)
         grants = api.VideoGrants(
             room_join=True,

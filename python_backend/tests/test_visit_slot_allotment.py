@@ -186,6 +186,37 @@ def test_quota_enforced(db):
     assert exc.value.status_code == 409
 
 
+def test_repeat_allotment_updates_same_window(db):
+    session, branch, doctor, _nurse, admin = db
+    svc = VisitSlotAllotmentService(session)
+    user = _admin_user(admin)
+    tomorrow = (now_ist() + timedelta(days=1)).date().isoformat()
+    first = svc.create_allotment(
+        user,
+        branch.id,
+        staff_id=doctor.id,
+        allotment_date=tomorrow,
+        window_start="09:00",
+        window_end="10:00",
+        slot_count=3,
+    )
+    second = svc.create_allotment(
+        user,
+        branch.id,
+        staff_id=doctor.id,
+        allotment_date=tomorrow,
+        window_start="09:00",
+        window_end="17:00",
+        slot_count=4,
+    )
+    assert second["id"] == first["id"]
+    assert second["slotCount"] == 4
+    assert second["windowEnd"] == "17:00"
+    listed = svc.list_allotments(user, branch.id, tomorrow)
+    assert listed["used"] == 4
+    assert len(listed["items"]) == 1
+
+
 def test_materialize_keeps_booked(db):
     session, branch, doctor, _nurse, admin = db
     svc = VisitSlotAllotmentService(session)

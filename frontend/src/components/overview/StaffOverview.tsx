@@ -9,7 +9,7 @@ import { hasRealAuthSession, IS_DEMO_MODE } from '@/lib/demo-config';
 import { getStoredAuthToken } from '@/lib/auth-storage';
 import { jwtDecode } from 'jwt-decode';
 import { Bar, Line, Pie } from 'react-chartjs-2';
-import { Skeleton } from '@/components/ui/skeleton';
+import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Button } from '@/components/ui/button';
 import {
   Chart as ChartJS,
@@ -418,23 +418,11 @@ export default function StaffOverview() {
 
   if (isLoading) {
     return (
-      <div className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen space-y-8">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-6 w-32" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {[1, 2].map((i) => (
-            <Skeleton key={i} className="h-80" />
-          ))}
-        </div>
-        <Skeleton className="h-80" />
-      </div>
+      <ConnitorLoader
+        variant="section"
+        message="Loading your visitors…"
+        className="min-h-[50vh] py-16"
+      />
     );
   }
 

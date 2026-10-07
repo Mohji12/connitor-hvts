@@ -77,6 +77,9 @@ class DistributorService:
         if not mapping:
             raise not_found("Vendor branch mapping")
         mapping.approvalStatus = "APPROVED"
+        vendor = self.db.get(Distributor, mapping.vendorId)
+        if vendor and vendor.verificationStatus in ("PENDING", "UNDER_REVIEW", "SUBMITTED"):
+            vendor.verificationStatus = "APPROVED"
         self.db.commit()
         return {"id": mapping.id, "approvalStatus": mapping.approvalStatus}
 

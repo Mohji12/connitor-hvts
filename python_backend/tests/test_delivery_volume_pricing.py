@@ -54,23 +54,40 @@ def test_consignment_v2_within_capacity():
     )
     assert result["usedUnits"] == 2
     assert result["overUnits"] == 0
-    assert result["baseFee"] == 48
+    assert result["baseFee"] == 49
     assert result["handlingFee"] == 0
-    assert result["walletFee"] == 48
+    assert result["walletFee"] == 49
     assert result["slotMinutes"] == 10
     assert result["totalBoxes"] == 2
 
 
-def test_consignment_v2_over_capacity_handling():
-    # Auto capacity 6; 4 Large = 16 units → over 10 → ceil(10/5)=2 → handling 50, slot 20
+def test_consignment_slot_prices():
+    expected = {
+        "Bike": (10, 49),
+        "Auto": (20, 99),
+        "SCV": (30, 299),
+        "LCV": (45, 499),
+        "MCV": (60, 999),
+    }
+    for vehicle, (minutes, amount) in expected.items():
+        result = compute_consignment_fee(
+            packages=[{"packageType": "Small", "qty": 1}],
+            vehicle_type=vehicle,
+        )
+        assert result["slotMinutes"] == minutes
+        assert result["walletFee"] == amount
+
+
+def test_consignment_v2_over_capacity_moves_up_one_slot():
+    # Auto is the 20 min slot. Over capacity moves to the 30 min slot.
     result = compute_consignment_fee(
         packages=[{"packageType": "Large", "qty": 4}],
         vehicle_type="Auto",
     )
     assert result["usedUnits"] == 16
     assert result["overUnits"] == 10
-    assert result["baseFee"] == 149
-    assert result["handlingFee"] == 50
-    assert result["walletFee"] == 199
-    assert result["slotMinutes"] == 20
+    assert result["baseFee"] == 299
+    assert result["handlingFee"] == 0
+    assert result["walletFee"] == 299
+    assert result["slotMinutes"] == 30
     assert result["overCapacity"] is True

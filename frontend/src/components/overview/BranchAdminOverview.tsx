@@ -23,6 +23,7 @@ import { UserService } from '@/lib/services/userService';
 import { VisitorService } from '@/lib/services/visitorService';
 import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
 import { AnalyticsService, type VisitorTrends } from '@/lib/services/analyticsService';
+import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,19 +74,19 @@ export default function BranchAdminOverview() {
   const chainId = user?.hospitalChainId;
 
   // Fetch branch data
-  const { data: branch } = useSWR<Branch>(
+  const { data: branch, isLoading: branchLoading } = useSWR<Branch>(
     branchId && chainId ? `/api/branches/${branchId}` : null,
     () => BranchService.getById(chainId!, branchId!)
   );
 
   // Fetch users
-  const { data: users } = useSWR<User[]>(
+  const { data: users, isLoading: usersLoading } = useSWR<User[]>(
     branchId ? `/api/users?branchId=${branchId}` : null,
     () => UserService.getAll({ branchId })
   );
 
   // Fetch visitor summary
-  const { data: rawSummary } = useSWR<VisitorSummary[]>(
+  const { data: rawSummary, isLoading: summaryLoading } = useSWR<VisitorSummary[]>(
     branchId ? [`/api/visitor/summary`, branchId] : null,
     async () => {
       const today = todayIstDateIso();
@@ -99,7 +100,7 @@ export default function BranchAdminOverview() {
   );
 
   // Fetch visitor trends from analytics API
-  const { data: visitorTrends } = useSWR<VisitorTrends>(
+  const { data: visitorTrends, isLoading: trendsLoading } = useSWR<VisitorTrends>(
     branchId ? [`/api/analytics/branch-admin/visitor-trends`, branchId, trendPeriod] : null,
     () => AnalyticsService.getBranchVisitorTrends(branchId!, trendPeriod),
     { refreshInterval: DASHBOARD_REFRESH_MS },
@@ -209,11 +210,13 @@ export default function BranchAdminOverview() {
   // Staff on duty list - ONLY STAFF role, not branch admins
   const activeStaff = users?.filter((u) => u.role === 'STAFF' && u.isActive) ?? [];
 
-  if (!user) {
+  if (!user || (branchId && (branchLoading || usersLoading || summaryLoading))) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="text-slate-500">Loading dashboard...</div>
-      </div>
+      <ConnitorLoader
+        variant="section"
+        message="Loading branch data…"
+        className="min-h-[50vh] py-16"
+      />
     );
   }
 
@@ -323,7 +326,11 @@ export default function BranchAdminOverview() {
           </CardHeader>
           <CardContent>
             <div className="h-72 min-w-0">
-              <Line data={lineChartData} options={lineOptions} />
+              {trendsLoading ? (
+                <ConnitorLoader variant="section" message="Loading trends…" className="h-full" />
+              ) : (
+                <Line data={lineChartData} options={lineOptions} />
+              )}
             </div>
           </CardContent>
         </Card>

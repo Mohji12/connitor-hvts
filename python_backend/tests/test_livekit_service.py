@@ -128,6 +128,23 @@ class MintParticipantTokenTests(unittest.TestCase):
         self.assertIn("microphone", claims.video.can_publish_sources)
         self.assertEqual(json.loads(claims.metadata), {"role": "guest", "visitId": "v-123"})
 
+    def test_session_id_keeps_both_people_in_the_room(self) -> None:
+        visit = _visit(self.appt)
+        service = _service(visit)
+        guest = service.mint_participant_token(self._join_token(visit), at=self.appt, session_id="tab-a")
+        guest_again = service.mint_participant_token(
+            self._join_token(visit), at=self.appt, session_id="tab-b"
+        )
+        host = service.mint_participant_token(
+            self._join_token(visit, "host"), at=self.appt, session_id="tab-a"
+        )
+
+        self.assertEqual(guest.identity, "visitor-vis-9-taba")
+        self.assertEqual(guest_again.identity, "visitor-vis-9-tabb")
+        self.assertEqual(host.identity, "doctor-doc-1-taba")
+        self.assertEqual(len({guest.identity, guest_again.identity, host.identity}), 3)
+        self.assertEqual(guest.room_name, host.room_name)
+
     def test_host_token_is_room_admin(self) -> None:
         visit = _visit(self.appt)
         access = _service(visit).mint_participant_token(self._join_token(visit, "host"), at=self.appt)

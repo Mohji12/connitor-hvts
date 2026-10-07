@@ -74,6 +74,9 @@ class SecurityService:
             whatsapp = self.gate_pass.send_gate_pass_via_whatsapp(visit_id, image["imageUrl"])
 
         visit.status = VisitStatus.APPROVED.value
+        from app.services.visitor_wallet_service import VisitorWalletService
+
+        VisitorWalletService(self.db).settle_on_approve(visit)
         self.db.commit()
         self.db.refresh(visit)
 
@@ -116,6 +119,9 @@ class SecurityService:
         from app.services.visitor_pass_service import VisitorPassService
 
         VisitorPassService(self.db).recycle_for_visit(visit)
+        from app.services.visitor_wallet_service import VisitorWalletService
+
+        VisitorWalletService(self.db).release_on_reject(visit)
         self.db.commit()
         if visit.staff:
             self.notifications.notify_staff_on_security_rejection(

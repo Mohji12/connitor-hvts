@@ -128,6 +128,7 @@ export default function AmsRegisterPage(): React.ReactElement {
         remarks: remarks.trim() || undefined,
         specialPermissions: permissions,
         maxEntries: resolveMaxEntries(),
+        attendantKind: 'FIXED',
       });
       await AttendantPassService.approveAttendant(attendant.id);
       const pass = await AttendantPassService.issuePassFull(attendant.id, {

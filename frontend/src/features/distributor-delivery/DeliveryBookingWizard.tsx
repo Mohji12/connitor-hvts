@@ -14,6 +14,7 @@ import {
 } from '@/lib/services/distributorDeliveryService';
 import { todayIstDateIso, formatIstDateTime } from '@/lib/datetime';
 import { DeliveryStepper } from '@/features/delivery-management/ui';
+import { DriverPhotoField } from '@/features/distributor-delivery/DriverPhotoField';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,7 +35,7 @@ const WIZARD_STEPS = ['Details', 'Payment'];
 type PayMethod = 'UPI' | 'CARD';
 
 const PACKAGE_TYPES: PackageType[] = ['Small', 'Medium', 'Large', 'Equipment', 'Custom'];
-const VEHICLE_TYPES: VehicleCategory[] = ['Bike', 'Auto', 'SCV', 'MCV', 'LCV'];
+const VEHICLE_TYPES: VehicleCategory[] = ['Bike', 'Auto', 'SCV', 'LCV', 'MCV'];
 
 const PACKAGE_WEIGHT: Record<PackageType, number> = {
   Small: 1,
@@ -44,12 +45,28 @@ const PACKAGE_WEIGHT: Record<PackageType, number> = {
   Custom: 10,
 };
 
+const DELIVERY_SLOTS: { minutes: number; amount: number }[] = [
+  { minutes: 10, amount: 49 },
+  { minutes: 20, amount: 99 },
+  { minutes: 30, amount: 299 },
+  { minutes: 45, amount: 499 },
+  { minutes: 60, amount: 999 },
+];
+
+const VEHICLE_TIER: Record<VehicleCategory, number> = {
+  Bike: 0,
+  Auto: 1,
+  SCV: 2,
+  LCV: 3,
+  MCV: 4,
+};
+
 const VEHICLE_BASE_FEE: Record<VehicleCategory, number> = {
-  Bike: 48,
-  Auto: 149,
-  SCV: 349,
-  MCV: 1449,
-  LCV: 1999,
+  Bike: DELIVERY_SLOTS[0].amount,
+  Auto: DELIVERY_SLOTS[1].amount,
+  SCV: DELIVERY_SLOTS[2].amount,
+  LCV: DELIVERY_SLOTS[3].amount,
+  MCV: DELIVERY_SLOTS[4].amount,
 };
 
 const VEHICLE_CAPACITY: Record<VehicleCategory, number> = {
@@ -104,19 +121,17 @@ function computeQuote(packages: PackageRow[], vehicleType: VehicleCategory | '')
     totalBoxes += qty;
   }
   const capacity = VEHICLE_CAPACITY[vehicleType];
-  const baseFee = VEHICLE_BASE_FEE[vehicleType];
   const over = Math.max(0, units - capacity);
-  const blocks = over > 0 ? Math.ceil(over / 5) : 0;
-  const handlingFee = blocks * 25;
-  const slotMinutes = 10 + (over > 0 ? blocks * 5 : 0);
+  const tier = Math.min(VEHICLE_TIER[vehicleType] + (over > 0 ? 1 : 0), DELIVERY_SLOTS.length - 1);
+  const slot = DELIVERY_SLOTS[tier];
   return {
     usedUnits: units,
     capacityUnits: capacity,
     overUnits: over,
-    baseFee,
-    handlingFee,
-    walletFee: baseFee + handlingFee,
-    slotMinutes,
+    baseFee: slot.amount,
+    handlingFee: 0,
+    walletFee: slot.amount,
+    slotMinutes: slot.minutes,
     totalBoxes,
     overCapacity: over > 0,
     warning:
@@ -159,6 +174,23 @@ export function DeliveryBookingWizard(): React.ReactElement {
     deliveryNumber: string;
     walletFee?: number;
   } | null>(null);
+  const [driverPhoto, setDriverPhoto] = React.useState<{ file: File; preview: string } | null>(
+    null,
+  );
+
+  const rememberDriverPhoto = (file: File, preview: string) => {
+    setDriverPhoto((current) => {
+      if (current?.preview.startsWith('blob:')) URL.revokeObjectURL(current.preview);
+      return { file, preview };
+    });
+  };
+
+  const clearDriverPhoto = () => {
+    setDriverPhoto((current) => {
+      if (current?.preview.startsWith('blob:')) URL.revokeObjectURL(current.preview);
+      return null;
+    });
+  };
 
   React.useEffect(() => {
     DistributorDeliveryService.listBranches()
@@ -230,9 +262,14 @@ export function DeliveryBookingWizard(): React.ReactElement {
     } else if (!vehicleReg.trim()) {
       return false;
     }
+    const driverDigits =
+      agentMode === 'existing'
+        ? (agents.find((agent) => agent.id === agentId)?.phone || '').replace(/\D/g, '')
+        : agentPhone.replace(/\D/g, '');
+    if (driverDigits.length < 10) return false;
     if (agentMode === 'existing') {
       if (!agentId) return false;
-    } else if (!agentName.trim() || !agentPhone.trim()) {
+    } else if (!agentName.trim()) {
       return false;
     }
     return true;
@@ -276,6 +313,27 @@ export function DeliveryBookingWizard(): React.ReactElement {
       const driverEmail =
         agentEmail.trim() ||
         `${agentPhone.trim().replace(/\D/g, '') || 'driver'}@delivery.local`;
+      let resolvedAgentId = agentMode === 'existing' ? agentId : '';
+      if (driverPhoto) {
+        if (!resolvedAgentId) {
+          try {
+            const created = await DistributorDeliveryService.createAgent({
+              name: agentName.trim(),
+              email: driverEmail,
+              phone: agentPhone.trim() || undefined,
+            });
+            resolvedAgentId = created.id;
+          } catch (createError) {
+            const rows = await DistributorDeliveryService.listAgents();
+            const match = rows.find(
+              (agent) => agent.email?.toLowerCase() === driverEmail.toLowerCase(),
+            );
+            if (!match) throw createError;
+            resolvedAgentId = match.id;
+          }
+        }
+        await DistributorDeliveryService.uploadAgentPhoto(resolvedAgentId, driverPhoto.file);
+      }
       const payload = {
         branchId,
         poNumber: poNumber.trim() || undefined,
@@ -292,15 +350,14 @@ export function DeliveryBookingWizard(): React.ReactElement {
                 vehicleType: vehicleCategory,
               }
             : undefined,
-        agentId: agentMode === 'existing' ? agentId : undefined,
-        agent:
-          agentMode === 'new'
-            ? {
-                name: agentName.trim(),
-                email: driverEmail,
-                phone: agentPhone.trim() || undefined,
-              }
-            : undefined,
+        agentId: resolvedAgentId || undefined,
+        agent: resolvedAgentId
+          ? undefined
+          : {
+              name: agentName.trim(),
+              email: driverEmail,
+              phone: agentPhone.trim() || undefined,
+            },
         paymentMethod: 'DUMMY' as const,
       };
       const result = await DistributorDeliveryService.bookDelivery(payload);
@@ -407,7 +464,7 @@ export function DeliveryBookingWizard(): React.ReactElement {
                     <SelectContent>
                       {VEHICLE_TYPES.map((v) => (
                         <SelectItem key={v} value={v}>
-                          {v} · ₹{VEHICLE_BASE_FEE[v]} · cap {VEHICLE_CAPACITY[v]}u
+                          {v} · {DELIVERY_SLOTS[VEHICLE_TIER[v]].minutes} min · ₹{VEHICLE_BASE_FEE[v]}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -585,7 +642,10 @@ export function DeliveryBookingWizard(): React.ReactElement {
                   <input
                     type="radio"
                     checked={agentMode === 'existing'}
-                    onChange={() => setAgentMode('existing')}
+                    onChange={() => {
+                    setAgentMode('existing');
+                    clearDriverPhoto();
+                  }}
                   />
                   Existing driver
                 </label>
@@ -593,13 +653,22 @@ export function DeliveryBookingWizard(): React.ReactElement {
                   <input
                     type="radio"
                     checked={agentMode === 'new'}
-                    onChange={() => setAgentMode('new')}
+                    onChange={() => {
+                    setAgentMode('new');
+                    clearDriverPhoto();
+                  }}
                   />
                   New driver
                 </label>
               </div>
               {agentMode === 'existing' ? (
-                <Select value={agentId} onValueChange={setAgentId}>
+                <Select
+                  value={agentId}
+                  onValueChange={(value) => {
+                    setAgentId(value);
+                    clearDriverPhoto();
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select driver" />
                   </SelectTrigger>
@@ -640,6 +709,25 @@ export function DeliveryBookingWizard(): React.ReactElement {
                   </div>
                 </div>
               )}
+              {agentMode === 'existing' &&
+              agentId &&
+              (agents.find((agent) => agent.id === agentId)?.phone || '').replace(/\D/g, '').length <
+                10 ? (
+                <p className="text-sm text-red-700">
+                  This driver needs a 10-digit mobile number. The delivery pass is sent to that
+                  number on WhatsApp.
+                </p>
+              ) : null}
+              <DriverPhotoField
+                previewUrl={
+                  driverPhoto?.preview ||
+                  (agentMode === 'existing'
+                    ? agents.find((agent) => agent.id === agentId)?.photoUrl || null
+                    : null)
+                }
+                onPhoto={rememberDriverPhoto}
+                onClear={driverPhoto ? clearDriverPhoto : undefined}
+              />
             </section>
 
             <section className="space-y-3 border-t pt-4">

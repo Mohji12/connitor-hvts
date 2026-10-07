@@ -80,7 +80,10 @@ export function VisitorDetailsCard({
   isCheckingOut = false,
   className,
 }: VisitorDetailsCardProps): React.ReactElement {
-  const { visitor, visit, canCheckIn, canCheckOut } = visitorData;
+  const { visitor, visit, canCheckIn, canCheckOut, checkInBlockedReason } = visitorData;
+  const blockedMessage = checkInBlockedReason
+    ?.replace(/^(SLOT_NOT_STARTED|HOLD_CURRENT_VISIT):?\s*/, '')
+    .trim();
   const isMeeting = visit.visitCategory === 'MEETING';
   const isDelivery = visit.visitCategory === 'DELIVERY';
   const isAppointment = !!visit.appointmentDate;
@@ -259,7 +262,8 @@ export function VisitorDetailsCard({
           <Alert variant="destructive" className="text-sm">
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
-              This visitor cannot be checked in. The visit may have expired or already been completed.
+              {blockedMessage ||
+                'This visitor cannot be checked in. The visit may have expired or already been completed.'}
             </AlertDescription>
           </Alert>
         )}

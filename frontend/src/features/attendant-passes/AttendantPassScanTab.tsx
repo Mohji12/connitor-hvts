@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
-import { Camera, CheckCircle2, IdCard, Loader2, Upload } from 'lucide-react';
+import { CheckCircle2, IdCard, Loader2 } from 'lucide-react';
 import { AttendantPassService } from '@/lib/services/attendantPassService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +36,7 @@ type ScanResult = {
     phone?: string;
     relationship?: string;
     status?: string;
+    companionName?: string | null;
   };
   admission?: {
     wardName?: string | null;
@@ -47,84 +48,30 @@ type ScanResult = {
 export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): React.ReactElement {
   const [qrText, setQrText] = React.useState('');
   const [signature, setSignature] = React.useState('');
-  const [govtIdType, setGovtIdType] = React.useState('');
-  const [file, setFile] = React.useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [result, setResult] = React.useState<ScanResult | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [manualOpen, setManualOpen] = React.useState(false);
-  const [idMode, setIdMode] = React.useState<'camera' | 'upload'>('camera');
-  const [idStreaming, setIdStreaming] = React.useState(false);
-  const [idCameraError, setIdCameraError] = React.useState<string | null>(null);
-  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [meetings, setMeetings] = React.useState<
+    Array<{ message: string; companionName?: string | null; passNumber: string }>
+  >([]);
+  const [activity, setActivity] = React.useState<
+    Array<{ name: string; patient: string; status: string; companionName?: string | null; passNumber?: string }>
+  >([]);
 
-  const stopIdCamera = React.useCallback(() => {
-    const video = videoRef.current;
-    const stream = video?.srcObject as MediaStream | null;
-    stream?.getTracks().forEach((t) => t.stop());
-    if (video) video.srcObject = null;
-    setIdStreaming(false);
-  }, []);
+  const loadMeetings = React.useCallback(() => {
+    if (!branchId) return;
+    AttendantPassService.dashboardSummary(branchId)
+      .then((data) => {
+        setMeetings(data.meetings ?? []);
+        setActivity(data.recentActivity ?? []);
+      })
+      .catch(() => undefined);
+  }, [branchId]);
 
   React.useEffect(() => {
-    return () => {
-      stopIdCamera();
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [stopIdCamera, previewUrl]);
-
-  const setCapturedFile = (next: File | null, preview?: string | null) => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(next);
-    if (preview) {
-      setPreviewUrl(preview);
-    } else if (next && next.type.startsWith('image/')) {
-      setPreviewUrl(URL.createObjectURL(next));
-    } else {
-      setPreviewUrl(null);
-    }
-  };
-
-  const startIdCamera = async () => {
-    setIdCameraError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false,
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setIdStreaming(true);
-      }
-    } catch {
-      setIdCameraError('Could not open camera. Allow permission or upload a photo instead.');
-      setIdMode('upload');
-    }
-  };
-
-  const captureIdPhoto = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return;
-        const captured = new File([blob], `govt-id-${Date.now()}.jpg`, { type: 'image/jpeg' });
-        setCapturedFile(captured, canvas.toDataURL('image/jpeg', 0.9));
-        stopIdCamera();
-        toast.success('Government ID photo captured');
-      },
-      'image/jpeg',
-      0.9,
-    );
-  };
+    loadMeetings();
+  }, [loadMeetings]);
 
   const applyDecodedQr = (decoded: string) => {
     setQrText(decoded);
@@ -135,7 +82,7 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
       toast.success(
         isExit
           ? 'Checkout QR scanned — validate to check out'
-          : 'Check-in QR scanned — capture government ID, then validate',
+          : 'Pass QR scanned. Validate to check in, or to check out if they are already inside.',
       );
     } else {
       setManualOpen(true);
@@ -158,22 +105,17 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
       return;
     }
     const isExitQr = payload.startsWith('PASS-EXIT:');
-    if (!isExitQr && !file) {
-      setError('Government ID photo is required for entry — use camera or upload');
-      return;
-    }
 
     const form = new FormData();
     form.append('qrPayload', payload);
     form.append('signature', sig);
     form.append('scanType', isExitQr ? 'EXIT' : 'ENTRY');
-    if (file) form.append('govtIdImage', file);
-    if (govtIdType.trim()) form.append('govtIdType', govtIdType.trim());
 
     setLoading(true);
     try {
       const res = (await AttendantPassService.scanPass(form)) as ScanResult;
       setResult(res);
+      loadMeetings();
       if (res.scanType === 'EXIT') {
         const emailed = Number(res.emailsSent ?? 0);
         toast.success(
@@ -183,18 +125,8 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
               ? `Checked out — ${res.durationMinutes} min inside`
               : 'Checked out',
         );
-      } else if (res.outsideVisitingHours) {
-        toast.warning(
-          res.visitingHoursSummary
-            ? `Entry recorded outside visiting hours (${res.visitingHoursSummary}). Checkout QR emailed.`
-            : 'Entry recorded outside visiting hours. Checkout QR emailed.',
-        );
       } else {
-        toast.success(
-          res.checkoutQrEmailed
-            ? 'Entry recorded — checkout QR emailed to the attendant'
-            : 'Entry recorded — checkout QR will be emailed when an address is on file',
-        );
+        toast.success('Checked in. Scan the same QR to check out.');
       }
     } catch (e: unknown) {
       const detail =
@@ -213,19 +145,27 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
 
   return (
     <div className="space-y-4">
+      {meetings.map((meeting) => (
+        <div
+          key={meeting.passNumber}
+          className="rounded-xl border border-[#0052CC]/20 bg-[#4A90E2]/10 px-4 py-3 text-sm text-[#001B71]"
+        >
+          <p className="font-medium">{meeting.message}</p>
+          {meeting.companionName ? <p className="mt-1">With {meeting.companionName}</p> : null}
+        </div>
+      ))}
       <Card>
         <CardHeader>
           <CardTitle>Scan attendant visit pass</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Branch {branchId}. Scan the check-in QR for entry (with government ID). After check-in,
-            a checkout QR is emailed — scan that QR to check out.
+            Branch {branchId}. Scan the WhatsApp pass QR to check in. Scan that same QR to check out.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <QrCheckInScanner
             readerId="attendant-qr-reader"
             onScan={async (decoded) => applyDecodedQr(decoded)}
-            hint="Show the check-in or checkout QR from the attendant's email."
+            hint="Show the QR from the attendant pass on WhatsApp."
             buttonLabel="Open camera"
           />
 
@@ -258,112 +198,9 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
           {(qrText || signature) && !manualOpen && (
             <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
               QR captured{signature ? ' with signature' : ''}.
-              {qrText.includes('PASS-EXIT:') ||
-              (parseQrScanText(qrText)?.qrPayload ?? '').startsWith('PASS-EXIT:')
-                ? ' Checkout QR — validate to check out (ID photo optional).'
-                : ' Check-in QR — capture government ID below, then validate.'}
+              Validate to check this person in, or to check them out if they are already inside.
             </p>
           )}
-
-          <div>
-            <Label>ID type (optional)</Label>
-            <Input
-              placeholder="Aadhaar / Driving Licence / Passport"
-              value={govtIdType}
-              onChange={(e) => setGovtIdType(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label>Government ID photo</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={idMode === 'camera' ? 'default' : 'outline'}
-                  onClick={() => {
-                    setIdMode('camera');
-                    void startIdCamera();
-                  }}
-                >
-                  <Camera className="mr-1 h-3.5 w-3.5" />
-                  Camera
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={idMode === 'upload' ? 'default' : 'outline'}
-                  onClick={() => {
-                    stopIdCamera();
-                    setIdMode('upload');
-                  }}
-                >
-                  <Upload className="mr-1 h-3.5 w-3.5" />
-                  Upload
-                </Button>
-              </div>
-            </div>
-
-            {idMode === 'camera' && (
-              <div className="space-y-2">
-                <div className="relative aspect-video overflow-hidden rounded-lg border bg-black">
-                  <video
-                    ref={videoRef}
-                    className="h-full w-full object-cover"
-                    playsInline
-                    muted
-                  />
-                  {!idStreaming && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80">
-                      <Button type="button" variant="secondary" onClick={() => void startIdCamera()}>
-                        <Camera className="mr-2 h-4 w-4" />
-                        Start ID camera
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                {idStreaming && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" onClick={captureIdPhoto}>
-                      <Camera className="mr-2 h-4 w-4" />
-                      Capture ID photo
-                    </Button>
-                    <Button type="button" variant="outline" onClick={stopIdCamera}>
-                      Stop camera
-                    </Button>
-                  </div>
-                )}
-                {idCameraError && <p className="text-sm text-destructive">{idCameraError}</p>}
-              </div>
-            )}
-
-            {idMode === 'upload' && (
-              <Input
-                type="file"
-                accept="image/*,application/pdf"
-                capture="environment"
-                onChange={(e) => setCapturedFile(e.target.files?.[0] ?? null)}
-              />
-            )}
-
-            {previewUrl && (
-              <div className="overflow-hidden rounded-lg border bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewUrl}
-                  alt="Government ID preview"
-                  className="max-h-48 w-full object-contain"
-                />
-                <p className="truncate border-t px-3 py-1.5 text-xs text-muted-foreground">
-                  {file?.name ?? 'Captured ID'}
-                </p>
-              </div>
-            )}
-            {file && !previewUrl && (
-              <p className="text-sm text-muted-foreground">Selected: {file.name}</p>
-            )}
-          </div>
 
           <Button disabled={loading} onClick={() => void handleScan()}>
             {loading ? (
@@ -379,6 +216,25 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
         </CardContent>
       </Card>
 
+      {activity.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Bookings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {activity.slice(0, 8).map((row, idx) => (
+              <div key={`${row.passNumber ?? row.name}-${idx}`} className="flex justify-between gap-3">
+                <span>
+                  {row.name}
+                  {row.companionName ? ` with ${row.companionName}` : ''} · {row.patient}
+                </span>
+                <span className="font-medium">{row.status}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {result && (
         <Card className="border-emerald-200 bg-emerald-50/40">
           <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
@@ -392,9 +248,7 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
                   ? Number(result.emailsSent ?? 0) > 0
                     ? 'Visit complete. Summary emailed to the attendant, ward, and security.'
                     : 'Visit complete. Duration recorded (email skipped if no address on file).'
-                  : result.checkoutQrEmailed
-                    ? 'Attendant is inside. A checkout QR was emailed — scan that QR when they leave.'
-                    : 'Attendant is inside. Checkout QR will be emailed when an address is on file.'}
+                  : 'Attendant is inside. Scan the same QR when they leave.'}
               </p>
             </div>
             <Badge className="bg-emerald-600 hover:bg-emerald-600">
@@ -412,7 +266,6 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Scan type: {result.scanType ?? 'ENTRY'}
-                {govtIdType ? ` · ID: ${govtIdType}` : ''}
               </p>
               {result.durationMinutes != null && (
                 <p className="mt-2 font-semibold text-teal-900">
@@ -435,6 +288,12 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
                     <dt>Relationship</dt>
                     <dd className="text-right">{attendant?.relationship ?? '—'}</dd>
                   </div>
+                  {attendant?.companionName ? (
+                    <div className="flex justify-between gap-2">
+                      <dt>With</dt>
+                      <dd className="text-right">{attendant.companionName}</dd>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between gap-2">
                     <dt>Phone</dt>
                     <dd className="text-right">{attendant?.phone ?? '—'}</dd>

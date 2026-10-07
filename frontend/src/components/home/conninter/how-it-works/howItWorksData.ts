@@ -1,34 +1,18 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  BadgeCheck,
-  BarChart3,
-  Brain,
-  Briefcase,
   Building2,
-  Calendar,
   CalendarCheck,
   CheckCircle,
-  ClipboardCheck,
-  ClipboardList,
   Clock,
-  Code,
-  Database,
-  FileSpreadsheet,
-  GitBranch,
   Mail,
   MessageCircle,
   MessageSquare,
-  Monitor,
   PackageCheck,
-  PenLine,
   QrCode,
   ScanLine,
   Search,
   Shield,
   ShieldCheck,
-  SlidersHorizontal,
-  Smartphone,
-  Snowflake,
   Store,
   Truck,
   Users,
@@ -89,53 +73,53 @@ export type SourceItem = {
 
 const visitorSources: SourceItem[] = [
   {
-    icon: Briefcase,
+    icon: Users,
     iconBg: "bg-[#EEF4FF]",
     iconColor: "text-[#4A90E2]",
-    name: "Pharma CRM",
-    subtitle: "Veeva · Salesforce · SAP",
+    name: "Visitor",
+    subtitle: "Books the doctor visit",
     pulseDot: "blue",
-  },
-  {
-    icon: Smartphone,
-    iconBg: "bg-[#ECFDF5]",
-    iconColor: "text-[#16A34A]",
-    name: "Conninter Mobile App",
-    subtitle: "iOS · Android · PWA",
-    pulseDot: "green",
   },
   {
     icon: Building2,
     iconBg: "bg-[#F3E8FF]",
     iconColor: "text-[#7C3AED]",
-    name: "Hospital Admin Portal",
-    subtitle: "Slot management · Rules",
+    name: "Hospital",
+    subtitle: "Location · department · section",
     pulseDot: "purple",
   },
   {
-    icon: FileSpreadsheet,
-    iconBg: "bg-[#F1F5F9]",
-    iconColor: "text-[#64748B]",
-    name: "Excel / CSV Upload",
-    subtitle: "Bulk rep schedules",
-    pulseDot: null,
+    icon: CalendarCheck,
+    iconBg: "bg-[#EEF4FF]",
+    iconColor: "text-[#4A90E2]",
+    name: "Doctor schedule",
+    subtitle: "Open time slots",
+    pulseDot: "blue",
+  },
+  {
+    icon: Wallet,
+    iconBg: "bg-[#ECFDF5]",
+    iconColor: "text-[#16A34A]",
+    name: "Visit fee",
+    subtitle: "Wallet or online",
+    pulseDot: "green",
   },
   {
     icon: MessageCircle,
     iconBg: "bg-[#ECFDF5]",
     iconColor: "text-[#16A34A]",
-    name: "WhatsApp Bot",
-    subtitle: "Field rep requests",
+    name: "WhatsApp",
+    subtitle: "Meeting pass or rejection",
     pulseDot: "green",
     featured: true,
   },
   {
-    icon: Users,
-    iconBg: "bg-[#EEF4FF]",
-    iconColor: "text-[#4A90E2]",
-    name: "Pre-registered Reps",
-    subtitle: "2,400+ verified reps",
-    pulseDot: "blue",
+    icon: Shield,
+    iconBg: "bg-[#F1F5F9]",
+    iconColor: "text-[#64748B]",
+    name: "Security gate",
+    subtitle: "Check-in and check-out",
+    pulseDot: null,
     nameHighlight: true,
   },
 ];
@@ -150,11 +134,11 @@ export type PipelineStep = {
 };
 
 const visitorPipeline: PipelineStep[] = [
-  { icon: Search, name: "Search", bg: "bg-[#EEF4FF]", status: "done" },
-  { icon: GitBranch, name: "Match", bg: "bg-[#EEF4FF]", status: "done" },
-  { icon: CalendarCheck, name: "Book", bg: "bg-[#DBEAFE]", status: "active" },
-  { icon: Shield, name: "Verify", bg: "bg-[#F1F5F9]", status: "pending" },
-  { icon: CheckCircle, name: "Confirm", bg: "bg-[#F1F5F9]", status: "pending" },
+  { icon: Search, name: "Find", bg: "bg-[#EEF4FF]", status: "done" },
+  { icon: Wallet, name: "Pay", bg: "bg-[#EEF4FF]", status: "done" },
+  { icon: Clock, name: "Wait", bg: "bg-[#DBEAFE]", status: "active" },
+  { icon: CheckCircle, name: "Doctor", bg: "bg-[#F1F5F9]", status: "pending" },
+  { icon: QrCode, name: "Gate", bg: "bg-[#F1F5F9]", status: "pending" },
 ];
 
 export type IntelligenceCell = {
@@ -164,10 +148,12 @@ export type IntelligenceCell = {
 };
 
 const visitorIntelligence: IntelligenceCell[] = [
-  { icon: SlidersHorizontal, title: "140+ Parameters", detail: "Smart matching algorithm" },
-  { icon: Brain, title: "Conflict Resolution", detail: "Auto-resolves overlaps" },
-  { icon: Clock, title: "Real-Time Sync", detail: "Live slot updates" },
-  { icon: ShieldCheck, title: "Rule Enforcement", detail: "Hospital visit policies" },
+  { icon: Search, title: "Find a slot", detail: "Hospital, department, section, doctor, and an open time." },
+  { icon: Wallet, title: "Pay the fee", detail: "Sign in, give the purpose and what they are carrying. Wallet is a hold. Online pay is taken now." },
+  { icon: Clock, title: "Wait for the doctor", detail: "The booking stays pending until the doctor decides." },
+  { icon: CheckCircle, title: "Doctor decides", detail: "Confirm sends the WhatsApp meeting pass. Reject releases the hold or refunds the payment." },
+  { icon: QrCode, title: "Enter and leave", detail: "Security scans the QR to check in, then again to check out." },
+  { icon: ShieldCheck, title: "Urgent visit", detail: "A doctor passcode is approved at the gate, so the fee is charged at booking." },
 ];
 
 export type OutputItem = {
@@ -179,13 +165,12 @@ export type OutputItem = {
 };
 
 const visitorOutputs: OutputItem[] = [
-  { icon: Mail, iconBg: "bg-[#EEF4FF]", iconColor: "text-[#4A90E2]", name: "Email Notifications", subtitle: "Reps · Hospital staff" },
-  { icon: MessageSquare, iconBg: "bg-[#ECFDF5]", iconColor: "text-[#16A34A]", name: "WhatsApp Alerts", subtitle: "Instant confirmations" },
-  { icon: Calendar, iconBg: "bg-[#FFF7ED]", iconColor: "text-[#EA580C]", name: "Google Calendar", subtitle: "Auto-sync appointments" },
-  { icon: Monitor, iconBg: "bg-[#F3E8FF]", iconColor: "text-[#7C3AED]", name: "Hospital Dashboard", subtitle: "Visitor management UI" },
-  { icon: Database, iconBg: "bg-[#EEF4FF]", iconColor: "text-[#4A90E2]", name: "Pharma CRM Sync", subtitle: "Activity logs · Veeva · SF" },
-  { icon: BarChart3, iconBg: "bg-[#ECFDF5]", iconColor: "text-[#16A34A]", name: "Analytics & Reports", subtitle: "Visit compliance · trends" },
-  { icon: Code, iconBg: "bg-[#F1F5F9]", iconColor: "text-[#64748B]", name: "Webhooks / API", subtitle: "Custom integrations" },
+  { icon: Clock, iconBg: "bg-[#EEF4FF]", iconColor: "text-[#4A90E2]", name: "Pending booking", subtitle: "Until the doctor decides" },
+  { icon: Wallet, iconBg: "bg-[#FFF7ED]", iconColor: "text-[#EA580C]", name: "Wallet hold", subtitle: "Charged only after confirm" },
+  { icon: MessageSquare, iconBg: "bg-[#ECFDF5]", iconColor: "text-[#16A34A]", name: "Meeting pass", subtitle: "WhatsApp check-in QR" },
+  { icon: Mail, iconBg: "bg-[#F1F5F9]", iconColor: "text-[#64748B]", name: "Rejection", subtitle: "Hold released or payment refunded" },
+  { icon: QrCode, iconBg: "bg-[#F3E8FF]", iconColor: "text-[#7C3AED]", name: "Gate check-in", subtitle: "Security scans the pass" },
+  { icon: ScanLine, iconBg: "bg-[#EEF4FF]", iconColor: "text-[#4A90E2]", name: "Gate check-out", subtitle: "Same QR on the way out" },
 ];
 
 const deliverySources: SourceItem[] = [
@@ -193,77 +178,78 @@ const deliverySources: SourceItem[] = [
     icon: Store,
     iconBg: "bg-[#F0FDFA]",
     iconColor: "text-[#0D9488]",
-    name: "Vendor Portal",
-    subtitle: "Book · Fleet · Wallet",
+    name: "Distributor",
+    subtitle: "Approved vendor books the slot",
     pulseDot: "green",
+  },
+  {
+    icon: Building2,
+    iconBg: "bg-[#F3E8FF]",
+    iconColor: "text-[#7C3AED]",
+    name: "Hospital",
+    subtitle: "Branch and delivery windows",
+    pulseDot: "purple",
   },
   {
     icon: Truck,
     iconBg: "bg-[#FFFBEB]",
     iconColor: "text-[#D97706]",
-    name: "Distributor Booking",
-    subtitle: "Scheduled consignments",
+    name: "Vehicle and driver",
+    subtitle: "Assigned on the booking",
     pulseDot: "blue",
   },
   {
-    icon: ClipboardList,
-    iconBg: "bg-[#F1F5F9]",
-    iconColor: "text-[#64748B]",
-    name: "ERP Purchase Orders",
-    subtitle: "SAP · Oracle · Tally",
-    pulseDot: null,
+    icon: Wallet,
+    iconBg: "bg-[#ECFDF5]",
+    iconColor: "text-[#16A34A]",
+    name: "Delivery fee",
+    subtitle: "Charged from the wallet",
+    pulseDot: "green",
   },
   {
-    icon: QrCode,
-    iconBg: "bg-[#F0FDFA]",
-    iconColor: "text-[#0D9488]",
-    name: "Security Gate QR Scan",
-    subtitle: "Vehicle & driver check-in",
+    icon: MessageCircle,
+    iconBg: "bg-[#ECFDF5]",
+    iconColor: "text-[#16A34A]",
+    name: "WhatsApp",
+    subtitle: "Delivery pass to the driver",
     pulseDot: "green",
     featured: true,
   },
   {
-    icon: Warehouse,
-    iconBg: "bg-[#F3E8FF]",
-    iconColor: "text-[#7C3AED]",
-    name: "Hospital Stores / Receiving",
-    subtitle: "Dock capacity · Rules",
-    pulseDot: "purple",
-  },
-  {
-    icon: BadgeCheck,
-    iconBg: "bg-[#FFFBEB]",
-    iconColor: "text-[#D97706]",
-    name: "Registered Vendors",
-    subtitle: "Verified fleet & drivers",
-    pulseDot: "blue",
+    icon: Shield,
+    iconBg: "bg-[#F1F5F9]",
+    iconColor: "text-[#64748B]",
+    name: "Security and stores",
+    subtitle: "Gate scan and receiving",
+    pulseDot: null,
     nameHighlight: true,
   },
 ];
 
 const deliveryPipeline: PipelineStep[] = [
   { icon: CalendarCheck, name: "Book", bg: "bg-[#F0FDFA]", status: "done" },
-  { icon: ScanLine, name: "Scan", bg: "bg-[#F0FDFA]", status: "done" },
-  { icon: ShieldCheck, name: "Verify", bg: "bg-[#FEF3C7]", status: "active" },
+  { icon: Wallet, name: "Pay", bg: "bg-[#F0FDFA]", status: "done" },
+  { icon: MessageSquare, name: "Pass", bg: "bg-[#FEF3C7]", status: "active" },
+  { icon: QrCode, name: "Gate", bg: "bg-[#F1F5F9]", status: "pending" },
   { icon: PackageCheck, name: "Receive", bg: "bg-[#F1F5F9]", status: "pending" },
-  { icon: PenLine, name: "Handover", bg: "bg-[#F1F5F9]", status: "pending" },
 ];
 
 const deliveryIntelligence: IntelligenceCell[] = [
-  { icon: Warehouse, title: "Dock Slot Allocation", detail: "Balances dock capacity across vendors" },
-  { icon: Truck, title: "Driver Checks", detail: "Verifies vehicle and driver at the gate" },
-  { icon: Snowflake, title: "Cold-chain Priority", detail: "Fast-tracks temperature-sensitive goods" },
-  { icon: ClipboardCheck, title: "PO Matching", detail: "Matches consignments to purchase orders" },
+  { icon: CalendarCheck, title: "Book the slot", detail: "An approved distributor picks the hospital, an open window, the vehicle, the driver, and the packages." },
+  { icon: Wallet, title: "Pay the fee", detail: "The fee for that vehicle comes off the wallet, and the unload minutes on the window are reserved." },
+  { icon: MessageSquare, title: "Delivery pass", detail: "The booking is scheduled at once. The driver gets a WhatsApp pass with the entry QR." },
+  { icon: QrCode, title: "Gate entry", detail: "Security scans the entry QR. A hold blocks entry until security releases it." },
+  { icon: Warehouse, title: "Receive the goods", detail: "Hospital stores check the consignment and record the goods received note." },
+  { icon: ScanLine, title: "Leave the gate", detail: "Security scans the checkout QR only after the goods have been received." },
 ];
 
 const deliveryOutputs: OutputItem[] = [
-  { icon: Mail, iconBg: "bg-[#EEF4FF]", iconColor: "text-[#4A90E2]", name: "Vendor SMS / Email", subtitle: "Slot & gate pass" },
-  { icon: MessageSquare, iconBg: "bg-[#ECFDF5]", iconColor: "text-[#16A34A]", name: "WhatsApp ETA Alerts", subtitle: "Stores · Security" },
-  { icon: Monitor, iconBg: "bg-[#F0FDFA]", iconColor: "text-[#0D9488]", name: "Receiving Dashboard", subtitle: "Today's deliveries" },
-  { icon: ShieldCheck, iconBg: "bg-[#F3E8FF]", iconColor: "text-[#7C3AED]", name: "Security Gate Log", subtitle: "Entry · exit audit" },
-  { icon: Database, iconBg: "bg-[#EEF4FF]", iconColor: "text-[#4A90E2]", name: "ERP / Inventory Sync", subtitle: "GRN · stock updates" },
-  { icon: Wallet, iconBg: "bg-[#FFFBEB]", iconColor: "text-[#D97706]", name: "Vendor Wallet & Billing", subtitle: "Slot fees · invoices" },
-  { icon: BarChart3, iconBg: "bg-[#ECFDF5]", iconColor: "text-[#16A34A]", name: "Analytics & Reports", subtitle: "On-time rate · dwell time" },
+  { icon: CalendarCheck, iconBg: "bg-[#F0FDFA]", iconColor: "text-[#0D9488]", name: "Scheduled delivery", subtitle: "Booked as soon as it is paid" },
+  { icon: Wallet, iconBg: "bg-[#FFFBEB]", iconColor: "text-[#D97706]", name: "Wallet charge", subtitle: "Fee taken at booking" },
+  { icon: MessageSquare, iconBg: "bg-[#ECFDF5]", iconColor: "text-[#16A34A]", name: "Delivery pass", subtitle: "WhatsApp entry QR for the driver" },
+  { icon: QrCode, iconBg: "bg-[#F3E8FF]", iconColor: "text-[#7C3AED]", name: "Gate entry", subtitle: "Security scans the pass" },
+  { icon: PackageCheck, iconBg: "bg-[#EEF4FF]", iconColor: "text-[#4A90E2]", name: "Goods received", subtitle: "Stores record the receipt" },
+  { icon: ScanLine, iconBg: "bg-[#F0FDFA]", iconColor: "text-[#0D9488]", name: "Gate exit", subtitle: "Checkout QR after receiving" },
 ];
 
 export type FlowModule = {
@@ -274,36 +260,39 @@ export type FlowModule = {
   pipeline: PipelineStep[];
   intelligence: IntelligenceCell[];
   controlNote: string;
+  outputsTitle: string;
   outputs: OutputItem[];
 };
 
 export const visitorFlow: FlowModule = {
   header: {
-    title: "Unified Scheduling Platform. Faster Hospital Access.",
+    title: "A visitor visit, from the slot to the gate.",
     subtitle:
-      "Plug Conninter into your existing CRM, spreadsheets, and hospital systems — and let the platform run your visit scheduling end-to-end.",
+      "The visitor books a doctor and pays the visit fee. The visit stays pending until the doctor confirms it, then security scans the pass.",
   },
-  sourcesTitle: "DATA & SCHEDULING SOURCES",
+  sourcesTitle: "WHO TAKES PART",
   sources: visitorSources,
-  engineLabel: "LIVE SCHEDULING WORKFLOW",
+  engineLabel: "VISITOR VISIT WORKFLOW",
   pipeline: visitorPipeline,
   intelligence: visitorIntelligence,
-  controlNote: "You control the scheduling rules and parameters",
+  controlNote: "The visit stays pending until the doctor confirms it.",
+  outputsTitle: "WHAT THE VISIT PRODUCES",
   outputs: visitorOutputs,
 };
 
 export const deliveryFlow: FlowModule = {
   header: {
-    title: "Unified Receiving Platform. Faster Hospital Deliveries.",
+    title: "A hospital delivery, from the slot to the gate.",
     subtitle:
-      "Connect vendors, the security gate, and hospital stores — and let Conninter run every delivery from slot booking to signed receipt.",
+      "An approved distributor books a window and pays from the wallet. The driver gets a WhatsApp pass, security scans them in, stores receive the goods, then security scans them out.",
   },
-  sourcesTitle: "VENDOR & RECEIVING SOURCES",
+  sourcesTitle: "WHO TAKES PART",
   sources: deliverySources,
-  engineLabel: "LIVE DELIVERY WORKFLOW",
+  engineLabel: "DELIVERY BOOKING WORKFLOW",
   pipeline: deliveryPipeline,
   intelligence: deliveryIntelligence,
-  controlNote: "You control dock capacity and receiving rules",
+  controlNote: "The delivery is scheduled as soon as the distributor pays.",
+  outputsTitle: "WHAT THE DELIVERY PRODUCES",
   outputs: deliveryOutputs,
 };
 

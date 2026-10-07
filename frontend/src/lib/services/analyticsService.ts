@@ -53,6 +53,7 @@ export interface BranchStats {
   branchId: string;
   branchName: string;
   totalStaff: number;
+  departmentAdminCount?: number;
   totalVisitors: number;
   activeVisits: number;
   todayVisits: number;

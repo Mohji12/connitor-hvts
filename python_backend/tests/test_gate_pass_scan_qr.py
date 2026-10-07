@@ -118,11 +118,11 @@ class GatePassScanQrTests(unittest.TestCase):
         payload = json.dumps({"visitId": "visit-1", "visitCode": "654321"})
         user = {"branchId": "branch-1", "id": "security-1"}
 
-        with self.assertRaises(HTTPException) as ctx:
-            self.service.scan_check_in_qr(payload, user)
-        self.assertEqual(ctx.exception.status_code, 409)
-        self.assertIn("SLOT_NOT_STARTED", str(ctx.exception.detail))
-        self.assertIn("6:55", str(ctx.exception.detail))
+        result = self.service.scan_check_in_qr(payload, user)
+        self.assertTrue(result["success"])
+        self.assertFalse(result["canCheckIn"])
+        self.assertIn("SLOT_NOT_STARTED", result["checkInBlockedReason"])
+        self.assertIn("6:55", result["checkInBlockedReason"])
 
 
 if __name__ == "__main__":

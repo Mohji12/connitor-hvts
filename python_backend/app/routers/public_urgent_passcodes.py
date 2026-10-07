@@ -1,9 +1,9 @@
 """Public urgent-passcode gate session + auto-approved booking."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -18,6 +18,18 @@ class UrgentBookBody(BaseModel):
     slotId: str | None = None
     appointmentDate: str | None = None
     purpose: str | None = Field(None, max_length=500)
+    paymentMethod: Literal["WALLET", "RAZORPAY"]
+    razorpayOrderId: str | None = None
+    razorpayPaymentId: str | None = None
+    razorpaySignature: str | None = None
+
+    @model_validator(mode="after")
+    def online_payment_fields(self) -> "UrgentBookBody":
+        if self.paymentMethod == "RAZORPAY" and not (
+            self.razorpayOrderId and self.razorpayPaymentId and self.razorpaySignature
+        ):
+            raise ValueError("Online payment was not completed.")
+        return self
 
 
 @router.get("/session")
@@ -40,4 +52,8 @@ def urgent_gate_book(
         slot_id=body.slotId,
         appointment_date=body.appointmentDate,
         purpose=body.purpose,
+        payment_method=body.paymentMethod,
+        razorpay_order_id=body.razorpayOrderId,
+        razorpay_payment_id=body.razorpayPaymentId,
+        razorpay_signature=body.razorpaySignature,
     )

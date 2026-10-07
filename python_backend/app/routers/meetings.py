@@ -13,6 +13,7 @@ router = APIRouter()
 
 class MeetingTokenBody(BaseModel):
     joinToken: str = Field(min_length=10)
+    sessionId: str | None = Field(default=None, max_length=40)
 
 
 class MeetingVisitSummary(BaseModel):
@@ -43,7 +44,7 @@ def create_meeting_token(
     body: MeetingTokenBody,
     db: Annotated[Session, Depends(get_db)],
 ) -> MeetingTokenResponse:
-    access = LiveKitService(db).mint_participant_token(body.joinToken)
+    access = LiveKitService(db).mint_participant_token(body.joinToken, session_id=body.sessionId)
     visit = access.visit
     visitor = visit.visitor
     return MeetingTokenResponse(

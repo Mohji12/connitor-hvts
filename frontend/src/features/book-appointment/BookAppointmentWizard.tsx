@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ChevronLeft, MapPin, Stethoscope, Clock, Languages } from 'lucide-react';
 import {
   AppointmentService,
@@ -19,8 +20,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { VISITOR_KINDS, type VisitorKind } from '@/lib/constants/visit-constants';
+import {
+  VisitPaymentChoice,
+  type VisitPaymentResult,
+} from '@/features/visitor-wallet/VisitPaymentChoice';
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6;
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export interface BookAppointmentWizardProps {
   initialBranchId?: string;
@@ -90,8 +95,9 @@ export function BookAppointmentWizard({
   title = 'Book Doctor Appointment',
   className,
 }: BookAppointmentWizardProps) {
+  const pathname = usePathname();
   const minStep: Step = initialBranchId ? 2 : 1;
-  const totalSteps = initialBranchId ? 5 : 6;
+  const totalSteps = initialBranchId ? 6 : 7;
 
   const [step, setStep] = React.useState<Step>(minStep);
   const [hospitals, setHospitals] = React.useState<{ id: string; name: string; city: string }[]>([]);
@@ -206,19 +212,6 @@ export function BookAppointmentWizard({
       .finally(() => setLoadingDepartments(false));
   }, [initialBranchId]);
 
-  React.useEffect(() => {
-    if (!doctorId || !appointmentDate || step < 5) return;
-    setLoadingSlots(true);
-    setSlotId('');
-    AppointmentService.listDoctorSlots(doctorId, appointmentDate)
-      .then(setSlots)
-      .catch(() => {
-        setSlots([]);
-        setError('Could not load available time slots.');
-      })
-      .finally(() => setLoadingSlots(false));
-  }, [doctorId, appointmentDate, step]);
-
   const selectHospital = async (id: string) => {
     const hospital = hospitals.find((h) => h.id === id);
     setBranchId(id);
@@ -301,50 +294,62 @@ export function BookAppointmentWizard({
   };
 
   const goBack = () => {
-    if (step > minStep && step < 6) setStep((step - 1) as Step);
+    if (step > minStep && step < 7) setStep((step - 1) as Step);
   };
 
   React.useEffect(() => {
-    if (!doctorId || !appointmentDate || step < 5) return;
-    setLoadingSlots(true);
     setSlotId('');
+  }, [doctorId, appointmentDate]);
+
+  React.useEffect(() => {
+    if (!doctorId || !appointmentDate || step < 5) return;
+    let cancelled = false;
+    setLoadingSlots(true);
     AppointmentService.listDoctorSlots(doctorId, appointmentDate)
-      .then(setSlots)
+      .then((rows) => {
+        if (!cancelled) setSlots(rows);
+      })
       .catch(() => {
+        if (cancelled) return;
         setSlots([]);
         setError('Could not load available time slots.');
       })
-      .finally(() => setLoadingSlots(false));
+      .finally(() => {
+        if (!cancelled) setLoadingSlots(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [doctorId, appointmentDate, step]);
 
   const selectedSlot = slots.find((s) => s.id === slotId);
 
-  const submit = async () => {
+  const readyToBook = (): boolean => {
     const normalizedEmail = email.trim().toLowerCase();
     if (purpose.trim().length < 3) {
       setError('Please enter the purpose of your visit.');
-      return;
+      return false;
     }
     if (itemsCarrying.trim().length < 2) {
       setError('Please mention what you are carrying.');
-      return;
+      return false;
     }
     if (!requestCustomSlot && !slotId) {
       setError('Please select a time slot, or request a visit slot from the doctor.');
-      return;
+      return false;
     }
     if (requestCustomSlot && !appointmentDate) {
       setError('Please choose a date for your visit request.');
-      return;
+      return false;
     }
     if (requestCustomSlot && !preferredTime) {
       setError('Please choose a time for your visit request.');
-      return;
+      return false;
     }
     if (isRegisteredVisitor) {
       if (!firstName.trim() || !phone || phone.length !== 10 || !normalizedEmail.includes('@')) {
         setError('Your profile is missing contact details. Update your profile and try again.');
-        return;
+        return false;
       }
     } else if (
       phone.length !== 10 ||
@@ -353,14 +358,26 @@ export function BookAppointmentWizard({
       !lastName.trim()
     ) {
       setError('Please fill in all required fields and use a valid 10-digit phone and email.');
-      return;
+      return false;
     }
     if (visitorType === 'SALES_REPRESENTATIVE') {
       if (!companyName.trim() || !companyEmail.includes('@')) {
         setError('Company name and a valid company email are required for Sales Representative.');
-        return;
+        return false;
       }
     }
+    return true;
+  };
+
+  const continueToPayment = () => {
+    if (!readyToBook()) return;
+    setError('');
+    setStep(6);
+  };
+
+  const submit = async (payment: VisitPaymentResult) => {
+    if (!readyToBook()) return;
+    const normalizedEmail = email.trim().toLowerCase();
     setLoading(true);
     setError('');
     try {
@@ -384,10 +401,14 @@ export function BookAppointmentWizard({
         visitorType,
         companyName: visitorType === 'SALES_REPRESENTATIVE' ? companyName.trim() : undefined,
         companyEmail: visitorType === 'SALES_REPRESENTATIVE' ? companyEmail.trim() : undefined,
+        paymentMethod: payment.paymentMethod,
+        razorpayOrderId: payment.razorpayOrderId,
+        razorpayPaymentId: payment.razorpayPaymentId,
+        razorpaySignature: payment.razorpaySignature,
       });
       const bookingResult = { bookingId: res.bookingId, message: res.message };
       setResult(bookingResult);
-      setStep(6);
+      setStep(7);
       onSuccess?.({ ...bookingResult, phone });
     } catch (e: unknown) {
       const detail =
@@ -408,7 +429,7 @@ export function BookAppointmentWizard({
   return (
     <div className={cn('space-y-4', className)}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        {step > minStep && step < 6 ? (
+        {step > minStep && step < 7 ? (
           <Button variant="ghost" size="sm" onClick={goBack}>
             <ChevronLeft className="mr-1 h-4 w-4" /> Back
           </Button>
@@ -433,12 +454,12 @@ export function BookAppointmentWizard({
         )}
         <CardHeader>
           <CardTitle>{title}</CardTitle>
-          {step < 6 && (
+          {step < 7 && (
             <p className="text-sm text-muted-foreground">
               Step {displayStep} of {totalSteps}
             </p>
           )}
-          {initialBranchId && branchName && step < 6 && (
+          {initialBranchId && branchName && step < 7 && (
             <p className="text-sm text-primary font-medium">{branchName}</p>
           )}
         </CardHeader>
@@ -801,21 +822,23 @@ export function BookAppointmentWizard({
               </div>
               <Button
                 className="w-full"
-                onClick={submit}
-                disabled={
-                  loading || (!requestCustomSlot && !slotId) || (requestCustomSlot && !preferredTime)
-                }
+                onClick={continueToPayment}
+                disabled={(!requestCustomSlot && !slotId) || (requestCustomSlot && !preferredTime)}
               >
-                {loading
-                  ? 'Submitting…'
-                  : requestCustomSlot
-                    ? 'Send visit request to doctor'
-                    : 'Confirm Booking'}
+                Continue to payment
               </Button>
             </div>
           )}
 
-          {step === 6 && result && (
+          {step === 6 && (
+            <VisitPaymentChoice
+              returnTo={pathname || '/book-appointment'}
+              busy={loading}
+              onPay={submit}
+            />
+          )}
+
+          {step === 7 && result && (
             <div className="space-y-4 text-center">
               <p className="font-medium text-green-600">Booking Confirmed</p>
               <p className="text-sm">{result.message}</p>
