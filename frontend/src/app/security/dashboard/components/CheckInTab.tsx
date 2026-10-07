@@ -710,7 +710,8 @@ export function CheckInTab({
               Scan Visitor QR
             </h2>
             <p className="text-sm text-gray-500">
-              Visitor shows the QR from doctor approval — scan it to load their details
+              Scan the WhatsApp QR sent after the doctor approved the visit. Scan that same QR
+              again to check the visitor out.
             </p>
           </div>
 

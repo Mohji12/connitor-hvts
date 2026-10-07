@@ -8,7 +8,11 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from app.services.meeting_pass_image import _fit_text, _paste_circle, _trim_logo, paste_crisp_qr
+from app.services.meeting_pass_image import (
+    _fit_text,
+    _paste_circle,
+    paste_aligned_qr_and_logo,
+)
 
 BLANK_PASS_PATH = Path(__file__).resolve().parents[1] / "assets" / "attendant_pass_blank.png"
 
@@ -29,7 +33,9 @@ _VALUE_YS = (350, 400, 450, 496)
 # Outer corner-bracket frame on the blank artwork.
 _QR_FRAME = (46, 535, 223, 686)
 _QR_SIZE = 124
-_LOGO_BOX = (276, 548, 496, 688)
+# Same top/height as the QR square (not a separate lower band).
+_LOGO_LEFT = 276
+_LOGO_RIGHT = 496
 _PHONE_X = 262
 _PHONE_Y = 952
 _PHONE_WIDTH = 210
@@ -39,23 +45,6 @@ _NAVY = (16, 32, 84)
 def _centered_origin(frame: tuple[int, int, int, int], size: int) -> tuple[int, int]:
     left, top, right, bottom = frame
     return left + (right - left - size) // 2, top + (bottom - top - size) // 2
-
-
-def _paste_logo_on_glass(base: Image.Image, logo_png: bytes, box: tuple[int, int, int, int]) -> None:
-    """Center the hospital mark in the glass panel. White in the file stays clear."""
-    logo = _trim_logo(Image.open(io.BytesIO(logo_png)).convert("RGBA"))
-    pixels = logo.load()
-    for y in range(logo.size[1]):
-        for x in range(logo.size[0]):
-            red, green, blue, alpha = pixels[x, y]
-            if alpha > 0 and red > 245 and green > 245 and blue > 245:
-                pixels[x, y] = (red, green, blue, 0)
-    left, top, right, bottom = box
-    pad = 10
-    logo.thumbnail((max(1, right - left - pad * 2), max(1, bottom - top - pad * 2)), Image.Resampling.LANCZOS)
-    x = left + (right - left - logo.width) // 2
-    y = top + (bottom - top - logo.height) // 2
-    base.paste(logo, (x, y), logo)
 
 
 @dataclass
@@ -99,12 +88,14 @@ def render_attendant_pass(content: AttendantPassContent, *, scale: int = 1) -> b
     _fit_text(draw, (_VALUE_X, _VALUE_YS[2]), content.relationship, max_width=_VALUE_WIDTH, size=14, fill=_NAVY)
     _fit_text(draw, (_VALUE_X, _VALUE_YS[3]), content.validity, max_width=_VALUE_WIDTH, size=13, fill=_NAVY)
 
+    qr_left, qr_top = _centered_origin(_QR_FRAME, _QR_SIZE)
+
     if not content.logo_png and content.hospital_name:
         _fit_text(
             draw,
-            (_LOGO_BOX[0], _LOGO_BOX[1] + 48),
+            (_LOGO_LEFT, qr_top + 48),
             content.hospital_name,
-            max_width=_LOGO_BOX[2] - _LOGO_BOX[0] - 8,
+            max_width=_LOGO_RIGHT - _LOGO_LEFT - 8,
             size=14,
             fill=_NAVY,
         )
@@ -126,27 +117,19 @@ def render_attendant_pass(content: AttendantPassContent, *, scale: int = 1) -> b
             Image.Resampling.LANCZOS,
         )
 
-    qr_left, qr_top = _centered_origin(_QR_FRAME, _QR_SIZE)
-    if content.qr_png:
-        try:
-            paste_crisp_qr(
-                base,
-                content.qr_png,
-                qr_left * output_scale,
-                qr_top * output_scale,
-                _QR_SIZE * output_scale,
-            )
-        except Exception:
-            pass
-    if content.logo_png:
-        try:
-            _paste_logo_on_glass(
-                base,
-                content.logo_png,
-                tuple(edge * output_scale for edge in _LOGO_BOX),
-            )
-        except Exception:
-            pass
+    try:
+        paste_aligned_qr_and_logo(
+            base,
+            qr_png=content.qr_png,
+            logo_png=content.logo_png,
+            qr_left=qr_left * output_scale,
+            row_top=qr_top * output_scale,
+            side=_QR_SIZE * output_scale,
+            logo_left=_LOGO_LEFT * output_scale,
+            logo_right=_LOGO_RIGHT * output_scale,
+        )
+    except Exception:
+        pass
 
     flat = base.convert("RGB")
     buffer = io.BytesIO()

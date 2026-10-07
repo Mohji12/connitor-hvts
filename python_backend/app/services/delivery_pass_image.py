@@ -22,10 +22,9 @@ from app.services.meeting_pass_image import (
     _BLACK,
     _fit_text,
     _paste_circle,
-    _paste_logo,
     _qr_module_image,
     hospital_logo_bytes,
-    paste_crisp_qr,
+    paste_aligned_qr_and_logo,
 )
 
 BLANK_PASS_PATH = Path(__file__).resolve().parents[1] / "assets" / "delivery_pass_blank.png"
@@ -318,23 +317,28 @@ def render_delivery_pass(content: DeliveryPassContent, *, scale: int = 1) -> byt
     _fit_text(draw, (left_x, row_date), content.date_text, max_width=left_width, size=12, fill=_NAVY)
     _fit_text(draw, (right_x, row_date), content.time_text, max_width=right_width, size=12, fill=_NAVY)
 
-    if content.qr_png:
+    logo_left = _DIVIDER_X + 18
+    logo_right = 500
+    if content.logo_png or content.qr_png:
         try:
-            paste_crisp_qr(base, content.qr_png, _QR_LEFT, _QR_TOP, _QR_SIZE)
-        except Exception:
-            pass
-    logo_box = (_DIVIDER_X + 18, _QR_TOP, 500, _QR_TOP + _QR_SIZE)
-    if content.logo_png:
-        try:
-            _paste_logo(base, content.logo_png, logo_box)
+            paste_aligned_qr_and_logo(
+                base,
+                qr_png=content.qr_png,
+                logo_png=content.logo_png,
+                qr_left=_QR_LEFT,
+                row_top=_QR_TOP,
+                side=_QR_SIZE,
+                logo_left=logo_left,
+                logo_right=logo_right,
+            )
         except Exception:
             pass
     elif content.hospital_name:
         _fit_text(
             draw,
-            (logo_box[0], logo_box[1] + 28),
+            (logo_left, _QR_TOP + 28),
             content.hospital_name,
-            max_width=logo_box[2] - logo_box[0] - 8,
+            max_width=logo_right - logo_left - 8,
             size=13,
             fill=_NAVY,
             bold=True,
@@ -346,14 +350,18 @@ def render_delivery_pass(content: DeliveryPassContent, *, scale: int = 1) -> byt
             (base.width * output_scale, base.height * output_scale),
             Image.Resampling.LANCZOS,
         )
-        if content.qr_png:
+        # Re-paint QR + logo after enlarge so modules stay sharp and stay aligned.
+        if content.logo_png or content.qr_png:
             try:
-                paste_crisp_qr(
+                paste_aligned_qr_and_logo(
                     base,
-                    content.qr_png,
-                    _QR_LEFT * output_scale,
-                    _QR_TOP * output_scale,
-                    _QR_SIZE * output_scale,
+                    qr_png=content.qr_png,
+                    logo_png=content.logo_png,
+                    qr_left=_QR_LEFT * output_scale,
+                    row_top=_QR_TOP * output_scale,
+                    side=_QR_SIZE * output_scale,
+                    logo_left=logo_left * output_scale,
+                    logo_right=logo_right * output_scale,
                 )
             except Exception:
                 pass

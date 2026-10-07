@@ -148,7 +148,9 @@ export function mapErrorCodeToMessage(code: string): string {
     case 'VISIT_NOT_APPROVED':
       return 'This visit is not approved for check-in yet.';
     case 'QR_CODE_ALREADY_USED':
-      return 'This QR code was already used for check-in.';
+      return 'This QR was already used for check-in. If the visitor is inside, scan the same approval QR again to check out.';
+    case 'ALREADY_CHECKED_OUT':
+      return 'This visitor is already checked out.';
     default:
       return 'Verification failed. Please try again.';
   }

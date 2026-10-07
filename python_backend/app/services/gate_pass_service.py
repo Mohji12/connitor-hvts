@@ -267,26 +267,11 @@ class GatePassService:
         if not visit:
             raise HTTPException(status_code=404, detail="VISIT_NOT_FOUND")
 
-        # Prefer stored dual-QR match when payload is typed
-        if qr_type == "entry" and visit.entryQrPayload and qr_payload.strip() not in (
-            visit.entryQrPayload,
-            visit.visitQRCode or "",
-        ):
-            # Allow entry payload or legacy visitQRCode
-            if qr_payload.strip() != visit.entryQrPayload:
-                pass  # still allow by visit id embedded in JSON
-        if qr_type == "exit":
-            if visit.exitQrPayload and qr_payload.strip() != visit.exitQrPayload:
-                # Accept if visit id matches exit type
-                if not (visit_id and visit_id == visit.id):
-                    raise HTTPException(status_code=400, detail="INVALID_EXIT_QR")
-            if visit.status != VisitStatus.CHECKED_IN.value:
-                if visit.status == VisitStatus.CHECKED_OUT.value:
-                    raise HTTPException(status_code=400, detail="ALREADY_CHECKED_OUT")
-                raise HTTPException(
-                    status_code=400,
-                    detail="Use Entry QR for check-in first, then Exit QR for checkout.",
-                )
+        # Same WhatsApp approval QR (and the entry QR) checks the visitor out
+        # once they are already inside. Do not require a separate exit QR.
+        if visit.status == VisitStatus.CHECKED_IN.value:
+            if visit.visitor:
+                self.notifications.notify_visitor_otp_verified(visit, visit.visitor, visit.staff)
             return {
                 "success": True,
                 "visitId": visit.id,
@@ -297,23 +282,17 @@ class GatePassService:
                 "canCheckIn": False,
                 "canCheckOut": True,
             }
+        if visit.status == VisitStatus.CHECKED_OUT.value:
+            raise HTTPException(status_code=400, detail="ALREADY_CHECKED_OUT")
+
+        if qr_type == "exit":
+            raise HTTPException(
+                status_code=400,
+                detail="Check the visitor in with the approval QR first. Scan that same QR again to check out.",
+            )
 
         if visit_code and visit.visitCode != visit_code and visit.checkInOtp != visit_code:
             raise HTTPException(status_code=400, detail="INVALID_QR_CODE")
-
-        if visit.status == VisitStatus.CHECKED_IN.value:
-            if visit.visitor:
-                self.notifications.notify_visitor_otp_verified(visit, visit.visitor, visit.staff)
-            return {
-                "success": True,
-                "visitId": visit.id,
-                "visitorId": visit.visitorId,
-                "qrType": "entry",
-                "visitor": self._visitor_payload(visit),
-                "visit": model_to_dict_visit(visit),
-                "canCheckIn": False,
-                "canCheckOut": True,
-            }
         if visit.status != VisitStatus.APPROVED.value:
             raise HTTPException(status_code=400, detail="VISIT_NOT_APPROVED")
         if visit.checkInOtpExpiry and visit.checkInOtpExpiry < now_ist():

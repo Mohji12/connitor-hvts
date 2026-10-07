@@ -31,8 +31,6 @@ _RIGHT_VALUE = (354, 128)
 _QR_FRAME = (36, 540, 250, 668)
 _QR_SIZE = 128
 _DIVIDER_X = 262
-_CARD_TOP = _QR_FRAME[1]
-_CARD_SIZE = _QR_SIZE
 _NAVY = (16, 32, 84)
 _BLACK = (20, 28, 48)
 _BLUE = (0, 112, 214)
@@ -159,16 +157,47 @@ def _paste_logo(
     box: tuple[int, int, int, int],
     *,
     plate: bool = True,
+    pad: int = 10,
 ) -> None:
+    """Fit the hospital mark inside ``box``. With ``plate``, draw a white card
+    the full box size so it shares the same top/bottom edge as the QR square.
+    """
     logo = _trim_logo(Image.open(io.BytesIO(logo_png)).convert("RGBA"))
     left, top, right, bottom = box
-    logo.thumbnail((right - left, bottom - top), Image.Resampling.LANCZOS)
+    if plate:
+        card = Image.new("RGBA", (max(1, right - left), max(1, bottom - top)), (255, 255, 255, 255))
+        base.paste(card, (left, top), card)
+    max_w = max(1, right - left - pad * 2)
+    max_h = max(1, bottom - top - pad * 2)
+    logo.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
     x = left + (right - left - logo.width) // 2
     y = top + (bottom - top - logo.height) // 2
-    if plate:
-        card = Image.new("RGBA", (right - left, bottom - top), (255, 255, 255, 255))
-        base.paste(card, (left, top), card)
     base.paste(logo, (x, y), logo)
+
+
+def paste_aligned_qr_and_logo(
+    base: Image.Image,
+    *,
+    qr_png: bytes | None,
+    logo_png: bytes | None,
+    qr_left: int,
+    row_top: int,
+    side: int,
+    logo_left: int,
+    logo_right: int,
+) -> None:
+    """Place QR and hospital logo on one row — same top Y and same height."""
+    side = max(int(side), 1)
+    if qr_png:
+        paste_crisp_qr(base, qr_png, qr_left, row_top, side)
+    if logo_png:
+        _paste_logo(
+            base,
+            logo_png,
+            (logo_left, row_top, logo_right, row_top + side),
+            plate=True,
+            pad=10,
+        )
 
 
 def _qr_module_image(payload: str) -> Image.Image:
@@ -184,15 +213,31 @@ def _qr_module_image(payload: str) -> Image.Image:
 
 
 def _fit_qr_image(module: Image.Image, size: int) -> Image.Image:
-    """Scale the QR so it fills the square. Nearest-neighbor keeps module edges sharp."""
+    """Scale the QR with an integer module factor, then center on a white square.
+
+    Non-integer stretches (e.g. 43→45→272) destroy finder patterns and break scanners.
+    """
     side = max(int(size), 1)
-    return module.resize((side, side), Image.Resampling.NEAREST)
+    src = max(int(module.size[0]), int(module.size[1]), 1)
+    factor = max(1, side // src)
+    painted = src * factor
+    scaled = module.resize((painted, painted), Image.Resampling.NEAREST)
+    if painted == side:
+        return scaled
+    if painted > side:
+        return module.resize((side, side), Image.Resampling.NEAREST)
+    canvas = Image.new("RGB", (side, side), (255, 255, 255))
+    offset = (side - painted) // 2
+    canvas.paste(scaled, (offset, offset))
+    return canvas
 
 
 def _qr_png(payload: str, size: int) -> bytes:
-    fitted = _fit_qr_image(_qr_module_image(payload), size)
+    """Encode payload as a native module-grid PNG (``size`` kept for call-site compat)."""
+    del size  # paste_crisp_qr chooses the on-pass pixel size
+    module = _qr_module_image(payload)
     buffer = io.BytesIO()
-    fitted.save(buffer, format="PNG")
+    module.save(buffer, format="PNG")
     return buffer.getvalue()
 
 
@@ -202,7 +247,10 @@ def paste_crisp_qr(base: Image.Image, qr_png: bytes, left: int, top: int, side: 
     plate = Image.new("RGBA", (side, side), (255, 255, 255, 255))
     base.paste(plate, (left, top), plate)
     fitted = _fit_qr_image(module, side)
-    base.paste(fitted, (left, top))
+    # Center the integer-scaled QR on the plate when quiet-zone padding remains.
+    ox = left + (side - fitted.size[0]) // 2
+    oy = top + (side - fitted.size[1]) // 2
+    base.paste(fitted, (ox, oy))
 
 
 def check_in_qr_png(visit, *, size: int = 190) -> bytes:
@@ -420,24 +468,21 @@ def render_meeting_pass(content: MeetingPassContent) -> bytes:
     _fit_text(draw, (left_x, 482), content.date_text, max_width=left_width, size=12, fill=_NAVY)
     _fit_text(draw, (right_x, 482), content.time_text, max_width=right_width, size=12, fill=_NAVY)
 
-    card_bottom = _CARD_TOP + _CARD_SIZE
-    if content.qr_png:
-        try:
-            left = _QR_FRAME[0] + (_QR_FRAME[2] - _QR_FRAME[0] - _QR_SIZE) // 2
-            top = _QR_FRAME[1] + (_QR_FRAME[3] - _QR_FRAME[1] - _QR_SIZE) // 2
-            paste_crisp_qr(base, content.qr_png, left, top, _QR_SIZE)
-        except Exception:
-            pass
-    if content.logo_png:
-        try:
-            _paste_logo(
-                base,
-                content.logo_png,
-                (_DIVIDER_X + 12, _CARD_TOP, 508, card_bottom),
-                plate=False,
-            )
-        except Exception:
-            pass
+    qr_left = _QR_FRAME[0] + (_QR_FRAME[2] - _QR_FRAME[0] - _QR_SIZE) // 2
+    qr_top = _QR_FRAME[1] + (_QR_FRAME[3] - _QR_FRAME[1] - _QR_SIZE) // 2
+    try:
+        paste_aligned_qr_and_logo(
+            base,
+            qr_png=content.qr_png,
+            logo_png=content.logo_png,
+            qr_left=qr_left,
+            row_top=qr_top,
+            side=_QR_SIZE,
+            logo_left=_DIVIDER_X + 14,
+            logo_right=508,
+        )
+    except Exception:
+        pass
 
     flat = base.convert("RGB")
     buffer = io.BytesIO()

@@ -90,6 +90,25 @@ class GatePassScanQrTests(unittest.TestCase):
         self.assertFalse(result["canCheckIn"])
         self.assertTrue(result["canCheckOut"])
 
+    @patch("app.services.gate_pass_service.model_to_dict_visit", return_value={"id": "visit-1", "status": "CHECKED_IN"})
+    def test_same_approval_qr_checks_out_even_if_code_changed(self, _mock_serialize: MagicMock) -> None:
+        """Doctor-approval QR stays valid for exit after check-in."""
+        visit = _visit(status="CHECKED_IN")
+        visit.entryQrPayload = json.dumps({"t": "entry", "v": "visit-1"})
+        visit.isCodeUsed = False
+        query = MagicMock()
+        query.options.return_value = query
+        query.filter.return_value = query
+        query.first.return_value = visit
+        self.db.query.return_value = query
+        payload = json.dumps({"t": "entry", "v": "visit-1", "visitCode": "000000"})
+        user = {"branchId": "branch-1", "id": "security-1"}
+
+        result = self.service.scan_check_in_qr(payload, user)
+
+        self.assertTrue(result["canCheckOut"])
+        self.assertFalse(result["canCheckIn"])
+
     def test_scan_check_in_qr_invalid_payload(self) -> None:
         with self.assertRaises(HTTPException) as ctx:
             self.service.scan_check_in_qr("not-json-or-otp", {"branchId": "branch-1"})
