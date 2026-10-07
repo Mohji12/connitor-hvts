@@ -24,7 +24,7 @@ import {
   type LocalUserChoices,
   type TrackReferenceOrPlaceholder,
 } from '@livekit/components-react';
-import { DisconnectReason, RoomEvent, Track, type Room } from 'livekit-client';
+import { DisconnectReason, Track, type Room } from 'livekit-client';
 import { AlertTriangle, CalendarClock, Clock, LinkIcon, PhoneOff, RefreshCw, Video } from 'lucide-react';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
