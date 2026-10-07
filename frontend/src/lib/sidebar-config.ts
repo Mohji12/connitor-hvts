@@ -166,9 +166,9 @@ export const sidebarConfig = {
   ],
   DISTRIBUTOR: [
     { label: 'Deliveries', href: '/vendor/deliveries', icon: 'package' },
+    { label: 'Wallet', href: '/vendor/wallet', icon: 'wallet' },
     { label: 'Book', href: '/vendor/deliveries/book', icon: 'truck' },
     { label: 'Fleet', href: '/vendor/fleet', icon: 'users' },
-    { label: 'Wallet', href: '/vendor/wallet', icon: 'wallet' },
     { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
   ],
   WARD_ADMIN: [

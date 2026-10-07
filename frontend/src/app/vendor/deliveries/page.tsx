@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import {
@@ -26,6 +26,7 @@ export default function VendorDeliveriesPage(): React.ReactElement {
     total: 0,
     byStatus: {},
   });
+  const [walletBalance, setWalletBalance] = React.useState<number | null>(null);
 
   const load = React.useCallback(async () => {
     try {
@@ -44,17 +45,32 @@ export default function VendorDeliveriesPage(): React.ReactElement {
     void load();
   }, [load]);
 
+  React.useEffect(() => {
+    if (!user?.distributorId) return;
+    DistributorDeliveryService.getWallet(user.distributorId)
+      .then((w) => setWalletBalance(w.balance))
+      .catch(() => setWalletBalance(null));
+  }, [user?.distributorId]);
+
   return (
     <DeliveryPageShell
       title="My deliveries"
       subtitle="Track bookings, drivers, and gate status. Drivers receive QR instructions by email."
       actions={
-        <Button asChild>
-          <Link href="/vendor/deliveries/book">
-            <Plus className="mr-2 h-4 w-4" />
-            Book delivery
-          </Link>
-        </Button>
+        <>
+          <Button asChild variant="outline">
+            <Link href="/vendor/wallet">
+              <Wallet className="mr-2 h-4 w-4" />
+              {walletBalance != null ? `Wallet ₹${walletBalance.toFixed(0)}` : 'Wallet'}
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/vendor/deliveries/book">
+              <Plus className="mr-2 h-4 w-4" />
+              Book delivery
+            </Link>
+          </Button>
+        </>
       }
     >
       <DeliveryKpiStrip total={summary.total} byStatus={summary.byStatus} />

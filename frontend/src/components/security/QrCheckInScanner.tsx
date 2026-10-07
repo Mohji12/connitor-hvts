@@ -18,7 +18,14 @@ type Props = {
 };
 
 type Html5Scanner = {
+  start: (
+    cameraIdOrConfig: string | MediaTrackConstraints,
+    config: Record<string, unknown>,
+    onSuccess: (decodedText: string) => void,
+    onFailure?: (error: string) => void,
+  ) => Promise<null>;
   stop: () => Promise<void>;
+  clear?: () => void;
   getRunningTrackCameraCapabilities?: () => {
     zoomFeature: () => {
       isSupported: () => boolean;
@@ -29,6 +36,10 @@ type Html5Scanner = {
   };
 };
 
+type Html5QrcodeCtor = (new (elementId: string) => Html5Scanner) & {
+  getCameras?: () => Promise<Array<{ id: string; label: string }>>;
+};
+
 /** Wait for React to paint the reader element before html5-qrcode measures it. */
 function waitForLayout(): Promise<void> {
   return new Promise((resolve) => {
@@ -36,6 +47,53 @@ function waitForLayout(): Promise<void> {
       requestAnimationFrame(() => resolve());
     });
   });
+}
+
+function cameraErrorMessage(error: unknown, fallback: string): string {
+  const name =
+    typeof error === 'object' && error && 'name' in error
+      ? String((error as { name?: string }).name)
+      : '';
+  const message =
+    typeof error === 'object' && error && 'message' in error
+      ? String((error as { message?: string }).message)
+      : typeof error === 'string'
+        ? error
+        : '';
+  const combined = `${name} ${message}`.toLowerCase();
+
+  if (
+    name === 'NotAllowedError' ||
+    combined.includes('permission') ||
+    combined.includes('notallowed')
+  ) {
+    return 'Camera permission blocked. Allow camera for this site in the browser address bar, then try again.';
+  }
+  if (
+    name === 'NotFoundError' ||
+    combined.includes('requested device not found') ||
+    combined.includes('no camera')
+  ) {
+    return 'No camera found on this device. Connect a webcam or paste the QR manually.';
+  }
+  if (
+    name === 'NotReadableError' ||
+    combined.includes('could not start video source') ||
+    combined.includes('in use')
+  ) {
+    return 'Camera is busy (another app or tab may be using it). Close that, then try again.';
+  }
+  if (
+    name === 'OverconstrainedError' ||
+    combined.includes('overconstrained') ||
+    combined.includes('constraint')
+  ) {
+    return 'This camera could not start with the requested settings. Tap Open camera again, or paste the QR manually.';
+  }
+  if (typeof window !== 'undefined' && !window.isSecureContext) {
+    return 'Camera needs HTTPS (or localhost). Open the site over a secure link, then try again.';
+  }
+  return fallback;
 }
 
 /** Prefer a light hardware zoom so the QR fills more of the frame. */
@@ -52,6 +110,83 @@ async function applyScannerZoom(scanner: Html5Scanner): Promise<void> {
   } catch {
     // Not every device exposes zoom; CSS scale below still helps.
   }
+}
+
+/**
+ * Start with relaxed constraints. Rear camera + 1080p often fails on desktops
+ * and some phones (OverconstrainedError / no environment camera).
+ */
+async function startScannerWithFallback(
+  Html5Qrcode: Html5QrcodeCtor,
+  elementId: string,
+  onDecoded: (decodedText: string) => void,
+): Promise<Html5Scanner> {
+  const scanConfig = {
+    fps: 15,
+    qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+      const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.72);
+      return { width: edge, height: edge };
+    },
+  };
+
+  const cameraAttempts: Array<string | MediaTrackConstraints> = [];
+
+  let lastError: unknown;
+
+  // Prefer enumerated cameras when the browser allows it (USB webcams at security desks).
+  try {
+    const devices = await Html5Qrcode.getCameras?.();
+    if (Array.isArray(devices) && devices.length > 0) {
+      const rear = devices.find((d) => /back|rear|environment/i.test(d.label));
+      const ordered = rear
+        ? [rear, ...devices.filter((d) => d.id !== rear.id)]
+        : devices;
+      for (const device of ordered) {
+        cameraAttempts.push(device.id);
+      }
+    }
+  } catch {
+    // getCameras may require a prior permission prompt; facingMode attempts still run.
+  }
+
+  cameraAttempts.push(
+    { facingMode: { ideal: 'environment' } },
+    { facingMode: 'environment' },
+    { facingMode: 'user' },
+  );
+
+  // Deduplicate while preserving order
+  const seen = new Set<string>();
+  const uniqueAttempts = cameraAttempts.filter((attempt) => {
+    const key = typeof attempt === 'string' ? `id:${attempt}` : JSON.stringify(attempt);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  for (const camera of uniqueAttempts) {
+    const scanner = new Html5Qrcode(elementId);
+    try {
+      await scanner.start(camera, scanConfig, onDecoded, () => {
+        // ignore per-frame scan misses
+      });
+      return scanner;
+    } catch (error) {
+      lastError = error;
+      try {
+        await scanner.stop();
+      } catch {
+        // ignore
+      }
+      try {
+        scanner.clear?.();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  throw lastError ?? new Error('Camera start failed');
 }
 
 export function QrCheckInScanner({
@@ -107,45 +242,45 @@ export function QrCheckInScanner({
       handledRef.current = false;
 
       try {
+        if (typeof window !== 'undefined' && !window.isSecureContext) {
+          throw Object.assign(new Error('Insecure context'), { name: 'SecurityError' });
+        }
+
         await waitForLayout();
         if (cancelled) return;
 
-        const { Html5Qrcode } = await import('html5-qrcode');
-        const scanner = new Html5Qrcode(elementId);
-        scannerRef.current = scanner;
+        const readerEl = document.getElementById(elementId);
+        if (!readerEl) {
+          throw new Error('Camera view is not ready. Tap Open camera again.');
+        }
 
-        await scanner.start(
-          {
-            facingMode: 'environment',
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-          {
-            fps: 20,
-            aspectRatio: 1,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.72);
-              return { width: edge, height: edge };
-            },
-          },
+        const { Html5Qrcode } = await import('html5-qrcode');
+        const scanner = await startScannerWithFallback(
+          Html5Qrcode as Html5QrcodeCtor,
+          elementId,
           async (decodedText) => {
             if (handledRef.current) return;
             handledRef.current = true;
             await stopScanner();
             await onScanRef.current(decodedText);
           },
-          () => {
-            // ignore per-frame scan misses
-          },
         );
 
-        if (!cancelled) {
-          await applyScannerZoom(scanner);
-          setActive(true);
+        if (cancelled) {
+          try {
+            await scanner.stop();
+          } catch {
+            // ignore
+          }
+          return;
         }
-      } catch {
+
+        scannerRef.current = scanner;
+        await applyScannerZoom(scanner);
+        setActive(true);
+      } catch (error) {
         if (!cancelled) {
-          setError(permissionErrorHint);
+          setError(cameraErrorMessage(error, permissionErrorHint));
         }
         await stopScanner();
       } finally {
@@ -162,6 +297,7 @@ export function QrCheckInScanner({
 
   const requestStart = () => {
     if (disabled || active || starting || shouldStart) return;
+    setError(null);
     setShouldStart(true);
   };
 
@@ -212,7 +348,19 @@ export function QrCheckInScanner({
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="space-y-2">
+            <p>{error}</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-red-300 bg-white text-red-900 hover:bg-red-50"
+              onClick={requestStart}
+              disabled={disabled || starting || shouldStart}
+            >
+              Try camera again
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
     </div>
