@@ -22,8 +22,10 @@ type VisitPaymentChoiceProps = {
   returnTo: string;
   busy: boolean;
   onPay: (payment: VisitPaymentResult) => Promise<void>;
-  /** Offer only Razorpay, e.g. right after the profile was created inside the booking. */
-  onlineOnly?: boolean;
+  /** Called instead of plain navigation so the caller can save its state before the wallet page. */
+  onRecharge?: () => void;
+  /** Show the testing-only dummy payment when the backend enables it. */
+  allowDummy?: boolean;
 };
 
 function apiDetail(error: unknown): string {
@@ -39,7 +41,8 @@ export function VisitPaymentChoice({
   returnTo,
   busy,
   onPay,
-  onlineOnly = false,
+  onRecharge,
+  allowDummy = false,
 }: VisitPaymentChoiceProps): React.ReactElement {
   const loggedIn = Boolean(getVisitorToken());
   const [wallet, setWallet] = React.useState<VisitorWalletSummary | null>(null);
@@ -115,44 +118,6 @@ export function VisitPaymentChoice({
     }
   };
 
-  if (loggedIn && onlineOnly) {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-xl bg-gradient-to-br from-[#001B71] to-[#4A90E2] p-4 text-white">
-          <p className="text-xs uppercase tracking-wide text-white/80">Visit fee</p>
-          <p className="mt-1 text-3xl font-bold">₹{fee}</p>
-          <p className="mt-2 text-sm text-white/90">
-            Paid online now and refunded if the doctor declines. Next time you can also pay from your
-            wallet.
-          </p>
-        </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button
-          className="w-full bg-[#001B71] hover:bg-[#001B71]/90"
-          disabled={locked}
-          onClick={() => void payOnline()}
-        >
-          {paying === 'RAZORPAY' ? 'Opening payment…' : `Pay ₹${fee} online`}
-        </Button>
-        {wallet?.dummyPaymentEnabled && (
-          <>
-            <Button
-              variant="outline"
-              className="w-full border-dashed"
-              disabled={locked}
-              onClick={() => void payDummy()}
-            >
-              {paying === 'DUMMY' ? 'Confirming…' : `Dummy payment ₹${fee} (testing)`}
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              Dummy payment confirms the booking without charging any money.
-            </p>
-          </>
-        )}
-      </div>
-    );
-  }
-
   if (!loggedIn) {
     const loginHref = `/visitor/login?returnTo=${encodeURIComponent(returnTo)}`;
     const registerHref = `/visitor/register?returnTo=${encodeURIComponent(returnTo)}`;
@@ -201,16 +166,44 @@ export function VisitPaymentChoice({
         {paying === 'WALLET' ? 'Reserving…' : `Pay ₹${fee} from wallet`}
       </Button>
       {!canUseWallet && wallet && (
-        <p className="text-xs text-muted-foreground">
-          Available balance is below ₹{fee}.{' '}
-          <Link href="/visitor/wallet" className="text-[#001B71] underline">
-            Recharge wallet
-          </Link>
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <span>Available balance is below ₹{fee}.</span>
+          {onRecharge ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-[#001B71]/30 bg-white text-[#001B71]"
+              disabled={locked}
+              onClick={onRecharge}
+            >
+              Recharge wallet
+            </Button>
+          ) : (
+            <Link href="/visitor/wallet" className="font-medium text-[#001B71] underline">
+              Recharge wallet
+            </Link>
+          )}
+        </div>
       )}
       <Button variant="outline" className="w-full" disabled={locked} onClick={() => void payOnline()}>
         {paying === 'RAZORPAY' ? 'Opening payment…' : `Pay ₹${fee} online`}
       </Button>
+      {allowDummy && wallet?.dummyPaymentEnabled && (
+        <>
+          <Button
+            variant="outline"
+            className="w-full border-dashed"
+            disabled={locked}
+            onClick={() => void payDummy()}
+          >
+            {paying === 'DUMMY' ? 'Confirming…' : `Dummy payment ₹${fee} (testing)`}
+          </Button>
+          <p className="text-center text-xs text-muted-foreground">
+            Dummy payment confirms the booking without charging any money.
+          </p>
+        </>
+      )}
     </div>
   );
 }

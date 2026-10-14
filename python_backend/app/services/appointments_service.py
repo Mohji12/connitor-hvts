@@ -20,6 +20,9 @@ DEPARTMENT_CODE_TO_LEGACY: dict[str, str] = {
 }
 
 
+MAX_AVAILABLE_DATES_RANGE_DAYS = 62
+
+
 class AppointmentsService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -224,6 +227,39 @@ class AppointmentsService:
             }
             for s in slots
         ]
+
+    def list_available_dates(self, doctor_id: str, from_str: str, to_str: str) -> list[str]:
+        """Distinct YYYY-MM-DD dates in [from, to] that still have a bookable slot."""
+        doctor = self.db.get(User, doctor_id)
+        if not doctor or not doctor.isActive or doctor.role != Role.STAFF.value:
+            raise HTTPException(status_code=404, detail="Staff not found.")
+        try:
+            start_day = datetime.strptime(from_str, "%Y-%m-%d")
+            end_day = datetime.strptime(to_str, "%Y-%m-%d")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid date. Use YYYY-MM-DD.") from exc
+        if end_day < start_day:
+            raise HTTPException(status_code=400, detail="'to' must be on or after 'from'.")
+        if (end_day - start_day).days > MAX_AVAILABLE_DATES_RANGE_DAYS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Date range cannot exceed {MAX_AVAILABLE_DATES_RANGE_DAYS} days.",
+            )
+
+        now = now_ist()
+        earliest = max(now, self._earliest_bookable_start(doctor_id, now))
+        rows = (
+            self.db.query(DoctorAvailabilitySlot.slotStart)
+            .filter(
+                DoctorAvailabilitySlot.doctorId == doctor_id,
+                DoctorAvailabilitySlot.slotStart >= start_day,
+                DoctorAvailabilitySlot.slotStart < end_day + timedelta(days=1),
+                DoctorAvailabilitySlot.isBooked == False,  # noqa: E712
+                DoctorAvailabilitySlot.slotStart > earliest,
+            )
+            .all()
+        )
+        return sorted({row[0].strftime("%Y-%m-%d") for row in rows})
 
     def _reserve_slot(self, doctor_id: str, slot_id: str | None, appt_date: datetime | None) -> tuple[datetime, DoctorAvailabilitySlot | None]:
         if slot_id:

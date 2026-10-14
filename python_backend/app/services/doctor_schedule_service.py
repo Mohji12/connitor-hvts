@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models import DoctorAvailabilitySlot, User
+from app.services.slot_waitlist_service import SlotWaitlistService
 from app.utils.timezone import now_ist
+
+logger = logging.getLogger(__name__)
 
 # Python weekday: Mon=0 … Sun=6. Default publish every day, including Sunday.
 DEFAULT_WEEKDAYS = {0, 1, 2, 3, 4, 5, 6}
@@ -161,6 +165,13 @@ class DoctorScheduleService:
         self.db.commit()
         for row in created:
             self.db.refresh(row)
+        if created:
+            try:
+                SlotWaitlistService(self.db).notify_new_slots(
+                    doctor, {row.slotStart.date() for row in created}
+                )
+            except Exception:
+                logger.warning("Could not notify slot waitlist for %s", doctor.id, exc_info=True)
         return {
             "created": len(created),
             "skipped": skipped,

@@ -20,6 +20,14 @@ import {
 
 const PRESETS = [100, 500, 1000];
 
+/** Only same-site paths, so a crafted link can't send visitors to another domain. */
+function safeReturnTo(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) {
+    return null;
+  }
+  return value;
+}
+
 const TYPE_LABELS: Record<string, string> = {
   CREDIT: 'Recharge',
   HOLD: 'Reserved for visit',
@@ -35,6 +43,7 @@ export default function VisitorWalletPage() {
   const [txs, setTxs] = useState<VisitorWalletTransaction[]>([]);
   const [amount, setAmount] = useState('500');
   const [busy, setBusy] = useState(false);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const [summary, rows] = await Promise.all([
@@ -46,10 +55,13 @@ export default function VisitorWalletPage() {
   }, []);
 
   useEffect(() => {
+    const target = safeReturnTo(new URLSearchParams(window.location.search).get('returnTo'));
     if (!getVisitorToken()) {
-      router.replace('/visitor/login?returnTo=/visitor/wallet');
+      const self = target ? `/visitor/wallet?returnTo=${encodeURIComponent(target)}` : '/visitor/wallet';
+      router.replace(`/visitor/login?returnTo=${encodeURIComponent(self)}`);
       return;
     }
+    setReturnTo(target);
     setReady(true);
     void load().catch(() => toast.error('Could not load wallet'));
   }, [load, router]);
@@ -63,6 +75,11 @@ export default function VisitorWalletPage() {
     try {
       const summary = await VisitorWalletService.dummyRecharge(rupees);
       setWallet(summary);
+      if (returnTo) {
+        toast.success(`₹${rupees} added. Taking you back to your booking…`);
+        router.replace(returnTo);
+        return;
+      }
       await load();
       toast.success(`₹${rupees} added to your wallet`);
     } catch {
@@ -99,6 +116,17 @@ export default function VisitorWalletPage() {
             Back to dashboard
           </Link>
         </Button>
+
+        {returnTo && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#4A90E2]/30 bg-[#4A90E2]/10 p-3 text-sm text-[#001B71]">
+            <span className="font-medium">
+              Recharge to continue your booking. You will go straight back to payment.
+            </span>
+            <Link href={returnTo} className="text-xs underline">
+              Back to booking
+            </Link>
+          </div>
+        )}
 
         <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#001B71] via-[#0B2F8A] to-[#4A90E2] p-5 text-white shadow-md lg:p-6">
           <div className="flex items-start justify-between gap-4">

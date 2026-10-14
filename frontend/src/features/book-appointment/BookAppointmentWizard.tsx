@@ -3,7 +3,8 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChevronLeft, MapPin, Stethoscope, Clock, Languages } from 'lucide-react';
+import { ChevronLeft, MapPin, Stethoscope, Clock, Languages, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   AppointmentService,
   type DoctorSlot,
@@ -29,6 +30,13 @@ import {
   BookingProfileStep,
   type BookingProfileIdentity,
 } from '@/features/book-appointment/BookingProfileStep';
+import { SlotCalendar } from '@/features/book-appointment/SlotCalendar';
+import {
+  bookingResumeHref,
+  clearBookingDraft,
+  loadBookingDraft,
+  saveBookingDraft,
+} from '@/features/book-appointment/booking-draft';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
 import { VisitorAuthService } from '@/lib/services/visitorAuthService';
 
@@ -348,6 +356,47 @@ export function BookAppointmentWizard({
     setStep(prev);
   };
 
+  /** Slot chosen before the wallet recharge; re-applied once that date's slots reload. */
+  const pendingSlotIdRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('resume') !== '1') return;
+    params.delete('resume');
+    const query = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+    const draft = loadBookingDraft();
+    clearBookingDraft();
+    if (!draft) return;
+    setBranchId(draft.branchId);
+    setBranchName(draft.branchName);
+    setDepartmentId(draft.departmentId);
+    setSubDepartmentId(draft.subDepartmentId);
+    setDoctorId(draft.doctorId);
+    setSelectedDoctor(draft.selectedDoctor);
+    if (!draft.selectedDoctor && draft.doctorId) {
+      AppointmentService.getPublicDoctor(draft.doctorId)
+        .then(setSelectedDoctor)
+        .catch(() => undefined);
+    }
+    setAppointmentDate(draft.appointmentDate);
+    setRequestCustomSlot(draft.requestCustomSlot);
+    setPreferredTime(draft.preferredTime);
+    setPurpose(draft.purpose);
+    setItemsCarrying(draft.itemsCarrying);
+    setAppointmentMode(draft.appointmentMode);
+    setVisitorType(draft.visitorType);
+    setCompanyName(draft.companyName);
+    setCompanyEmail(draft.companyEmail);
+    if (draft.firstName) setFirstName(draft.firstName);
+    if (draft.lastName) setLastName(draft.lastName);
+    if (draft.phone) setPhone(draft.phone);
+    if (draft.email) setEmail(draft.email);
+    setProfileCreatedHere(draft.profileCreatedHere);
+    pendingSlotIdRef.current = draft.requestCustomSlot ? null : draft.slotId || null;
+    setStep(6);
+  }, []);
+
   React.useEffect(() => {
     setSlotId('');
   }, [doctorId, appointmentDate]);
@@ -358,7 +407,18 @@ export function BookAppointmentWizard({
     setLoadingSlots(true);
     AppointmentService.listDoctorSlots(doctorId, appointmentDate)
       .then((rows) => {
-        if (!cancelled) setSlots(rows);
+        if (cancelled) return;
+        setSlots(rows);
+        const pending = pendingSlotIdRef.current;
+        if (pending) {
+          pendingSlotIdRef.current = null;
+          if (rows.some((row) => row.id === pending)) {
+            setSlotId(pending);
+          } else {
+            setError('The time slot you picked was just taken. Please choose another time.');
+            setStep('5A');
+          }
+        }
       })
       .catch(() => {
         if (cancelled) return;
@@ -374,6 +434,20 @@ export function BookAppointmentWizard({
   }, [doctorId, appointmentDate, step]);
 
   const selectedSlot = slots.find((s) => s.id === slotId);
+  const noSlotsOnDate = step === '5A' && Boolean(appointmentDate) && !loadingSlots && slots.length === 0;
+  const [exiting, setExiting] = React.useState(false);
+
+  const exitAndNotify = async () => {
+    setExiting(true);
+    try {
+      await AppointmentService.joinSlotWaitlist(doctorId, appointmentDate);
+      toast.success("We'll notify you on WhatsApp once slots are available.");
+      router.push(hasAccount || getVisitorToken() ? '/visitor/dashboard' : '/');
+    } catch {
+      toast.error('Could not save your request. Please try again.');
+      setExiting(false);
+    }
+  };
 
   const readyToBook = (): boolean => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -418,6 +492,33 @@ export function BookAppointmentWizard({
       }
     }
     return true;
+  };
+
+  const rechargeAndResume = () => {
+    saveBookingDraft({
+      branchId,
+      branchName,
+      departmentId,
+      subDepartmentId,
+      doctorId,
+      selectedDoctor,
+      appointmentDate,
+      slotId,
+      requestCustomSlot,
+      preferredTime,
+      purpose,
+      itemsCarrying,
+      appointmentMode,
+      visitorType,
+      companyName,
+      companyEmail,
+      firstName,
+      lastName,
+      phone,
+      email,
+      profileCreatedHere,
+    });
+    router.push(`/visitor/wallet?returnTo=${encodeURIComponent(bookingResumeHref())}`);
   };
 
   const continueToPayment = () => {
@@ -486,7 +587,11 @@ export function BookAppointmentWizard({
       )}
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        {canGoBack ? (
+        {noSlotsOnDate ? (
+          <Button variant="ghost" size="sm" disabled={exiting} onClick={() => void exitAndNotify()}>
+            <LogOut className="mr-1 h-4 w-4" /> {exiting ? 'Exiting…' : 'Exit'}
+          </Button>
+        ) : canGoBack ? (
           <Button variant="ghost" size="sm" onClick={goBack}>
             <ChevronLeft className="mr-1 h-4 w-4" /> Back
           </Button>
@@ -696,12 +801,10 @@ export function BookAppointmentWizard({
 
               <div className="space-y-2">
                 <Label>Appointment Date</Label>
-                <Input
+                <SlotCalendar
+                  doctorId={doctorId}
                   value={appointmentDate}
-                  onChange={(e) => setAppointmentDate(e.target.value)}
-                  type="date"
-                  min={todayIstDateIso()}
-                  required
+                  onChange={setAppointmentDate}
                 />
               </div>
 
@@ -713,11 +816,25 @@ export function BookAppointmentWizard({
                 {loadingSlots && (
                   <ConnitorLoader variant="inline" message="Loading time slots…" className="py-3" />
                 )}
-                {!loadingSlots && slots.length === 0 && (
-                  <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
-                    No published slots on this date. You can still ask the doctor for a visit slot
-                    below.
-                  </p>
+                {noSlotsOnDate && (
+                  <div className="space-y-3 rounded-md border border-dashed border-amber-300 bg-amber-50 p-3 text-sm">
+                    <p className="text-amber-900">
+                      No slots are available on this date. Tap Exit and we will notify you on
+                      WhatsApp once slots open. You can also pick a green date, or ask the doctor
+                      for a visit slot below.
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-400 bg-white"
+                      disabled={exiting}
+                      onClick={() => void exitAndNotify()}
+                    >
+                      <LogOut className="mr-1 h-4 w-4" />
+                      {exiting ? 'Exiting…' : 'Exit and notify me'}
+                    </Button>
+                  </div>
                 )}
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {slots.map((slot) => (
@@ -892,7 +1009,8 @@ export function BookAppointmentWizard({
               returnTo={pathname || '/book-appointment'}
               busy={loading}
               onPay={submit}
-              onlineOnly={profileCreatedHere}
+              onRecharge={rechargeAndResume}
+              allowDummy
             />
           )}
 

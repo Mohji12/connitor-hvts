@@ -13,6 +13,7 @@ from app.dependencies.visitor_auth import _decode_visitor_token, visitor_securit
 from app.models import VisitorAccount
 from app.models.enums import ProfileStatus
 from app.services.appointments_service import AppointmentsService
+from app.services.slot_waitlist_service import SlotWaitlistService
 from app.services.visit_notification_dispatch import dispatch_new_visit_request_notifications
 
 router = APIRouter()
@@ -137,6 +138,43 @@ def list_doctor_slots(
     db: Session = Depends(get_db),
 ):
     return AppointmentsService(db).list_doctor_slots(doctor_id, date)
+
+
+@router.get("/doctors/{doctor_id}/available-dates")
+@public_route
+def list_doctor_available_dates(
+    doctor_id: str,
+    from_date: str = Query(..., alias="from", description="YYYY-MM-DD"),
+    to_date: str = Query(..., alias="to", description="YYYY-MM-DD"),
+    db: Session = Depends(get_db),
+):
+    return AppointmentsService(db).list_available_dates(doctor_id, from_date, to_date)
+
+
+class SlotWaitlistBody(BaseModel):
+    date: str = Field(min_length=10, max_length=10, description="YYYY-MM-DD")
+
+
+@router.post("/doctors/{doctor_id}/waitlist")
+@public_route
+def join_slot_waitlist(
+    doctor_id: str,
+    body: SlotWaitlistBody,
+    db: Annotated[Session, Depends(get_db)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(visitor_security)] = None,
+):
+    account_id: str | None = None
+    if credentials:
+        try:
+            token_payload = _decode_visitor_token(credentials.credentials)
+            if token_payload.get("role") == "VISITOR":
+                account_id = token_payload.get("sub")
+        except Exception:
+            account_id = None
+    account = db.get(VisitorAccount, account_id) if account_id else None
+    if not account:
+        raise HTTPException(status_code=401, detail="Sign in to get notified when slots open.")
+    return SlotWaitlistService(db).join(account.id, doctor_id, body.date)
 
 
 @router.post("")

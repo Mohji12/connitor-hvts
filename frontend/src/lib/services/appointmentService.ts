@@ -95,6 +95,25 @@ export const AppointmentService = {
     return ensureArray<DoctorSlot>(response.data);
   },
 
+  /** Dates (YYYY-MM-DD) between `from` and `to` that still have a free slot. */
+  async listAvailableDates(doctorId: string, from: string, to: string): Promise<string[]> {
+    const response = await apiClient.get(
+      `/api/public/appointments/doctors/${doctorId}/available-dates`,
+      { params: { from, to } },
+    );
+    return ensureArray<string>(response.data);
+  },
+
+  /** Ask to be told on WhatsApp once the doctor publishes slots on `date`. */
+  async joinSlotWaitlist(doctorId: string, date: string): Promise<void> {
+    const token = getVisitorToken();
+    await apiClient.post(
+      `/api/public/appointments/doctors/${doctorId}/waitlist`,
+      { date },
+      token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+    );
+  },
+
   async book(data: {
     branchId: string;
     departmentId: string;

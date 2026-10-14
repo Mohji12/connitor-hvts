@@ -1298,6 +1298,15 @@ class SmsService:
     def send_message(self, phone: str, message: str) -> None:
         self._deliver_notification(phone, message, require_delivery=False)
 
+    def send_slot_available_whatsapp(
+        self, phone: str, doctor_name: str, date_label: str, booking_link: str
+    ) -> bool:
+        message = (
+            f"Conninter: Good news! {doctor_name} now has visit slots on {date_label}. "
+            f"Book your slot here: {booking_link}"
+        )
+        return self._deliver_whatsapp(phone, message, require_delivery=False)
+
     def send_sms_only(self, phone: str, message: str) -> None:
         """Send via Twilio/SNS SMS only (skip WhatsApp), e.g. doctor approval links."""
         self._deliver_sms(phone, message, require_delivery=False)
