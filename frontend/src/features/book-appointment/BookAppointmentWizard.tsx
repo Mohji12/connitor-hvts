@@ -166,6 +166,10 @@ export function BookAppointmentWizard({
     };
   }, []);
 
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [step]);
+
   const stepOffset = initialBranchId ? 1 : 0;
   const displayStep = (step === '5A' ? 5 : step) - stepOffset;
   const stepLabel = step === '5A' && profileCreatedHere ? `${displayStep}A` : String(displayStep);
@@ -504,7 +508,7 @@ export function BookAppointmentWizard({
 
       <Card className="relative overflow-hidden max-lg:rounded-2xl">
         {fetchingNext && (
-          <ConnitorLoader variant="overlay" message={fetchingNext} />
+          <ConnitorLoader variant="fullscreen" message={fetchingNext} />
         )}
         <CardHeader>
           <CardTitle>{title}</CardTitle>
@@ -671,26 +675,26 @@ export function BookAppointmentWizard({
                   <p className="text-xs text-muted-foreground">
                     Your profile is missing some contact details. Fill them in for this booking.
                   </p>
-                  <div>
+                  <div className="space-y-2">
                     <Label>First Name</Label>
                     <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label>Last Name</Label>
                     <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label>Phone (10 digits)</Label>
                     <Input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={10} required />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label>Email</Label>
                     <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
                   </div>
                 </>
               )}
 
-              <div>
+              <div className="space-y-2">
                 <Label>Appointment Date</Label>
                 <Input
                   value={appointmentDate}
@@ -774,7 +778,7 @@ export function BookAppointmentWizard({
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="visit-purpose">Purpose of the visit</Label>
                 <Textarea
                   id="visit-purpose"
@@ -786,7 +790,7 @@ export function BookAppointmentWizard({
                   placeholder="For example: product discussion, follow-up consultation"
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="items-carrying">What are you carrying?</Label>
                 <Textarea
                   id="items-carrying"
@@ -798,7 +802,7 @@ export function BookAppointmentWizard({
                   placeholder="For example: laptop, product samples, documents. Write Nothing if you are not carrying anything."
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="visitor-type">Visitor type</Label>
                 <select
                   id="visitor-type"
@@ -822,7 +826,7 @@ export function BookAppointmentWizard({
               </div>
               {visitorType === 'SALES_REPRESENTATIVE' && (
                 <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="company-name">Company name</Label>
                     <Input
                       id="company-name"
@@ -831,7 +835,7 @@ export function BookAppointmentWizard({
                       required
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="company-email">Company email</Label>
                     <Input
                       id="company-email"

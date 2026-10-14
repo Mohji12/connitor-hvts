@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
 import { AppProviders } from '@/components/providers/AppProviders';
+import { ScrollToTop } from '@/components/ScrollToTop';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -35,6 +36,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
+        <ScrollToTop />
         <AppProviders>{children}</AppProviders>
         <Toaster richColors position="top-right" />
       </body>
