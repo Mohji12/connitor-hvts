@@ -38,7 +38,7 @@
 | **Visitor pass quota** | 🟢 Live | Agent | Per-branch daily hospital-issued pass IDs — `docs/features/visitor-pass-quota/` |
 | **Visit slot extension** | 🟢 Live | Agent | Slot-length clock from check-in; doctor extend email; hold next visitor — `docs/features/visit-slot-extension/` |
 | **F-005** Visitor Mgmt    | 🏗 In Progress | Developer | Spec: `docs/specs/F-005-visitor-mgmt`    |
-| **Visitor Pre-Registration** | 🟢 Live     | Agent     | `docs/features/visitor-pre-registration/`. The account activates once the WhatsApp OTP is verified, which is mandatory. The email OTP is optional and only sets `emailVerified`. The last wizard step has one "Create account" button. Google and LinkedIn sign-ups still activate on the provider's email. |
+| **Visitor Pre-Registration** | 🟢 Live     | Agent     | `docs/features/visitor-pre-registration/`. Sign-up verifies the phone only: the last wizard step sends and asks for the WhatsApp OTP, and the account activates when it is verified. No email OTP is sent during sign-up. The email-verify endpoints still exist, and verifying an email only sets `emailVerified`. Google and LinkedIn sign-ups still activate on the provider's email. |
 | **Visitor wallet** | 🟢 Live | Agent | ₹200 visit fee. Razorpay recharge (no withdrawal). Wallet holds until the doctor confirms, then debits. Online pay is captured at booking and refunded on reject. |
 | **F-006** Navigation      | 🏗 In Progress | Developer | Spec: `docs/specs/F-006-navigation`      |
 | **F-007** Messaging       | 🏗 In Progress | Developer | Spec: `docs/specs/F-007-messaging`       |

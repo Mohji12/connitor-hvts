@@ -69,9 +69,7 @@ const OTP_ERRORS: Record<string, string> = {
 function otpErrorMessage(error: unknown, fallback: string): string {
   const message = getApiErrorMessage(error, fallback);
   const suffix = OTP_ERRORS[message];
-  if (!suffix) return message;
-  const subject = fallback.toLowerCase().includes('email') ? 'Email code' : 'WhatsApp code';
-  return `${subject} ${suffix}`;
+  return suffix ? `WhatsApp code ${suffix}` : message;
 }
 
 export function PreRegistrationWizard() {
@@ -86,8 +84,6 @@ export function PreRegistrationWizard() {
   const [preview, setPreview] = useState<VisitorPreviewData>({});
   const [loading, setLoading] = useState(false);
   const [phoneOtp, setPhoneOtp] = useState('');
-  const [emailOtp, setEmailOtp] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
   const [phoneSent, setPhoneSent] = useState(false);
   const [accountExists, setAccountExists] = useState(false);
 
@@ -246,7 +242,7 @@ export function PreRegistrationWizard() {
       await VisitorAccountApi.setPassword(accountId, values.password, values.acceptTerms);
       toast.success('Password saved');
       setStep(5);
-      await sendVerifications();
+      await sendWhatsAppCode();
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Could not save password'));
     } finally {
@@ -263,21 +259,6 @@ export function PreRegistrationWizard() {
     } catch (error) {
       toast.error(otpErrorMessage(error, 'Could not send the WhatsApp code'));
     }
-  };
-
-  const sendEmailCode = async () => {
-    if (!accountId) return;
-    try {
-      const email = await VisitorAccountApi.sendEmailVerification(accountId);
-      setEmailSent(true);
-      if (email.testEmailOtp) toast.message(`Test email OTP: ${email.testEmailOtp}`);
-    } catch (error) {
-      toast.error(otpErrorMessage(error, 'Could not send the email code'));
-    }
-  };
-
-  const sendVerifications = async () => {
-    await Promise.all([sendWhatsAppCode(), sendEmailCode()]);
   };
 
   const createAccount = async () => {
@@ -297,19 +278,8 @@ export function PreRegistrationWizard() {
           return;
         }
       }
-
-      let emailNote = '';
-      if (emailOtp.length === 6 && !preview.emailVerified) {
-        try {
-          await VisitorAccountApi.verifyEmail(accountId, emailOtp);
-          syncPreview({ emailVerified: true });
-        } catch {
-          emailNote = ' The email code did not match, so your email is not verified yet.';
-        }
-      }
-
       sessionStorage.removeItem(STORAGE_KEY);
-      toast.success(`Account created! Sign in to continue.${emailNote}`);
+      toast.success('Account created! Sign in to continue.');
       router.push(loginPath);
     } finally {
       setLoading(false);
@@ -544,14 +514,12 @@ export function PreRegistrationWizard() {
           {step === 5 && accountId && (
             <div className="space-y-4">
               <div className="rounded-lg border border-primary/30 p-4 space-y-3">
-                <p className="font-medium">
-                  WhatsApp code <span className="text-destructive">*</span>
-                </p>
+                <p className="font-medium">Verify your WhatsApp number</p>
                 <p className="text-sm text-muted-foreground">
                   {preview.phoneVerified
                     ? 'Your WhatsApp number is verified.'
                     : phoneSent
-                      ? `Enter the 6-digit code sent to WhatsApp on ${preview.phone ?? 'your mobile'}. This is required.`
+                      ? `Enter the 6-digit code sent to WhatsApp on ${preview.phone ?? 'your mobile'}.`
                       : 'Sending the code to your WhatsApp…'}
                 </p>
                 {!preview.phoneVerified && (
@@ -565,30 +533,6 @@ export function PreRegistrationWizard() {
                     </InputOTP>
                     <Button type="button" variant="outline" size="sm" onClick={sendWhatsAppCode} disabled={loading}>
                       Resend WhatsApp code
-                    </Button>
-                  </>
-                )}
-              </div>
-              <div className="rounded-lg border p-4 space-y-3">
-                <p className="font-medium">Email code (optional)</p>
-                <p className="text-sm text-muted-foreground">
-                  {preview.emailVerified
-                    ? 'Your email is verified.'
-                    : emailSent
-                      ? 'Enter the code sent to your email if you have it. You can create your account without it.'
-                      : 'Sending the code to your email…'}
-                </p>
-                {!preview.emailVerified && (
-                  <>
-                    <InputOTP maxLength={6} value={emailOtp} onChange={setEmailOtp}>
-                      <InputOTPGroup>
-                        {[0, 1, 2, 3, 4, 5].map((i) => (
-                          <InputOTPSlot key={i} index={i} />
-                        ))}
-                      </InputOTPGroup>
-                    </InputOTP>
-                    <Button type="button" variant="outline" size="sm" onClick={sendEmailCode} disabled={loading}>
-                      Resend email code
                     </Button>
                   </>
                 )}
