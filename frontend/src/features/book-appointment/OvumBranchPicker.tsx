@@ -7,6 +7,7 @@ import { AppointmentService, type PublicHospital } from '@/lib/services/appointm
 import { OvumHospitalLogo } from '@/components/brand/OvumHospitalLogo';
 import { OVUM_CHAIN_DISPLAY_NAME, OVUM_CHAIN_ID } from '@/lib/constants/ovum';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
+import { branchSlug } from '@/lib/branch-slug';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -71,7 +72,7 @@ export function OvumBranchPicker() {
                     </p>
                   </div>
                   <Button asChild className="shrink-0 bg-secondary text-secondary-foreground">
-                    <Link href={`/book-appointment/?branchId=${branch.id}`}>
+                    <Link href={`/book-appointment/?branch=${branchSlug(branch.name)}`}>
                       Book here <ChevronRight className="ml-1 h-4 w-4" />
                     </Link>
                   </Button>
