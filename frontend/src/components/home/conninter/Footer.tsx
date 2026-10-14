@@ -27,6 +27,12 @@ const legalLinks = [
   { label: 'HIPAA Compliance', href: '#' },
 ];
 
+const socialLinks = [
+  { icon: Linkedin, href: 'https://www.linkedin.com/company/110573335/', label: 'Conninter on LinkedIn' },
+  { icon: Twitter, href: '#', label: 'Conninter on X' },
+  { icon: Instagram, href: '#', label: 'Conninter on Instagram' },
+];
+
 const staffLinks = [
   { label: 'Staff', href: '/staff/login' },
   { label: 'Distributor', href: '/delivery/login' },
@@ -114,8 +120,14 @@ export default function Footer() {
             © {new Date().getFullYear()} Conninter. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
-            {[Linkedin, Twitter, Instagram].map((Icon, i) => (
-              <a key={i} href="#" className="text-white/55 transition-colors hover:text-white">
+            {socialLinks.map(({ icon: Icon, href, label }) => (
+              <a
+                key={label}
+                href={href}
+                aria-label={label}
+                {...(href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                className="text-white/55 transition-colors hover:text-white"
+              >
                 <Icon className="h-4 w-4" />
               </a>
             ))}
