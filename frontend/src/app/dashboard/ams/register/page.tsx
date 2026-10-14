@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { getApiErrorMessage } from '@/lib/api-errors';
 import {
   AttendantPassService,
   type AttendantAdmission,
@@ -143,11 +144,7 @@ export default function AmsRegisterPage(): React.ReactElement {
       setIssued(pass);
       toast.success('Pass allotted');
     } catch (e: unknown) {
-      const detail =
-        typeof e === 'object' && e && 'response' in e
-          ? String((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? '')
-          : '';
-      toast.error(detail || 'Registration failed');
+      toast.error(getApiErrorMessage(e, 'Registration failed'));
     } finally {
       setLoading(false);
     }

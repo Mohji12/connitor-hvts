@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getApiErrorMessage } from '@/lib/api-errors';
 import { cn } from '@/lib/utils';
 import { StickyActionBar } from '@/components/mobile/StickyActionBar';
 import { AttendantPhotoPicker } from '@/features/attendant-passes/AttendantPhotoPicker';
@@ -201,11 +202,7 @@ function ApplyForm(): React.ReactElement {
       });
       setDone(true);
     } catch (e: unknown) {
-      const detail =
-        typeof e === 'object' && e && 'response' in e
-          ? String((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? '')
-          : '';
-      toast.error(detail || 'Could not submit request');
+      toast.error(getApiErrorMessage(e, 'Could not submit request'));
     } finally {
       setSubmitting(false);
     }
