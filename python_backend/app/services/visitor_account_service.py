@@ -56,25 +56,33 @@ class VisitorAccountService:
         return account
 
     def _get_activation_blockers(self, account: VisitorAccount) -> list[str]:
-        """Account activates once email is verified (other profile steps can continue later)."""
+        """Account activates once the WhatsApp number is verified; email is optional."""
         blockers: list[str] = []
-        if not account.emailVerified:
-            blockers.append("Email must be verified")
+        if not account.phoneVerified:
+            blockers.append("WhatsApp number must be verified")
         return blockers
 
     def _activate_on_email_verified(self, account: VisitorAccount) -> dict[str, Any]:
-        """Mark account active as soon as email is verified."""
+        """Record the email as verified; activate only if the WhatsApp number is verified too."""
         account.emailVerified = True
-        activated = account.profileStatus != ProfileStatus.ACTIVE.value
-        if activated:
+        newly_active = False
+        if account.profileStatus != ProfileStatus.ACTIVE.value and not self._get_activation_blockers(account):
             account.profileStatus = ProfileStatus.ACTIVE.value
             self._audit(account.id, "ACCOUNT_ACTIVATED")
+            newly_active = True
+        active = account.profileStatus == ProfileStatus.ACTIVE.value
+        if newly_active:
+            message = "Account activated"
+        elif active:
+            message = "Account already active"
+        else:
+            message = "Email verified. Verify your WhatsApp number to activate your account."
         return {
             "accountId": account.id,
             "profileStatus": account.profileStatus,
             "emailVerified": True,
-            "activated": True,
-            "message": "Account activated" if activated else "Account already active",
+            "activated": active,
+            "message": message,
         }
 
     def _activate_if_ready(self, account_id: str) -> dict[str, Any] | None:
@@ -260,7 +268,7 @@ class VisitorAccountService:
                 logger.error("SMS OTP failed: %s", exc)
                 raise HTTPException(status_code=503, detail="Failed to send SMS OTP") from exc
 
-        result: dict[str, Any] = {"message": "OTP sent to your mobile"}
+        result: dict[str, Any] = {"message": "OTP sent to your WhatsApp"}
         if is_test_mode_enabled(settings):
             result["testOtp"] = otp
         return result
@@ -346,7 +354,6 @@ class VisitorAccountService:
         self._audit(account_id, "EMAIL_VERIFIED")
         result = self._activate_on_email_verified(account)
         self.db.commit()
-        result["message"] = "Email verified"
         return result
 
     def verify_email_token(self, token: str) -> dict[str, str]:

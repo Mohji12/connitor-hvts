@@ -135,7 +135,7 @@ class VisitorAccountServiceTests(unittest.TestCase):
         self.assertEqual(result["testEmailOtp"], "654321")
         self.service.email.send_registration_otp.assert_called_once_with("rahul@example.com", "654321")
 
-    def test_verify_email_otp_success(self) -> None:
+    def _email_otp_account(self, *, phone_verified: bool) -> MagicMock:
         account = MagicMock()
         account.id = "acct-1"
         account.emailVerificationOtpHash = bcrypt.hashpw(b"654321", bcrypt.gensalt()).decode()
@@ -143,21 +143,33 @@ class VisitorAccountServiceTests(unittest.TestCase):
         account.emailVerificationAttempts = 0
         account.profileStatus = ProfileStatus.PENDING_VERIFICATION.value
         account.emailVerified = False
-
+        account.phoneVerified = phone_verified
         self.db.get.return_value = account
+        return account
+
+    def test_verify_email_otp_alone_does_not_activate(self) -> None:
+        self._email_otp_account(phone_verified=False)
+
+        result = self.service.verify_email_otp("acct-1", "654321")
+        self.assertTrue(result.get("emailVerified"))
+        self.assertFalse(result.get("activated"))
+        self.assertEqual(result["profileStatus"], ProfileStatus.PENDING_VERIFICATION.value)
+
+    def test_verify_email_otp_after_whatsapp_keeps_account_active(self) -> None:
+        self._email_otp_account(phone_verified=True)
 
         result = self.service.verify_email_otp("acct-1", "654321")
         self.assertTrue(result.get("emailVerified"))
         self.assertTrue(result.get("activated"))
         self.assertEqual(result["profileStatus"], ProfileStatus.ACTIVE.value)
 
-    def test_verify_phone_auto_activates_when_ready(self) -> None:
+    def test_verify_phone_activates_without_email(self) -> None:
         account = MagicMock()
         account.id = "acct-1"
         account.phoneVerificationOtpHash = bcrypt.hashpw(b"123456", bcrypt.gensalt()).decode()
         account.phoneVerificationExpiry = datetime(2099, 1, 1)
         account.phoneVerificationAttempts = 0
-        account.emailVerified = True
+        account.emailVerified = False
         account.phoneVerified = False
         account.profileStatus = ProfileStatus.PENDING_VERIFICATION.value
 
@@ -166,6 +178,7 @@ class VisitorAccountServiceTests(unittest.TestCase):
         result = self.service.verify_phone_otp("acct-1", "123456")
         self.assertTrue(result.get("activated"))
         self.assertEqual(result["profileStatus"], ProfileStatus.ACTIVE.value)
+        self.assertTrue(account.phoneVerified)
 
 
 if __name__ == "__main__":
