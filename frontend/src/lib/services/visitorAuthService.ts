@@ -1,5 +1,4 @@
 import apiClient from '@/lib/api';
-import { getBackendApiPrefix } from '@/lib/backend-url';
 import { getVisitorToken, setVisitorToken } from '@/lib/services/visitorPortalService';
 
 export interface VisitorAuthLoginResponse {
@@ -31,14 +30,6 @@ export const VisitorAuthService = {
       password,
     });
     return response.data;
-  },
-
-  getGoogleAuthUrl(): string {
-    return `${getBackendApiPrefix()}/api/public/visitor-auth/google`;
-  },
-
-  getLinkedInAuthUrl(): string {
-    return `${getBackendApiPrefix()}/api/public/visitor-auth/linkedin`;
   },
 
   storeOAuthToken(token: string): void {

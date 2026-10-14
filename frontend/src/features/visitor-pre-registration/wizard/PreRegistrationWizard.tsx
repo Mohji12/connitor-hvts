@@ -45,7 +45,6 @@ import {
 } from '@/features/visitor-pre-registration/schemas/visitorAccountSchema';
 import { LivePhotoStep } from './steps/LivePhotoStep';
 import { GovernmentIdStep } from './steps/GovernmentIdStep';
-import { VisitorAuthService } from '@/lib/services/visitorAuthService';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
 
 const STEPS = [
@@ -548,15 +547,6 @@ export function PreRegistrationWizard() {
               </Button>
             </div>
           )}
-
-          <div className="mt-6 flex gap-2 border-t pt-4">
-            <Button type="button" variant="ghost" size="sm" asChild>
-              <a href={VisitorAuthService.getGoogleAuthUrl()}>Sign up with Google</a>
-            </Button>
-            <Button type="button" variant="ghost" size="sm" asChild>
-              <a href={VisitorAuthService.getLinkedInAuthUrl()}>Sign up with LinkedIn</a>
-            </Button>
-          </div>
         </CardContent>
       </Card>
 

@@ -235,14 +235,6 @@ function VisitorLoginContent() {
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign in'}
                   </Button>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <Button type="button" variant="outline" asChild>
-                      <a href={VisitorAuthService.getGoogleAuthUrl()}>Continue with Google</a>
-                    </Button>
-                    <Button type="button" variant="outline" asChild>
-                      <a href={VisitorAuthService.getLinkedInAuthUrl()}>Continue with LinkedIn</a>
-                    </Button>
-                  </div>
                   <Button type="button" variant="link" className="w-full px-0" onClick={switchToLegacyOtp}>
                     Booked without a profile? Use email OTP
                   </Button>
