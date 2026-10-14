@@ -210,8 +210,8 @@ export default function HeroSection({ bookingsCount }: HeroSectionProps) {
   const moduleKey = SHOWCASE_MODULES[index];
   const mod = heroModules[moduleKey];
 
-  const goBook = () => {
-    router.push(mod.ctaHref);
+  const goToPortal = () => {
+    router.push('/portal');
   };
 
   return (
@@ -299,7 +299,7 @@ export default function HeroSection({ bookingsCount }: HeroSectionProps) {
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') goBook();
+                  if (e.key === 'Enter') goToPortal();
                 }}
                 placeholder={mod.searchPlaceholder}
                 autoComplete="off"
@@ -310,7 +310,7 @@ export default function HeroSection({ bookingsCount }: HeroSectionProps) {
               />
               <button
                 type="button"
-                onClick={goBook}
+                onClick={goToPortal}
                 suppressHydrationWarning
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#001B71] text-white transition-colors hover:bg-[#002a94]"
                 aria-label="Search"
