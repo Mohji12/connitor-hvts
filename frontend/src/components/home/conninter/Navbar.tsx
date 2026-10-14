@@ -36,8 +36,13 @@ export default function Navbar() {
         scrolled ? 'bg-background/95 backdrop-blur-sm shadow-sm' : 'bg-transparent'
       }`}
     >
-      <div className="container mx-auto flex h-[4.5rem] items-center justify-between px-4 lg:h-20 lg:px-8">
-        <ConninterWordmark size="lg" />
+      <div className="container mx-auto flex h-16 min-w-0 items-center justify-between gap-2 px-4 lg:h-20 lg:px-8">
+        <span className="min-w-0 md:hidden">
+          <ConninterWordmark size="md" />
+        </span>
+        <span className="hidden md:inline-flex">
+          <ConninterWordmark size="lg" />
+        </span>
 
         <div className="hidden items-center gap-8 xl:flex">
           {navLinks.map((l) =>
@@ -71,7 +76,7 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="p-2 md:hidden"
+          className="-mr-2 shrink-0 p-2 md:hidden"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
         >
@@ -117,6 +122,11 @@ export default function Navbar() {
                     </Link>
                   </Button>
                 ))}
+                <Button variant="brand" size="sm" className="!rounded-full" asChild>
+                  <Link href="/staff/login" onClick={() => setMobileOpen(false)}>
+                    Staff login
+                  </Link>
+                </Button>
               </div>
             </div>
           </motion.div>

@@ -479,7 +479,7 @@ export function BookAppointmentWizard({
                 <Button
                   key={h.id}
                   variant="outline"
-                  className="w-full justify-start"
+                  className="h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug"
                   disabled={Boolean(fetchingNext)}
                   onClick={() => void selectHospital(h.id)}
                 >
@@ -504,7 +504,7 @@ export function BookAppointmentWizard({
                 <Button
                   key={d.id}
                   variant="outline"
-                  className="w-full justify-start"
+                  className="h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug"
                   disabled={Boolean(fetchingNext)}
                   onClick={() => void selectDepartment(d.id)}
                 >
@@ -526,7 +526,7 @@ export function BookAppointmentWizard({
                 <Button
                   key={s.id}
                   variant="outline"
-                  className="w-full justify-start"
+                  className="h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug"
                   disabled={Boolean(fetchingNext)}
                   onClick={() => void selectSubDepartment(s.id)}
                 >
