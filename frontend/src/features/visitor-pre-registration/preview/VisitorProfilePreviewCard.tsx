@@ -29,14 +29,14 @@ export function VisitorProfilePreviewCard({ data, className }: VisitorProfilePre
   return (
     <Card className={cn('overflow-hidden border-2 shadow-lg', className)}>
       <div className="h-16 bg-gradient-to-r from-[#001B71] to-[#4A90E2]" />
-      <CardContent className="relative px-6 pb-6 pt-0">
-        <Avatar className="-mt-10 h-20 w-20 border-4 border-background shadow-md">
+      <CardContent className="relative px-4 pb-5 pt-0 sm:px-6 sm:pb-6">
+        <Avatar className="-mt-8 h-16 w-16 border-4 border-background shadow-md sm:-mt-10 sm:h-20 sm:w-20">
           <AvatarImage src={avatarSrc} alt={fullName} />
           <AvatarFallback className="text-lg">{initials}</AvatarFallback>
         </Avatar>
 
         <div className="mt-3 space-y-1">
-          <h2 className="text-xl font-semibold leading-tight">{fullName}</h2>
+          <h2 className="text-lg font-semibold leading-tight sm:text-xl">{fullName}</h2>
           {headline ? (
             <p className="text-sm text-muted-foreground">{headline}</p>
           ) : (
@@ -57,7 +57,7 @@ export function VisitorProfilePreviewCard({ data, className }: VisitorProfilePre
           {data.email && (
             <li className="flex items-center gap-2 text-muted-foreground">
               <Mail className="h-4 w-4 shrink-0" />
-              <span className="truncate">{data.email}</span>
+              <span className="min-w-0 truncate">{data.email}</span>
               {data.emailType && (
                 <Badge variant="outline" className="ml-auto text-xs">
                   {data.emailType}

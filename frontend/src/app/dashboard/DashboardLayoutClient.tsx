@@ -75,7 +75,7 @@ export default function DashboardLayoutClient({
       <Suspense fallback={null}>
         <RoleSidebar user={user} />
       </Suspense>
-      <SidebarInset data-testid="dashboard-container" className="min-w-0">
+      <SidebarInset data-testid="dashboard-container" className="min-w-0 max-w-full overflow-x-clip">
         <header className="flex items-center gap-1 sm:gap-2 min-h-14 h-auto px-2 sm:px-4 py-1 border-b border-[#001B71]/08 bg-white shrink-0">
           {!isCompactHeader ? <SidebarTrigger className="mr-2 shrink-0" /> : null}
           <div className="min-w-0 flex-1 flex items-center gap-3">

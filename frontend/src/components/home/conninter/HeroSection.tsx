@@ -21,7 +21,7 @@ const cardMotion = (delay: number) => ({
 const heroImageSrc = (moduleKey: ShowcaseModule): string =>
   moduleKey === 'delivery' ? '/images/hero-delivery.png' : '/images/hero-meeting.png';
 
-const HeroArtwork = ({
+const HeroArtworkDesktop = ({
   moduleKey,
   mod,
   bookingsCount,
@@ -51,6 +51,50 @@ const HeroArtwork = ({
     </div>
     <div className="absolute bottom-0 right-0 z-10 translate-x-[30%] translate-y-[30%] scale-[0.7]">
       <SlotCard delay={0.5} data={mod.slots} />
+    </div>
+  </div>
+);
+
+const MobileKpi = ({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) => (
+  <div className="flex min-w-0 flex-col items-center justify-center rounded-lg border bg-card px-1 py-1.5 text-center shadow-sm">
+    <span className={cn('font-mono text-sm font-extrabold tabular-nums leading-tight text-primary', valueClass)}>
+      {value}
+    </span>
+    <span className="w-full truncate text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+      {label}
+    </span>
+  </div>
+);
+
+/** Mobile / in-app WebView: hero image with a compact KPI row below it. */
+const HeroArtworkMobile = ({
+  moduleKey,
+  mod,
+  bookingsCount,
+}: {
+  moduleKey: ShowcaseModule;
+  mod: HeroModule;
+  bookingsCount: number;
+}) => (
+  <div className="mx-auto w-full max-w-md space-y-2">
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-[#001B71]/10 bg-white shadow-sm">
+      <Image
+        key={moduleKey}
+        src={heroImageSrc(moduleKey)}
+        alt=""
+        fill
+        priority
+        sizes="(max-width: 1024px) 100vw, 0px"
+        className="object-contain p-2"
+      />
+    </div>
+    <div className="grid grid-cols-3 gap-2">
+      <MobileKpi
+        label={mod.stats.label}
+        value={Math.round(bookingsCount * mod.stats.ratio).toLocaleString('en-IN')}
+      />
+      <MobileKpi label="Score" value={String(mod.score.overall)} />
+      <MobileKpi label={mod.slots.countLabel} value={String(mod.slots.count)} valueClass={mod.slots.countClass} />
     </div>
   </div>
 );
@@ -171,8 +215,8 @@ export default function HeroSection({ bookingsCount }: HeroSectionProps) {
   };
 
   return (
-    <section className="relative overflow-x-clip bg-muted/30 pb-16 pt-24 lg:pb-24 lg:pt-32">
-      <div className="container relative z-10 mx-auto px-4 lg:px-8">
+    <section className="relative w-full max-w-[100vw] overflow-x-clip bg-muted/30 pb-8 pt-20 sm:pb-16 sm:pt-24 lg:pb-24 lg:pt-32">
+      <div className="container relative z-10 mx-auto min-w-0 px-4 lg:px-8">
         <div className="lg:grid lg:grid-cols-12 lg:items-center lg:gap-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -190,41 +234,44 @@ export default function HeroSection({ bookingsCount }: HeroSectionProps) {
                 className="lg:min-h-[360px]"
               >
                 {mod.eyebrow ? (
-                  <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary sm:mb-4 sm:text-xs">
                     {mod.eyebrow}
                   </p>
                 ) : null}
-                <h1 className="@container mb-6 w-full text-[0px] leading-none text-foreground">
+                <h1 className="@container mb-3 w-full min-w-0 text-[0px] leading-none text-foreground sm:mb-6">
                   <span
                     className={cn(
-                      'block font-serif font-medium leading-[0.72] tracking-[-0.03em] text-primary antialiased',
+                      'block font-serif font-medium leading-[0.8] tracking-[-0.03em] text-primary antialiased',
                       moduleKey === 'visitor'
-                        ? 'text-[clamp(2.15rem,9.4cqw,3.75rem)]'
-                        : 'text-[clamp(1.85rem,8.2cqw,3.25rem)]',
+                        ? 'text-[clamp(1.5rem,7cqw,3.75rem)]'
+                        : 'text-[clamp(1.35rem,6.3cqw,3.25rem)]',
                     )}
                   >
                     {mod.heading.lead.split('\n').map((line) => (
-                      <span key={line} className="block whitespace-nowrap">
+                      <span key={line} className="block sm:whitespace-nowrap">
                         {line}
                       </span>
                     ))}
                   </span>
                   <span
                     className={cn(
-                      'block font-serif font-medium italic leading-[0.72] tracking-[-0.02em] text-[var(--logo-accent-green)] antialiased',
+                      'block font-serif font-medium italic leading-[0.8] tracking-[-0.02em] text-[var(--logo-accent-green)] antialiased',
                       moduleKey === 'visitor'
-                        ? 'text-[clamp(2.15rem,9.4cqw,3.75rem)]'
-                        : 'text-[clamp(1.85rem,8.2cqw,3.25rem)]',
+                        ? 'text-[clamp(1.5rem,7cqw,3.75rem)]'
+                        : 'text-[clamp(1.35rem,6.3cqw,3.25rem)]',
                     )}
                   >
                     {mod.heading.accent.split('\n').map((line) => (
-                      <span key={line} className="block whitespace-nowrap">
+                      <span key={line} className="block sm:whitespace-nowrap">
                         {line}
                       </span>
                     ))}
                   </span>
                 </h1>
-                <p className="mb-8 max-w-xl font-sans text-lg font-normal leading-relaxed text-muted-foreground md:text-xl">
+                <div className="mb-3 lg:hidden">
+                  <HeroArtworkMobile moduleKey={moduleKey} mod={mod} bookingsCount={bookingsCount} />
+                </div>
+                <p className="mb-4 max-w-xl font-sans text-xs font-normal leading-relaxed text-muted-foreground sm:mb-8 sm:text-base md:text-lg">
                   {mod.subtext}
                 </p>
               </motion.div>
@@ -237,11 +284,11 @@ export default function HeroSection({ bookingsCount }: HeroSectionProps) {
               cycleKey={cycleKey}
               intervalMs={ROTATE_MS}
               ariaLabel="Showcase module"
-              className="mb-4"
+              className="mb-3 sm:mb-4"
             />
 
-            <div className="mb-5 flex max-w-xl items-center rounded-xl border bg-background p-1.5 shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-ring">
-              <div className="flex shrink-0 items-center gap-1.5 border-r px-3 text-sm text-muted-foreground">
+            <div className="mb-4 flex max-w-xl min-w-0 items-center rounded-xl border bg-background p-1 shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-ring sm:mb-5 sm:p-1.5">
+              <div className="flex shrink-0 items-center gap-1.5 border-r px-2 text-xs text-muted-foreground sm:px-3 sm:text-sm">
                 <MapPin className="h-4 w-4 text-secondary" />
                 <span className="font-sans font-medium text-foreground">{city}</span>
               </div>
@@ -259,7 +306,7 @@ export default function HeroSection({ bookingsCount }: HeroSectionProps) {
                 data-lpignore="true"
                 data-form-type="other"
                 suppressHydrationWarning
-                className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground/60"
+                className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs outline-none placeholder:text-muted-foreground/60 sm:px-3 sm:py-2.5 sm:text-sm"
               />
               <button
                 type="button"
@@ -275,9 +322,6 @@ export default function HeroSection({ bookingsCount }: HeroSectionProps) {
 
           <div className="hidden lg:col-span-7 lg:block" aria-hidden />
 
-          <div className="relative z-10 mx-auto mt-8 w-full px-8 pb-4 pt-14 lg:hidden">
-            <HeroArtwork moduleKey={moduleKey} mod={mod} bookingsCount={bookingsCount} />
-          </div>
         </div>
       </div>
 
@@ -295,7 +339,7 @@ export default function HeroSection({ bookingsCount }: HeroSectionProps) {
         />
         <div className="absolute inset-x-0 bottom-0 top-6 z-0 lg:top-10">
           <div className="absolute right-[84px] top-1/2 w-[76%] -translate-y-[calc(50%-0.5rem)]">
-            <HeroArtwork moduleKey={moduleKey} mod={mod} bookingsCount={bookingsCount} />
+            <HeroArtworkDesktop moduleKey={moduleKey} mod={mod} bookingsCount={bookingsCount} />
           </div>
         </div>
       </div>

@@ -15,6 +15,11 @@ const navLinks = [
   { label: 'Demo', href: '/demo' },
 ];
 
+const accessLinks = [
+  { label: 'Attendant pass', href: '/attendant-pass' },
+  { label: 'Visitor pass', href: '/visitor-pass' },
+];
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -34,7 +39,7 @@ export default function Navbar() {
       <div className="container mx-auto flex h-[4.5rem] items-center justify-between px-4 lg:h-20 lg:px-8">
         <ConninterWordmark size="lg" />
 
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-8 xl:flex">
           {navLinks.map((l) =>
             l.href.startsWith('/') ? (
               <Link
@@ -56,13 +61,12 @@ export default function Navbar() {
           )}
         </div>
 
-        <div className="hidden items-center gap-3 md:flex">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/portal">Sign In</Link>
-          </Button>
-          <Button variant="brand" size="sm" className="!rounded-full px-5 font-semibold" asChild>
-            <Link href="/portal?intent=register">Get Started</Link>
-          </Button>
+        <div className="hidden items-center gap-2 md:flex">
+          {accessLinks.map((item) => (
+            <Button key={item.href} variant="outline" size="sm" className="!rounded-full" asChild>
+              <Link href={item.href}>{item.label}</Link>
+            </Button>
+          ))}
         </div>
 
         <button
@@ -83,13 +87,13 @@ export default function Navbar() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden border-t bg-background md:hidden"
           >
-            <div className="flex flex-col gap-3 p-4">
+            <div className="flex flex-col gap-1.5 p-3">
               {navLinks.map((l) =>
                 l.href.startsWith('/') ? (
                   <Link
                     key={l.label}
                     href={l.href}
-                    className="py-2 text-sm font-medium text-muted-foreground"
+                    className="py-1.5 text-xs font-medium text-muted-foreground sm:text-sm"
                     onClick={() => setMobileOpen(false)}
                   >
                     {l.label}
@@ -98,25 +102,21 @@ export default function Navbar() {
                   <a
                     key={l.label}
                     href={l.href}
-                    className="py-2 text-sm font-medium text-muted-foreground"
+                    className="py-1.5 text-xs font-medium text-muted-foreground sm:text-sm"
                     onClick={() => setMobileOpen(false)}
                   >
                     {l.label}
                   </a>
                 ),
               )}
-              <div className="flex gap-3 pt-2">
-                <Button variant="outline" size="sm" className="flex-1" asChild>
-                  <Link href="/portal">Sign In</Link>
-                </Button>
-                <Button
-                  variant="brand"
-                  size="sm"
-                  className="flex-1 !rounded-full font-semibold"
-                  asChild
-                >
-                  <Link href="/portal?intent=register">Get Started</Link>
-                </Button>
+              <div className="flex flex-col gap-1.5 pt-1.5">
+                {accessLinks.map((item) => (
+                  <Button key={item.href} variant="outline" size="sm" className="!rounded-full" asChild>
+                    <Link href={item.href} onClick={() => setMobileOpen(false)}>
+                      {item.label}
+                    </Link>
+                  </Button>
+                ))}
               </div>
             </div>
           </motion.div>

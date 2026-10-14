@@ -176,6 +176,63 @@ class AuthService:
 
         return self._issue_access_token(user)
 
+    def request_password_reset(self, email: str) -> dict:
+        """Email a one-time code so the account can set a new password."""
+        normalized = self.normalize_email(email)
+        user = (
+            self.db.query(User)
+            .filter(User.email == normalized, User.isActive.is_(True))
+            .first()
+        )
+        message = "If this email is registered, a reset code has been sent."
+        if not user:
+            return {"message": message}
+
+        settings = get_settings()
+        fixed = get_fixed_otp(settings)
+        otp = fixed or f"{__import__('random').randint(100000, 999999)}"
+        user.otp = bcrypt.hashpw(otp.encode(), bcrypt.gensalt()).decode()
+        user.otpExpires = now_ist() + timedelta(minutes=10)
+        self.db.commit()
+
+        response: dict = {"message": message}
+        if is_test_mode_enabled(settings):
+            response["testOtp"] = otp
+            return response
+        try:
+            self.email.send_password_reset_otp(normalized, otp)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to send the reset code. Please try again later.",
+            ) from exc
+        return response
+
+    def reset_password_with_otp(self, email: str, otp: str, new_password: str) -> dict:
+        normalized = self.normalize_email(email)
+        user = self.db.query(User).filter(User.email == normalized).first()
+        invalid = HTTPException(status_code=401, detail="Invalid or expired code.")
+        if not user or not user.isActive:
+            raise invalid
+
+        settings = get_settings()
+        if not is_test_mode_enabled(settings):
+            if not user.otpExpires or user.otpExpires < now_ist():
+                user.otp = None
+                user.otpExpires = None
+                self.db.commit()
+                raise invalid
+            if not user.otp or not bcrypt.checkpw(otp.encode(), user.otp.encode()):
+                raise invalid
+
+        self.validate_password_strength(new_password)
+        user.passwordHash = hash_password(new_password)
+        user.otp = None
+        user.otpExpires = None
+        user.updatedAt = now_ist()
+        self.db.commit()
+        return {"message": "Password updated. Sign in with your new password."}
+
     def get_profile(self, user_id: str) -> dict:
         user = (
             self.db.query(User)

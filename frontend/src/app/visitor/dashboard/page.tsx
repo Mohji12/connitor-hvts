@@ -182,18 +182,24 @@ export default function VisitorDashboardPage() {
   return (
     <VisitorPortalShell
       headerExtra={
-        <Button variant="ghost" size="sm" onClick={logout} className="text-muted-foreground">
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign out
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={logout}
+          aria-label="Sign out"
+          className="h-9 w-9 p-0 text-muted-foreground sm:w-auto sm:px-3"
+        >
+          <LogOut className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Sign out</span>
         </Button>
       }
     >
-      <main className="mx-auto max-w-4xl space-y-6 p-4 py-8 sm:p-6">
+      <main className="mx-auto w-full min-w-0 max-w-4xl space-y-5 p-3 py-6 sm:space-y-6 sm:p-6 sm:py-8">
         {data?.profile && (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <VisitorProfilePreviewCard
               data={data.profile as VisitorPreviewData}
-              className="max-w-md flex-1"
+              className="w-full min-w-0 max-w-md flex-1"
             />
             <Button asChild variant="outline" size="sm">
               <Link href="/visitor/dashboard/profile">Edit profile</Link>
@@ -211,7 +217,7 @@ export default function VisitorDashboardPage() {
                 <Wallet className="h-4 w-4" />
                 Wallet
               </p>
-              <p className="mt-2 text-3xl font-bold">
+              <p className="mt-2 text-2xl font-bold sm:text-3xl">
                 ₹{wallet ? wallet.balance.toFixed(2) : '—'}
               </p>
               <p className="mt-1 text-sm text-white/80">
@@ -225,8 +231,8 @@ export default function VisitorDashboardPage() {
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <Stethoscope className="h-6 w-6 text-primary" />
+            <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900 sm:text-2xl">
+              <Stethoscope className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
               My appointment history
             </h1>
             {data && (

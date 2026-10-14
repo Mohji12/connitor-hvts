@@ -309,6 +309,29 @@ class EmailService:
             logger.warning("No email transport configured; %s not sent to %s", context, to_email)
             raise RuntimeError("Email transport is not configured.")
 
+    def send_password_reset_otp(self, to_email: str, otp: str) -> None:
+        settings = get_settings()
+        subject = f"{settings.email_from_name} — Reset your password"
+        text_body = (
+            f"Your password reset code is {otp}.\n\n"
+            "It expires in 10 minutes. Do not share it.\n"
+            "If you did not ask to reset your password, you can ignore this email."
+        )
+        safe_otp = otp.replace("&", "").replace("<", "")
+        html_body = (
+            f"<p>Your password reset code is <strong>{safe_otp}</strong>.</p>"
+            "<p>It expires in 10 minutes. Do not share it.</p>"
+            "<p>If you did not ask to reset your password, you can ignore this email.</p>"
+        )
+        self._deliver_email(
+            to_email,
+            subject,
+            text_body,
+            html_body,
+            context="password reset OTP",
+            force=True,
+        )
+
     def send_otp(self, to_email: str, otp: str) -> None:
         settings = get_settings()
         subject, text_body, html_body = build_login_otp_email(

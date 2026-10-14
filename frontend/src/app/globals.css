@@ -124,9 +124,10 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    @apply w-full max-w-[100vw] overflow-x-clip;
   }
   body {
-    @apply bg-background text-foreground min-h-dvh overflow-x-hidden font-sans antialiased;
+    @apply bg-background text-foreground min-h-dvh w-full max-w-[100vw] overflow-x-clip font-sans antialiased;
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }

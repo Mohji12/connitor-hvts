@@ -25,6 +25,16 @@ class VerifyOtpBody(BaseModel):
     otp: str
 
 
+class ForgotPasswordBody(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordBody(BaseModel):
+    email: EmailStr
+    otp: str
+    password: str
+
+
 @router.post("/login")
 def login(body: LoginBody, db: Annotated[Session, Depends(get_db)]):
     return AuthService(db).login(str(body.email))
@@ -38,6 +48,16 @@ def login_password(body: LoginPasswordBody, db: Annotated[Session, Depends(get_d
 @router.post("/verify-otp")
 def verify_otp(body: VerifyOtpBody, db: Annotated[Session, Depends(get_db)]):
     return AuthService(db).verify_otp(str(body.email), body.otp)
+
+
+@router.post("/forgot-password")
+def forgot_password(body: ForgotPasswordBody, db: Annotated[Session, Depends(get_db)]):
+    return AuthService(db).request_password_reset(str(body.email))
+
+
+@router.post("/reset-password")
+def reset_password(body: ResetPasswordBody, db: Annotated[Session, Depends(get_db)]):
+    return AuthService(db).reset_password_with_otp(str(body.email), body.otp, body.password)
 
 
 @router.get("/me")

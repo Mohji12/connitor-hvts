@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
@@ -73,6 +73,7 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
   const [mounted, setMounted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const roleParam = forcedRole ?? searchParams.get('role');
   const rolePortal = isPortalRole(roleParam) ? findRolePortal(roleParam) : undefined;
@@ -236,6 +237,14 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
                     </div>
                   </FormControl>
                   <FormMessage />
+                  <p className="text-right text-sm">
+                    <Link
+                      href={`/auth/forgot-password?returnTo=${encodeURIComponent(pathname || '/staff/login')}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </p>
                 </FormItem>
               )}
             />

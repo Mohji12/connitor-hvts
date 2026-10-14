@@ -28,10 +28,10 @@ const legalLinks = [
 ];
 
 const staffLinks = [
-  { label: 'Portal hub', href: '/portal' },
-  { label: 'Staff login', href: '/auth/login' },
+  { label: 'Staff', href: '/staff/login' },
+  { label: 'Distributor', href: '/delivery/login' },
   { label: 'Attendant pass', href: '/attendant-pass' },
-  { label: 'Vendor register', href: '/vendor/register' },
+  { label: 'Visitor pass', href: '/visitor-pass' },
 ];
 
 function FooterLink({ href, label }: { href: string; label: string }) {
