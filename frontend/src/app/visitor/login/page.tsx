@@ -108,13 +108,6 @@ function VisitorLoginContent() {
     defaultValues: { identifier: '', password: '' },
   });
 
-  const switchToLegacyOtp = () => {
-    setMode('legacy-otp');
-    setStep('email');
-    setLegacyEmail('');
-    setOtp('');
-  };
-
   const switchToPassword = () => {
     setMode('password');
     setStep('email');
@@ -239,9 +232,6 @@ function VisitorLoginContent() {
                   />
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign in'}
-                  </Button>
-                  <Button type="button" variant="link" className="w-full px-0" onClick={switchToLegacyOtp}>
-                    Booked without a profile? Use email OTP
                   </Button>
                 </form>
               </Form>

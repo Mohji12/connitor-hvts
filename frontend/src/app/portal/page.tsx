@@ -1,14 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Building2, CalendarCheck, IdCard, Truck } from 'lucide-react';
+import { CalendarCheck, IdCard } from 'lucide-react';
 
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { Button } from '@/components/ui/button';
 
 const PORTAL_ACTIONS = [
-  { label: 'Staff', href: '/staff/login', icon: Building2 },
-  { label: 'Distributor', href: '/delivery/login', icon: Truck },
   { label: 'Attendant pass', href: '/attendant-pass', icon: IdCard },
   { label: 'Visitor pass', href: '/visitor-pass', icon: CalendarCheck },
 ] as const;
@@ -36,7 +34,7 @@ function PortalContent() {
             Choose how to continue
           </h1>
           <p className="mt-3 text-muted-foreground leading-relaxed">
-            Staff and distributors sign in. Families open an attendant pass.
+            Families open an attendant pass. Visitors sign in or create a profile to book a visit.
           </p>
         </div>
 

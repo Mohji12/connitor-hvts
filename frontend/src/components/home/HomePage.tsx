@@ -7,7 +7,6 @@ import StatsTickerStrip from '@/components/home/conninter/StatsTickerStrip';
 import HowItWorksSection from '@/components/home/conninter/HowItWorksSection';
 import HospitalsSection from '@/components/home/conninter/HospitalsSection';
 import PricingSection from '@/components/home/conninter/PricingSection';
-import StaffAccessStrip from '@/components/home/conninter/StaffAccessStrip';
 import Footer from '@/components/home/conninter/Footer';
 
 const INITIAL_BOOKINGS = 48_392;
@@ -30,7 +29,6 @@ export function HomePage() {
       <HowItWorksSection />
       <HospitalsSection />
       <PricingSection />
-      <StaffAccessStrip />
       <Footer />
     </div>
   );
