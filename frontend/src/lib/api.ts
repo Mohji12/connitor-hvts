@@ -7,7 +7,11 @@ import {
 } from '@/lib/demo-config';
 import { getBackendBaseUrl } from '@/lib/backend-url';
 import { getStoredAuthToken } from '@/lib/auth-storage';
-import { getVisitorToken, isVisitorPortalApiPath } from '@/lib/visitor-auth-storage';
+import {
+  clearVisitorToken,
+  getVisitorToken,
+  isVisitorPortalApiPath,
+} from '@/lib/visitor-auth-storage';
 import { beginMutationBusy, endMutationBusy } from '@/lib/mutation-busy';
 import { isHtmlPayload } from '@/lib/ensure-array';
 
@@ -138,6 +142,18 @@ if (typeof window !== 'undefined') {
     },
     (error) => {
       releaseBusy(error?.config);
+      // A visitor session the backend rejects (expired, or its profile was removed) is dropped so
+      // pages stop retrying it and show sign-in again.
+      const config = error?.config as InternalAxiosRequestConfig | undefined;
+      const visitorToken = getVisitorToken();
+      if (
+        error?.response?.status === 401 &&
+        visitorToken &&
+        isVisitorPortalApiPath(config?.url) &&
+        String(config?.headers?.Authorization ?? '') === `Bearer ${visitorToken}`
+      ) {
+        clearVisitorToken();
+      }
       return Promise.reject(error);
     },
   );

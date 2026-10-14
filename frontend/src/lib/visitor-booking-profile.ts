@@ -61,6 +61,7 @@ export async function fetchVisitorBookingIdentity(): Promise<VisitorBookingIdent
       const profile = await VisitorAccountApi.getMyProfile(token);
       return fromPreview(profile);
     } catch {
+      if (!getVisitorToken()) return null;
       try {
         const profile = await VisitorAccountApi.getPreview(sub);
         return fromPreview(profile);
