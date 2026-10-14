@@ -81,12 +81,6 @@ export function OvumBranchPicker() {
           ))}
         </ul>
       )}
-
-      <p className="text-center text-sm">
-        <Link href="/book-appointment/" className="text-primary underline-offset-4 hover:underline">
-          Book at another hospital
-        </Link>
-      </p>
     </div>
   );
 }
