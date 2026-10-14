@@ -37,7 +37,7 @@ class BookAppointmentBody(BaseModel):
     visitorType: Literal["GENERAL", "SALES_REPRESENTATIVE", "VENDOR"] = "GENERAL"
     companyName: str | None = None
     companyEmail: EmailStr | None = None
-    paymentMethod: Literal["WALLET", "RAZORPAY"] | None = None
+    paymentMethod: Literal["WALLET", "RAZORPAY", "DUMMY"] | None = None
     razorpayOrderId: str | None = None
     razorpayPaymentId: str | None = None
     razorpaySignature: str | None = None
@@ -164,7 +164,7 @@ def book_appointment(
             pass
     if not payload.get("visitorAccountId"):
         raise HTTPException(status_code=401, detail="Sign in to book and pay for this visit.")
-    if payload.get("paymentMethod") not in ("WALLET", "RAZORPAY"):
+    if payload.get("paymentMethod") not in ("WALLET", "RAZORPAY", "DUMMY"):
         raise HTTPException(status_code=400, detail="Choose wallet or online payment.")
     if payload.get("paymentMethod") == "RAZORPAY" and not (
         payload.get("razorpayOrderId")

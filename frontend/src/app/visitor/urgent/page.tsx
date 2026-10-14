@@ -79,7 +79,7 @@ function UrgentGateInner(): React.ReactElement {
   }, [session?.host.id, slotDate, useWalkIn]);
 
   const book = async (payment: VisitPaymentResult) => {
-    if (!token || !loggedIn) return;
+    if (!token || !loggedIn || payment.paymentMethod === 'DUMMY') return;
     setBooking(true);
     try {
       const booked = await UrgentGatePublicService.book({

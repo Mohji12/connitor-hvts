@@ -113,7 +113,7 @@ export const AppointmentService = {
     visitorType?: 'GENERAL' | 'SALES_REPRESENTATIVE' | 'VENDOR';
     companyName?: string;
     companyEmail?: string;
-    paymentMethod?: 'WALLET' | 'RAZORPAY';
+    paymentMethod?: 'WALLET' | 'RAZORPAY' | 'DUMMY';
     razorpayOrderId?: string;
     razorpayPaymentId?: string;
     razorpaySignature?: string;

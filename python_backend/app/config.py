@@ -200,6 +200,8 @@ class Settings(BaseSettings):
     delivery_module_enabled: bool = Field(default=True, validation_alias="DELIVERY_MODULE_ENABLED")
     delivery_wallet_enabled: bool = Field(default=False, validation_alias="DELIVERY_WALLET_ENABLED")
     visitor_visit_fee_inr: int = Field(default=200, validation_alias="VISITOR_VISIT_FEE_INR")
+    # Temporary: lets visitors confirm a doctor booking without charging money. Set false once Razorpay is live.
+    dummy_visit_payment_enabled: bool = Field(default=True, validation_alias="DUMMY_VISIT_PAYMENT_ENABLED")
     razorpay_key_id: str | None = Field(default=None, validation_alias="RAZORPAY_KEY_ID")
     razorpay_key_secret: str | None = Field(default=None, validation_alias="RAZORPAY_KEY_SECRET")
     razorpay_webhook_secret: str | None = Field(default=None, validation_alias="RAZORPAY_WEBHOOK_SECRET")

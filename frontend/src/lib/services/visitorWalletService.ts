@@ -6,6 +6,7 @@ export type VisitorWalletSummary = {
   available: number;
   fee: number;
   currency: string;
+  dummyPaymentEnabled?: boolean;
 };
 
 export type VisitorWalletTransaction = {

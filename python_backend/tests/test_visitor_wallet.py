@@ -160,3 +160,29 @@ def test_online_reject_refunds_razorpay(db):
         svc.release_on_reject(visit)
     refund.assert_called_once()
     assert visit.paymentStatus == "REFUNDED"
+
+
+def test_dummy_booking_payment_confirms_without_money(db):
+    svc = VisitorWalletService(db)
+    visit = _visit(db)
+    svc.apply_booking_payment(account_id="acct-1", visit=visit, payment_method="DUMMY")
+    assert visit.paymentMethod == "DUMMY"
+    assert visit.paymentStatus == "CAPTURED"
+    assert svc.summary("acct-1")["balance"] == 0
+    assert svc.list_transactions("acct-1") == []
+
+    with patch("app.services.visitor_wallet_service.RazorpayService.refund") as refund:
+        svc.release_on_reject(visit)
+    refund.assert_not_called()
+    assert visit.paymentStatus == "REFUNDED"
+
+
+def test_dummy_booking_payment_rejected_when_turned_off(db):
+    svc = VisitorWalletService(db)
+    visit = _visit(db)
+    with patch("app.services.visitor_wallet_service.get_settings") as settings:
+        settings.return_value.dummy_visit_payment_enabled = False
+        settings.return_value.visitor_visit_fee_inr = 200
+        with pytest.raises(HTTPException) as exc:
+            svc.apply_booking_payment(account_id="acct-1", visit=visit, payment_method="DUMMY")
+    assert exc.value.status_code == 400

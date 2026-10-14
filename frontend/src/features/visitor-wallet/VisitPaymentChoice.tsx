@@ -12,7 +12,7 @@ import {
 } from '@/lib/services/visitorWalletService';
 
 export type VisitPaymentResult = {
-  paymentMethod: 'WALLET' | 'RAZORPAY';
+  paymentMethod: 'WALLET' | 'RAZORPAY' | 'DUMMY';
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;
@@ -44,7 +44,7 @@ export function VisitPaymentChoice({
   const loggedIn = Boolean(getVisitorToken());
   const [wallet, setWallet] = React.useState<VisitorWalletSummary | null>(null);
   const [error, setError] = React.useState('');
-  const [paying, setPaying] = React.useState<'WALLET' | 'RAZORPAY' | null>(null);
+  const [paying, setPaying] = React.useState<'WALLET' | 'RAZORPAY' | 'DUMMY' | null>(null);
 
   React.useEffect(() => {
     if (!loggedIn) return;
@@ -65,6 +65,18 @@ export function VisitPaymentChoice({
       await onPay({ paymentMethod: 'WALLET' });
     } catch (e: unknown) {
       setError(apiDetail(e) || 'Wallet payment failed.');
+    } finally {
+      setPaying(null);
+    }
+  };
+
+  const payDummy = async () => {
+    setError('');
+    setPaying('DUMMY');
+    try {
+      await onPay({ paymentMethod: 'DUMMY' });
+    } catch (e: unknown) {
+      setError(apiDetail(e) || 'Dummy payment failed.');
     } finally {
       setPaying(null);
     }
@@ -122,6 +134,21 @@ export function VisitPaymentChoice({
         >
           {paying === 'RAZORPAY' ? 'Opening payment…' : `Pay ₹${fee} online`}
         </Button>
+        {wallet?.dummyPaymentEnabled && (
+          <>
+            <Button
+              variant="outline"
+              className="w-full border-dashed"
+              disabled={locked}
+              onClick={() => void payDummy()}
+            >
+              {paying === 'DUMMY' ? 'Confirming…' : `Dummy payment ₹${fee} (testing)`}
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Dummy payment confirms the booking without charging any money.
+            </p>
+          </>
+        )}
       </div>
     );
   }

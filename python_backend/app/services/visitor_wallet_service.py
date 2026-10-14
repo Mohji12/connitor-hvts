@@ -76,6 +76,7 @@ class VisitorWalletService:
             "available": float(available),
             "fee": float(fee),
             "currency": "INR",
+            "dummyPaymentEnabled": get_settings().dummy_visit_payment_enabled,
         }
 
     def list_transactions(self, account_id: str, limit: int = 50) -> list[dict]:
@@ -365,6 +366,11 @@ class VisitorWalletService:
             visit.razorpayOrderId = razorpay_order_id
             visit.razorpayPaymentId = razorpay_payment_id
             return
+        if payment_method == "DUMMY":
+            if not get_settings().dummy_visit_payment_enabled:
+                raise HTTPException(status_code=400, detail="Dummy payment is turned off. Pay online instead.")
+            visit.paymentStatus = "CAPTURED"
+            return
         raise HTTPException(status_code=400, detail="Choose wallet or online payment.")
 
     def settle_on_approve(self, visit: Visit) -> None:
@@ -398,6 +404,9 @@ class VisitorWalletService:
 
     def release_on_reject(self, visit: Visit) -> None:
         if not visit.paymentMethod or visit.paymentStatus == "REFUNDED":
+            return
+        if visit.paymentMethod == "DUMMY":
+            visit.paymentStatus = "REFUNDED"
             return
         if visit.paymentMethod == "WALLET" and visit.paymentStatus == "HELD":
             self.release_hold(visit)
