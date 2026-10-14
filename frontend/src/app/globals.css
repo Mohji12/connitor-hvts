@@ -156,6 +156,10 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
+  /* NativeBackBar already pads the status bar area. */
+  body[data-native-back-bar='on'] .pt-safe {
+    padding-top: 0;
+  }
   .app-content {
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
   }

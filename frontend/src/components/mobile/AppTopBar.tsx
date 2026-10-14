@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { goBackInApp, useRegisterTopBar } from '@/lib/app-back';
+import { isNativeApp } from '@/lib/platform';
 
 interface AppTopBarProps {
   title: string;
   subtitle?: string;
-  /** `true` goes back in history; a string links to that path. */
+  /** `true` goes back in history; a string links to that path. Always shown in the native app. */
   back?: boolean | string;
   actions?: React.ReactNode;
   /** Optional content under the title row, e.g. a progress bar. */
@@ -26,6 +28,14 @@ export function AppTopBar({
   className,
 }: AppTopBarProps): React.ReactElement {
   const router = useRouter();
+  const [native, setNative] = React.useState(false);
+  useRegisterTopBar();
+
+  React.useEffect(() => {
+    setNative(isNativeApp());
+  }, []);
+
+  const showBack = Boolean(back) || native;
   const backButtonClass =
     '-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary active:bg-primary/10';
 
@@ -41,12 +51,17 @@ export function AppTopBar({
           <Link href={back} aria-label="Back" className={backButtonClass}>
             <ChevronLeft className="h-6 w-6" />
           </Link>
-        ) : back ? (
-          <button type="button" aria-label="Back" onClick={() => router.back()} className={backButtonClass}>
+        ) : showBack ? (
+          <button
+            type="button"
+            aria-label="Back"
+            onClick={() => goBackInApp(router)}
+            className={backButtonClass}
+          >
             <ChevronLeft className="h-6 w-6" />
           </button>
         ) : null}
-        <div className={cn('min-w-0 flex-1', !back && 'pl-1')}>
+        <div className={cn('min-w-0 flex-1', !showBack && 'pl-1')}>
           <h1 className="m-title truncate">{title}</h1>
           {subtitle ? <p className="m-meta truncate">{subtitle}</p> : null}
         </div>
