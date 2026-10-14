@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { parseQrScanText, QrCheckInScanner } from '@/components/security/QrCheckInScanner';
+import { ScanVerdict } from '@/components/mobile/ScanVerdict';
 
 interface AttendantPassScanTabProps {
   branchId: string;
@@ -144,7 +145,7 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
   const patientName = admission?.patient?.name;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4 lg:block lg:space-y-4">
       {meetings.map((meeting) => (
         <div
           key={meeting.passNumber}
@@ -154,14 +155,14 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
           {meeting.companionName ? <p className="mt-1">With {meeting.companionName}</p> : null}
         </div>
       ))}
-      <Card>
-        <CardHeader>
+      <Card className="max-lg:gap-0 max-lg:border-0 max-lg:bg-transparent max-lg:py-0 max-lg:shadow-none">
+        <CardHeader className="max-lg:hidden">
           <CardTitle>Scan attendant visit pass</CardTitle>
           <p className="text-sm text-muted-foreground">
             Branch {branchId}. Scan the WhatsApp pass QR to check in. Scan that same QR to check out.
           </p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 max-lg:px-0">
           <QrCheckInScanner
             readerId="attendant-qr-reader"
             onScan={async (decoded) => applyDecodedQr(decoded)}
@@ -202,7 +203,11 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
             </p>
           )}
 
-          <Button disabled={loading} onClick={() => void handleScan()}>
+          <Button
+            className="h-12 w-full text-base lg:h-9 lg:w-auto lg:text-sm"
+            disabled={loading}
+            onClick={() => void handleScan()}
+          >
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -212,12 +217,32 @@ export function AttendantPassScanTab({ branchId }: AttendantPassScanTabProps): R
               'Validate QR'
             )}
           </Button>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <>
+              <ScanVerdict tone="deny" title="Do not allow entry" className="lg:hidden" />
+              <p className="text-sm text-destructive">{error}</p>
+            </>
+          )}
         </CardContent>
       </Card>
 
+      {result ? (
+        <ScanVerdict
+          tone={result.outsideVisitingHours ? 'warn' : 'allow'}
+          title={result.scanType === 'EXIT' ? 'Exit recorded' : 'Entry allowed'}
+          subtitle={
+            result.outsideVisitingHours
+              ? `Outside visiting hours${result.visitingHoursSummary ? ` (${result.visitingHoursSummary})` : ''}`
+              : patientName
+                ? `Visiting ${patientName}`
+                : undefined
+          }
+          className="lg:hidden"
+        />
+      ) : null}
+
       {activity.length > 0 && (
-        <Card>
+        <Card className="max-lg:order-last">
           <CardHeader>
             <CardTitle>Bookings</CardTitle>
           </CardHeader>

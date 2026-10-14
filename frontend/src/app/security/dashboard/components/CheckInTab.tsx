@@ -30,6 +30,7 @@ import {
 } from '@/lib/services/urgentPasscodeService';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
+import { ScanVerdict } from '@/components/mobile/ScanVerdict';
 
 type ExtendedViewMode = TabViewMode | 'urgent_passcode' | 'urgent_handoff';
 
@@ -466,7 +467,7 @@ export function CheckInTab({
       id="check-in-tab-content"
       role="tabpanel"
       aria-labelledby="tab-check-in"
-      className={cn('p-4', className)}
+      className={cn('lg:p-4', className)}
       data-testid="check-in-tab"
     >
       {/* Screen reader announcements */}
@@ -704,8 +705,8 @@ export function CheckInTab({
         </div>
       ) : (
         // QR Scan View (primary)
-        <div className="max-w-md mx-auto space-y-6">
-          <div className="text-center space-y-2">
+        <div className="max-w-md mx-auto space-y-4 lg:space-y-6">
+          <div className="hidden text-center space-y-2 lg:block">
             <h2 className="text-xl font-semibold text-gray-900">
               Scan Visitor QR
             </h2>
@@ -728,13 +729,16 @@ export function CheckInTab({
           )}
 
           {qrError && (
-            <Alert variant="destructive" className="text-sm">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{qrError}</AlertDescription>
-            </Alert>
+            <>
+              <ScanVerdict tone="deny" title="Do not allow entry" subtitle="This QR is not valid" className="lg:hidden" />
+              <Alert variant="destructive" className="text-sm">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{qrError}</AlertDescription>
+              </Alert>
+            </>
           )}
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 [&>button]:h-11 lg:[&>button]:h-9">
             <Button
               variant="outline"
               className="w-full"
@@ -769,7 +773,7 @@ export function CheckInTab({
             </Button>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="hidden bg-blue-50 border border-blue-200 rounded-lg p-4 lg:block">
             <h3 className="text-sm font-medium text-blue-900 mb-2">
               Check-in steps
             </h3>

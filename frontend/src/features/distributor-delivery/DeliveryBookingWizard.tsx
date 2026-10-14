@@ -17,6 +17,7 @@ import { todayIstDateIso, formatIstDateTime } from '@/lib/datetime';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { DeliveryStepper } from '@/features/delivery-management/ui';
 import { DriverPhotoField } from '@/features/distributor-delivery/DriverPhotoField';
+import { StickyActionBar } from '@/components/mobile/StickyActionBar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -461,11 +462,27 @@ export function DeliveryBookingWizard(): React.ReactElement {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
-      <DeliveryStepper steps={WIZARD_STEPS} current={step} />
+    <div className="mx-auto max-w-4xl space-y-4 max-lg:pb-24">
+      <div className="max-lg:hidden">
+        <DeliveryStepper steps={WIZARD_STEPS} current={step} />
+      </div>
+      <div className="space-y-2 lg:hidden">
+        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+          <span>
+            Step {step} of {WIZARD_STEPS.length}
+          </span>
+          <span className="text-slate-900">{WIZARD_STEPS[step - 1]}</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+          <div
+            className="h-full rounded-full bg-amber-600 transition-all"
+            style={{ width: `${(step / WIZARD_STEPS.length) * 100}%` }}
+          />
+        </div>
+      </div>
 
       {step === 1 && (
-        <Card>
+        <Card className="max-lg:gap-4 max-lg:py-4 [&>[data-slot=card-content]]:max-lg:px-4 [&>[data-slot=card-header]]:max-lg:px-4">
           <CardHeader>
             <CardTitle>Delivery booking</CardTitle>
           </CardHeader>
@@ -926,19 +943,21 @@ export function DeliveryBookingWizard(): React.ReactElement {
               <p className="text-sm font-medium text-red-700">{feePreview.warning}</p>
             ) : null}
 
-            <Button
-              className="w-full bg-amber-600 hover:bg-amber-700"
-              disabled={!canReview()}
-              onClick={() => setStep(2)}
-            >
-              Continue to payment
-            </Button>
+            <StickyActionBar aboveTabBar>
+              <Button
+                className="w-full bg-amber-600 hover:bg-amber-700 max-lg:h-12"
+                disabled={!canReview()}
+                onClick={() => setStep(2)}
+              >
+                Continue to payment
+              </Button>
+            </StickyActionBar>
           </CardContent>
         </Card>
       )}
 
       {step === 2 && (
-        <Card>
+        <Card className="max-lg:gap-4 max-lg:py-4 [&>[data-slot=card-content]]:max-lg:px-4 [&>[data-slot=card-header]]:max-lg:px-4">
           <CardHeader>
             <CardTitle>Payment</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -1108,20 +1127,37 @@ export function DeliveryBookingWizard(): React.ReactElement {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => setStep(1)} disabled={loading}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground lg:hidden"
+              disabled={loading}
+              onClick={() => void submit(true)}
+            >
+              Simulate payment failure (demo)
+            </Button>
+            <StickyActionBar aboveTabBar className="lg:flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                className="max-lg:h-12"
+                onClick={() => setStep(1)}
+                disabled={loading}
+              >
                 Back
               </Button>
               <Button
                 type="button"
                 variant="outline"
+                className="max-lg:hidden"
                 disabled={loading}
                 onClick={() => void submit(true)}
               >
                 Simulate failure
               </Button>
               <Button
-                className="flex-1 bg-amber-600 hover:bg-amber-700 min-w-[10rem]"
+                className="flex-1 bg-amber-600 hover:bg-amber-700 lg:min-w-[10rem] max-lg:h-12"
                 disabled={loading || !feePreview || !canPay()}
                 onClick={() => void submit(false)}
               >
@@ -1129,7 +1165,7 @@ export function DeliveryBookingWizard(): React.ReactElement {
                   ? 'Processing…'
                   : `Pay ₹${(feePreview?.walletFee ?? 0).toFixed(2)}`}
               </Button>
-            </div>
+            </StickyActionBar>
           </CardContent>
         </Card>
       )}

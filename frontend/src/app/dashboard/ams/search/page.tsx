@@ -13,6 +13,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
+import { EmptyState } from '@/components/mobile/EmptyState';
+import { MobileListCard } from '@/components/mobile/MobileListCard';
+import { ResponsiveDialog } from '@/components/mobile/ResponsiveDialog';
+import { StatusChip } from '@/components/mobile/StatusChip';
 import {
   Select,
   SelectContent,
@@ -31,6 +35,7 @@ export default function AmsSearchPage(): React.ReactElement {
   const [rows, setRows] = React.useState<AttendantPassRow[]>([]);
   const [selected, setSelected] = React.useState<AttendantPassRow | null>(null);
   const [extendTo, setExtendTo] = React.useState('');
+  const [actionRow, setActionRow] = React.useState<AttendantPassRow | null>(null);
 
   const load = React.useCallback(async (quiet = false) => {
     if (!branchId) return;
@@ -52,17 +57,28 @@ export default function AmsSearchPage(): React.ReactElement {
     return () => window.clearInterval(id);
   }, [load]);
 
+  const runAction = async (action: () => Promise<unknown>, success: string, failure: string) => {
+    try {
+      await action();
+      toast.success(success);
+      setActionRow(null);
+      void load();
+    } catch {
+      toast.error(failure);
+    }
+  };
+
   return (
     <AmsPageShell title="Search Attendant" subtitle="Find passes by mobile, MRN, name, or pass ID.">
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 max-lg:gap-2">
         <Input
-          className="max-w-sm"
+          className="max-w-sm max-lg:h-11 max-lg:max-w-none max-lg:basis-full"
           placeholder="Mobile / UHID / name / pass ID"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-40 max-lg:h-11 max-lg:flex-1">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -73,12 +89,104 @@ export default function AmsSearchPage(): React.ReactElement {
             ))}
           </SelectContent>
         </Select>
-        <Button className="bg-[#0052CC]" onClick={() => void load()}>
+        <Button className="bg-[#0052CC] max-lg:h-11" onClick={() => void load()}>
           Search
         </Button>
       </div>
 
-      <Card className="rounded-xl overflow-x-auto">
+      <div className="space-y-2 lg:hidden">
+        {rows.length === 0 ? <EmptyState title="No passes match" /> : null}
+        {rows.map((row) => (
+          <MobileListCard
+            key={row.id}
+            title={row.attendant?.name ?? '—'}
+            subtitle={`${row.attendant?.admission?.patient?.name ?? '—'} · ${row.attendant?.admission?.wardName ?? '—'}`}
+            status={
+              row.isInside ? <StatusChip status="CHECKED_IN" label="Inside" /> : <StatusChip status={row.status} />
+            }
+            meta={[
+              { label: 'Relationship', value: row.attendant?.relationship ?? '—' },
+              { label: 'Entry', value: row.enteredAt ? new Date(row.enteredAt).toLocaleString() : '—' },
+            ]}
+            onClick={() => setActionRow(row)}
+          />
+        ))}
+      </div>
+
+      <ResponsiveDialog
+        open={!!actionRow}
+        onOpenChange={(o) => !o && setActionRow(null)}
+        title={actionRow?.attendant?.name ?? 'Pass'}
+        description={actionRow?.passNumber}
+      >
+        {actionRow ? (
+          <div className="grid gap-2 pb-2 [&_button]:h-11 [&_button]:justify-start">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelected(actionRow);
+                setActionRow(null);
+              }}
+            >
+              View pass QR
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                void runAction(
+                  () =>
+                    AttendantPassService.extendPass(
+                      actionRow.id,
+                      extendTo || new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+                    ),
+                  'Pass extended',
+                  'Extend failed',
+                )
+              }
+            >
+              Extend 24 hours
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                void runAction(() => AttendantPassService.suspendPass(actionRow.id), 'Pass suspended', 'Suspend failed')
+              }
+            >
+              Suspend
+            </Button>
+            {actionRow.isInside ? (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void runAction(
+                    () => AttendantPassService.forceExit(actionRow.id),
+                    'Checked out — pass closed',
+                    'Exit failed',
+                  )
+                }
+              >
+                Force checkout
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              className="border-red-200 text-red-700"
+              disabled={actionRow.status !== 'ACTIVE'}
+              onClick={() =>
+                void runAction(
+                  () => AttendantPassService.revokePass(actionRow.id),
+                  'Pass revoked — no longer active',
+                  'Revoke failed',
+                )
+              }
+            >
+              Revoke
+            </Button>
+          </div>
+        ) : null}
+      </ResponsiveDialog>
+
+      <Card className="rounded-xl overflow-x-auto max-lg:hidden">
         <CardContent className="pt-4">
           <table className="w-full min-w-[800px] text-sm">
             <thead className="border-b text-left text-muted-foreground">

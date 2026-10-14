@@ -281,7 +281,7 @@ export default function ChainAdminOverview() {
       </header>
 
       {/* Stats Row - 2x2 on tablet, 4 on desktop */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {[
           { title: "Today's Visitors", value: chainStats?.todayVisits || 0, icon: CalendarCheck, color: 'from-indigo-500 to-indigo-600', bg: 'bg-indigo-50' },
           { title: 'Active Visits', value: chainStats?.activeVisits || 0, icon: Activity, color: 'from-green-500 to-emerald-600', bg: 'bg-green-50' },

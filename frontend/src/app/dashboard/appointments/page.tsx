@@ -8,6 +8,9 @@ import { formatIstDateTime } from '@/lib/datetime';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { EmptyState, ListSkeleton } from '@/components/mobile/EmptyState';
+import { MobileListCard } from '@/components/mobile/MobileListCard';
+import { StatusChip } from '@/components/mobile/StatusChip';
 import {
   Select,
   SelectContent,
@@ -49,9 +52,9 @@ export default function AppointmentsPage() {
   );
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-4 p-4 md:p-6 lg:space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="max-lg:hidden">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Calendar className="h-6 w-6" /> Appointments
           </h1>
@@ -60,9 +63,9 @@ export default function AppointmentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] max-lg:h-11 max-lg:flex-1">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -73,13 +76,33 @@ export default function AppointmentsPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => mutate()}>
+          <Button variant="outline" size="sm" className="max-lg:h-11" onClick={() => mutate()}>
             Refresh
           </Button>
         </div>
       </div>
 
-      <Card>
+      <div className="space-y-2 lg:hidden">
+        {isLoading ? <ListSkeleton /> : null}
+        {!isLoading && !appointments?.length ? (
+          <EmptyState icon={Calendar} title="No appointments found" />
+        ) : null}
+        {appointments?.map((a) => (
+          <MobileListCard
+            key={a.id}
+            title={a.visitor ? `${a.visitor.firstName} ${a.visitor.lastName}` : 'Visitor'}
+            subtitle={`with ${a.staffName ?? 'Doctor'}`}
+            status={<StatusChip status={a.status} />}
+            meta={[
+              { label: 'When', value: a.appointmentDate ? formatIstDateTime(a.appointmentDate) : '—' },
+              { label: 'Phone', value: a.visitor?.phone ?? '—' },
+              ...(a.purpose ? [{ label: 'Purpose', value: a.purpose }] : []),
+            ]}
+          />
+        ))}
+      </div>
+
+      <Card className="max-lg:hidden">
         <CardHeader>
           <CardTitle>
             {statusFilter === 'ALL' ? 'All Appointments' : STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}

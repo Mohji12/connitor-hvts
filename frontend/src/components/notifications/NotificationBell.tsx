@@ -23,7 +23,7 @@ export const NotificationBell = ({
   onNotificationView,
 }: NotificationBellProps) => {
   return (
-    <div className="mr-4">
+    <div className="mr-1 lg:mr-4">
       <Popover>
         <PopoverTrigger asChild>
           <Button

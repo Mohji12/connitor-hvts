@@ -4,6 +4,8 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { useIsAppShell } from '@/hooks/use-mobile';
+import { ResponsiveDialog } from '@/components/mobile/ResponsiveDialog';
 import { formatIstDateTime } from '@/lib/datetime';
 import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
 import { Button } from '@/components/ui/button';
@@ -63,6 +65,7 @@ export default function ReceivingDashboardPage(): React.ReactElement {
   const [deliveries, setDeliveries] = React.useState<QueueDelivery[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [dockId, setDockId] = React.useState('');
+  const appShell = useIsAppShell();
 
   const load = React.useCallback(async (quiet = false) => {
     if (!branchId) return;
@@ -127,12 +130,24 @@ export default function ReceivingDashboardPage(): React.ReactElement {
     }
   };
 
+  const workspace = (
+    <ReceivingWorkspace
+      selected={selected}
+      docks={docks}
+      dockId={dockId}
+      setDockId={setDockId}
+      assignDock={assignDock}
+      startReceiving={startReceiving}
+      generateGrn={generateGrn}
+    />
+  );
+
   return (
     <DeliveryPageShell
       title="Receiving board"
       subtitle="Move deliveries from gate to dock, then generate GRN. Security marks exit after receiving."
     >
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 max-lg:-mx-4 max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:px-4 max-lg:[scrollbar-width:none] max-lg:[&>*]:shrink-0">
         {docks.map((d) => {
           const occupied = deliveries.some(
             (x) => x.dockId === d.id && x.status === 'IN_PROGRESS',
@@ -200,11 +215,45 @@ export default function ReceivingDashboardPage(): React.ReactElement {
         })}
       </div>
 
+      {appShell ? (
+        <ResponsiveDialog
+          open={!!selected}
+          onOpenChange={(o) => !o && setSelectedId(null)}
+          title={selected?.deliveryNumber ?? 'Delivery'}
+        >
+          {workspace}
+        </ResponsiveDialog>
+      ) : (
       <Card className="border-teal-100 bg-white/90">
         <CardHeader>
           <CardTitle>Workspace</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent>{workspace}</CardContent>
+      </Card>
+      )}
+    </DeliveryPageShell>
+  );
+}
+
+function ReceivingWorkspace({
+  selected,
+  docks,
+  dockId,
+  setDockId,
+  assignDock,
+  startReceiving,
+  generateGrn,
+}: {
+  selected: QueueDelivery | null;
+  docks: Dock[];
+  dockId: string;
+  setDockId: (id: string) => void;
+  assignDock: () => Promise<void>;
+  startReceiving: () => Promise<void>;
+  generateGrn: () => Promise<void>;
+}): React.ReactElement {
+  return (
+    <>
           {!selected ? (
             <DeliveryEmptyState
               title="Select a delivery"
@@ -284,8 +333,6 @@ export default function ReceivingDashboardPage(): React.ReactElement {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
-    </DeliveryPageShell>
+    </>
   );
 }

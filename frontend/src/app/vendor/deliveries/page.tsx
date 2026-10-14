@@ -2,7 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Plus, Wallet } from 'lucide-react';
+import { Package, Plus, Users, Wallet } from 'lucide-react';
+import { EmptyState } from '@/components/mobile/EmptyState';
+import { MobileListCard } from '@/components/mobile/MobileListCard';
 import { toast } from 'sonner';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import {
@@ -64,7 +66,13 @@ export default function VendorDeliveriesPage(): React.ReactElement {
               {walletBalance != null ? `Wallet ₹${walletBalance.toFixed(0)}` : 'Wallet'}
             </Link>
           </Button>
-          <Button asChild>
+          <Button asChild variant="outline" className="lg:hidden">
+            <Link href="/vendor/fleet">
+              <Users className="mr-2 h-4 w-4" />
+              Fleet
+            </Link>
+          </Button>
+          <Button asChild className="max-lg:hidden">
             <Link href="/vendor/deliveries/book">
               <Plus className="mr-2 h-4 w-4" />
               Book delivery
@@ -75,7 +83,52 @@ export default function VendorDeliveriesPage(): React.ReactElement {
     >
       <DeliveryKpiStrip total={summary.total} byStatus={summary.byStatus} />
 
-      <Card className="border-[#001B71]/08 bg-white/90 shadow-sm">
+      <ul className="space-y-2 pb-20 lg:hidden">
+        {items.map((d) => (
+          <li key={d.id}>
+            <MobileListCard
+              href={`/vendor/deliveries/${d.id}`}
+              title={d.deliveryNumber}
+              subtitle={
+                <>
+                  {d.goodsType ?? 'Goods'}
+                  {d.totalBoxes != null ? ` · ${d.totalBoxes} boxes` : ''}
+                  {d.status === 'ON_HOLD' && d.holdReason ? (
+                    <span className="mt-1 block text-rose-800">On hold: {d.holdReason}</span>
+                  ) : null}
+                </>
+              }
+              status={<DeliveryStatusBadge status={d.status} />}
+              meta={[
+                { label: 'Hospital', value: d.branchName ?? '—' },
+                {
+                  label: 'Arrival',
+                  value: d.expectedArrivalTime ? formatIstDateTime(d.expectedArrivalTime) : '—',
+                },
+              ]}
+            />
+          </li>
+        ))}
+      </ul>
+      {items.length === 0 ? (
+        <EmptyState
+          className="lg:hidden"
+          icon={Package}
+          title="No deliveries yet"
+          description="Book a hospital delivery to get started. Your driver will get the gate QR by email."
+        />
+      ) : null}
+
+      <Link
+        href="/vendor/deliveries/book"
+        aria-label="Book delivery"
+        className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 inline-flex h-14 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 active:scale-95 lg:hidden"
+      >
+        <Plus className="h-5 w-5" />
+        Book
+      </Link>
+
+      <Card className="border-[#001B71]/08 bg-white/90 shadow-sm max-lg:hidden">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Recent deliveries</CardTitle>
           <Button asChild variant="outline" size="sm">

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Conninter</string>
+    <string name="title_activity_main">Conninter</string>
+    <string name="package_name">com.conninter.hvts</string>
+    <string name="custom_url_scheme">com.conninter.hvts</string>
+</resources>

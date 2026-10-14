@@ -15,6 +15,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { MobileListCard } from '@/components/mobile/MobileListCard';
+import { ResponsiveDialog } from '@/components/mobile/ResponsiveDialog';
+import { StatusChip } from '@/components/mobile/StatusChip';
+import { useIsAppShell } from '@/hooks/use-mobile';
 
 export default function VisitorPassesPage(): React.ReactElement {
   const user = useAuthSession<{ branchId?: string; role?: string }>();
@@ -28,6 +32,7 @@ export default function VisitorPassesPage(): React.ReactElement {
   const [lastName, setLastName] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [purpose, setPurpose] = React.useState('');
+  const appShell = useIsAppShell();
 
   const load = React.useCallback(async () => {
     if (!branchId) return;
@@ -109,9 +114,19 @@ export default function VisitorPassesPage(): React.ReactElement {
     }
   };
 
+  const assignFields = assignRow ? (
+    <div className="space-y-2">
+      <p className="text-sm font-mono">{assignRow.passId}</p>
+      <Input className="max-lg:h-11" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+      <Input className="max-lg:h-11" placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+      <Input className="max-lg:h-11" placeholder="10-digit phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      <Input className="max-lg:h-11" placeholder="Purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+    </div>
+  ) : null;
+
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div>
+    <div className="space-y-4 p-4 md:p-6 lg:space-y-6">
+      <div className="max-lg:hidden">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Ticket className="h-6 w-6 text-teal-700" />
           Visitor passes
@@ -170,7 +185,7 @@ export default function VisitorPassesPage(): React.ReactElement {
             </Button>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="max-lg:hidden">
           <CardHeader>
             <CardTitle className="text-base">Assign unused pass</CardTitle>
             <CardDescription>Walk-in without a doctor booking</CardDescription>
@@ -178,11 +193,7 @@ export default function VisitorPassesPage(): React.ReactElement {
           <CardContent className="space-y-2">
             {assignRow ? (
               <>
-                <p className="text-sm font-mono">{assignRow.passId}</p>
-                <Input placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                <Input placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                <Input placeholder="10-digit phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                <Input placeholder="Purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+                {assignFields}
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => void assignPass()} disabled={loading}>
                     Assign
@@ -206,8 +217,43 @@ export default function VisitorPassesPage(): React.ReactElement {
           <CardTitle className="text-base">Issued pass IDs</CardTitle>
           <CardDescription>All hospital-generated IDs for this date (assigned and unused)</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
+        <CardContent className="max-lg:px-3">
+          <ul className="space-y-2 lg:hidden">
+            {(data?.items ?? []).map((row) => (
+              <li key={row.id}>
+                <MobileListCard
+                  title={<span className="font-mono">{row.passId}</span>}
+                  subtitle={row.visitorName ?? 'No visitor yet'}
+                  status={
+                    <StatusChip
+                      status={row.status}
+                      label={row.status === 'UNASSIGNED' ? 'Unused' : 'Assigned'}
+                      tone={row.status === 'UNASSIGNED' ? 'neutral' : 'success'}
+                    />
+                  }
+                  meta={
+                    row.status === 'UNASSIGNED'
+                      ? undefined
+                      : [
+                          { label: 'Doctor', value: row.doctorName ?? '—' },
+                          {
+                            label: 'Slot',
+                            value: row.appointmentDate ? formatIstDateTime(row.appointmentDate) : '—',
+                          },
+                        ]
+                  }
+                  actions={
+                    row.status === 'UNASSIGNED' ? (
+                      <Button className="h-11 w-full" variant="outline" onClick={() => setAssignRow(row)}>
+                        Assign visitor
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto lg:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-muted-foreground border-b">
@@ -254,14 +300,30 @@ export default function VisitorPassesPage(): React.ReactElement {
                 ))}
               </tbody>
             </table>
-            {(data?.items ?? []).length === 0 && (
-              <p className="text-sm text-muted-foreground py-6 text-center">
-                No pass IDs issued for this date yet.
-              </p>
-            )}
           </div>
+          {(data?.items ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No pass IDs issued for this date yet.
+            </p>
+          )}
         </CardContent>
       </Card>
+
+      {appShell && (
+        <ResponsiveDialog
+          open={!!assignRow}
+          onOpenChange={(o) => !o && setAssignRow(null)}
+          title="Assign unused pass"
+          description="Walk-in without a doctor booking"
+          footer={
+            <Button className="h-12 w-full" onClick={() => void assignPass()} disabled={loading}>
+              Assign
+            </Button>
+          }
+        >
+          {assignFields}
+        </ResponsiveDialog>
+      )}
     </div>
   );
 }

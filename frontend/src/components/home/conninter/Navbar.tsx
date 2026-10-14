@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 const navLinks = [
   { label: 'Hospitals', href: '#hospitals' },
@@ -84,54 +84,49 @@ export default function Navbar() {
         </button>
       </div>
 
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden border-t bg-background md:hidden"
-          >
-            <div className="flex flex-col gap-1.5 p-3">
-              {navLinks.map((l) =>
-                l.href.startsWith('/') ? (
-                  <Link
-                    key={l.label}
-                    href={l.href}
-                    className="py-1.5 text-xs font-medium text-muted-foreground sm:text-sm"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {l.label}
-                  </Link>
-                ) : (
-                  <a
-                    key={l.label}
-                    href={l.href}
-                    className="py-1.5 text-xs font-medium text-muted-foreground sm:text-sm"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {l.label}
-                  </a>
-                ),
-              )}
-              <div className="flex flex-col gap-1.5 pt-1.5">
-                {accessLinks.map((item) => (
-                  <Button key={item.href} variant="outline" size="sm" className="!rounded-full" asChild>
-                    <Link href={item.href} onClick={() => setMobileOpen(false)}>
-                      {item.label}
-                    </Link>
-                  </Button>
-                ))}
-                <Button variant="brand" size="sm" className="!rounded-full" asChild>
-                  <Link href="/staff/login" onClick={() => setMobileOpen(false)}>
-                    Staff login
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="bottom" className="pb-safe max-h-[85dvh] gap-0 rounded-t-2xl p-0 md:hidden">
+          <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-muted" aria-hidden />
+          <SheetHeader className="px-4 pb-2 pt-3">
+            <SheetTitle className="m-title">Menu</SheetTitle>
+            <SheetDescription className="sr-only">Passes, staff sign-in and site links</SheetDescription>
+          </SheetHeader>
+          <div className="overflow-y-auto px-4 pb-5">
+            <div className="flex flex-col gap-2">
+              {accessLinks.map((item) => (
+                <Button key={item.href} variant="outline" className="h-12 !rounded-xl text-sm" asChild>
+                  <Link href={item.href} onClick={() => setMobileOpen(false)}>
+                    {item.label}
                   </Link>
                 </Button>
-              </div>
+              ))}
+              <Button variant="brand" className="h-12 !rounded-xl text-sm" asChild>
+                <Link href="/staff/login" onClick={() => setMobileOpen(false)}>
+                  Staff login
+                </Link>
+              </Button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <ul className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+              {navLinks.map((l) => {
+                const className = 'flex min-h-12 items-center px-3 m-body active:bg-muted';
+                return (
+                  <li key={l.label} className="border-b border-slate-100 last:border-b-0">
+                    {l.href.startsWith('/') ? (
+                      <Link href={l.href} className={className} onClick={() => setMobileOpen(false)}>
+                        {l.label}
+                      </Link>
+                    ) : (
+                      <a href={l.href} className={className} onClick={() => setMobileOpen(false)}>
+                        {l.label}
+                      </a>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </SheetContent>
+      </Sheet>
     </nav>
   );
 }

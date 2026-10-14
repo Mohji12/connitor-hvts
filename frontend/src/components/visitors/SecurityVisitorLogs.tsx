@@ -69,13 +69,7 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SegmentedControl } from '@/components/mobile/SegmentedControl';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -570,7 +564,7 @@ const VisitorsTable = ({
   return (
     <>
       {/* Desktop Table View */}
-      <div className="border rounded-lg hidden md:block">
+      <div className="border rounded-lg hidden lg:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -703,11 +697,11 @@ const VisitorsTable = ({
       </div>
 
       {/* Mobile Card View */}
-      <div className="space-y-4 md:hidden">
+      <div className="space-y-2 lg:hidden">
         {visitors.map((v) => (
           <div
             key={v.id}
-            className="border rounded-lg p-4 text-sm"
+            className="rounded-2xl border border-slate-100 bg-white p-4 text-sm shadow-sm active:bg-slate-50"
             onClick={() => handleRowClick(v.id)}
           >
             <div className="flex justify-between items-start cursor-pointer">
@@ -1018,31 +1012,18 @@ export function SecurityVisitorLogs({ user }: SecurityVisitorLogsProps) {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="sm:hidden mb-4">
-            <Select value={activeTab} onValueChange={setActiveTab}>
-              <SelectTrigger className="cursor-pointer">
-                <SelectValue placeholder="Select a view..." />
-              </SelectTrigger>
-              <SelectContent>
-                {TABS.map((tab) => (
-                  <SelectItem
-                    key={tab.value}
-                    value={tab.value}
-                    className="cursor-pointer"
-                  >
-                    {tab.label} (
-                    {
-                      visitorsByStatus[
-                        tab.value as keyof typeof visitorsByStatus
-                      ].length
-                    }
-                    )
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <TabsList className="hidden sm:grid w-full grid-cols-5">
+          <SegmentedControl
+            className="mb-4 lg:hidden"
+            ariaLabel="Visitor status"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={TABS.map((tab) => ({
+              value: tab.value,
+              label: tab.label,
+              count: visitorsByStatus[tab.value as keyof typeof visitorsByStatus].length,
+            }))}
+          />
+          <TabsList className="hidden lg:grid w-full grid-cols-5">
             {TABS.map((tab) => (
               <TabsTrigger
                 key={tab.value}

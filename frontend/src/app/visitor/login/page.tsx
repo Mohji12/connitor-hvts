@@ -180,8 +180,8 @@ function VisitorLoginContent() {
 
   return (
     <VisitorPortalShell>
-      <div className="mx-auto flex max-w-md flex-col gap-4 p-4 py-10">
-        <Card className="border-[#001B71]/08 shadow-sm">
+      <div className="mx-auto flex max-w-md flex-col gap-4 p-4 py-6 sm:py-10">
+        <Card className="border-[#001B71]/08 shadow-sm max-lg:rounded-2xl [&_[data-slot=button]]:max-lg:min-h-11 [&_input]:max-lg:h-11">
           <CardHeader>
             <CardTitle>Visitor sign in</CardTitle>
             <CardDescription>

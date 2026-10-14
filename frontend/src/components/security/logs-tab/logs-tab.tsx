@@ -366,10 +366,10 @@ export function LogsTab({ branchId, className }: LogsTabProps): React.ReactEleme
       id="logs-tab-content"
       role="tabpanel"
       aria-labelledby="tab-logs"
-      className={cn('p-4', className)}
+      className={cn('lg:p-4', className)}
       data-testid="logs-tab"
     >
-      <div className="space-y-6">
+      <div className="space-y-4 lg:space-y-6">
         {/* Status Filter Pills */}
         <StatusFilterPills
           selectedFilter={selectedFilter}

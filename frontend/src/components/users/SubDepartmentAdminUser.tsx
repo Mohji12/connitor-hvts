@@ -30,6 +30,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AdminUserRowActions } from './AdminUserRowActions';
+import { AdminUserMobileList } from './AdminUserMobileList';
 
 type Props = {
   user: {
@@ -255,7 +256,15 @@ export function SubDepartmentAdminUser({ user }: Props) {
         </div>
         <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> Add Staff</Button>
       </div>
-      <div className="border rounded-lg">
+      <AdminUserMobileList
+        className="lg:hidden"
+        users={staff}
+        isLoading={isLoading}
+        emptyTitle="No staff yet"
+        onEdit={(target) => { setUserToEdit(target); setOpen(true); }}
+        onDeactivate={setUserToDeactivate}
+      />
+      <div className="border rounded-lg hidden lg:block">
         <Table>
           <TableHeader>
             <TableRow>

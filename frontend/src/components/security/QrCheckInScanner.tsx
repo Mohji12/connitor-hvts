@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { AlertCircle, Camera, Loader2 } from 'lucide-react';
+import { AlertCircle, Camera, Flashlight, FlashlightOff, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -40,6 +40,10 @@ type Html5Scanner = {
       min: () => number;
       max: () => number;
       apply: (value: number) => Promise<void>;
+    };
+    torchFeature?: () => {
+      isSupported: () => boolean;
+      apply: (value: boolean) => Promise<void>;
     };
   };
 };
@@ -213,6 +217,8 @@ export function QrCheckInScanner({
   const [starting, setStarting] = React.useState(false);
   const [active, setActive] = React.useState(false);
   const [shouldStart, setShouldStart] = React.useState(false);
+  const [torchSupported, setTorchSupported] = React.useState(false);
+  const [torchOn, setTorchOn] = React.useState(false);
   const scannerRef = React.useRef<Html5Scanner | null>(null);
   const handledRef = React.useRef(false);
   const onScanRef = React.useRef(onScan);
@@ -232,7 +238,20 @@ export function QrCheckInScanner({
     setActive(false);
     setStarting(false);
     setShouldStart(false);
+    setTorchSupported(false);
+    setTorchOn(false);
   }, []);
+
+  const toggleTorch = React.useCallback(async () => {
+    const torch = scannerRef.current?.getRunningTrackCameraCapabilities?.().torchFeature?.();
+    if (!torch?.isSupported()) return;
+    try {
+      await torch.apply(!torchOn);
+      setTorchOn(!torchOn);
+    } catch {
+      setTorchSupported(false);
+    }
+  }, [torchOn]);
 
   React.useEffect(() => {
     return () => {
@@ -286,6 +305,13 @@ export function QrCheckInScanner({
 
         scannerRef.current = scanner;
         await applyScannerZoom(scanner);
+        try {
+          setTorchSupported(
+            Boolean(scanner.getRunningTrackCameraCapabilities?.().torchFeature?.().isSupported()),
+          );
+        } catch {
+          setTorchSupported(false);
+        }
         setActive(true);
       } catch (error) {
         if (!cancelled) {
@@ -329,16 +355,30 @@ export function QrCheckInScanner({
               <span className="sr-only">Starting camera…</span>
             </div>
           )}
+          {active && torchSupported && (
+            <button
+              type="button"
+              onClick={() => void toggleTorch()}
+              className={cn(
+                'absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full shadow-md',
+                torchOn ? 'bg-amber-400 text-black' : 'bg-black/60 text-white',
+              )}
+              aria-label={torchOn ? 'Turn torch off' : 'Turn torch on'}
+              aria-pressed={torchOn}
+            >
+              {torchOn ? <Flashlight className="h-5 w-5" /> : <FlashlightOff className="h-5 w-5" />}
+            </button>
+          )}
         </div>
       )}
 
       {!showReader && (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center lg:rounded-lg lg:p-8">
           <Camera className="mx-auto h-10 w-10 text-gray-400" />
           <p className="mt-3 text-sm text-gray-600">{hint}</p>
           <Button
             type="button"
-            className="mt-4 bg-emerald-600 hover:bg-emerald-700"
+            className="mt-4 h-12 w-full bg-emerald-600 text-base hover:bg-emerald-700 lg:h-9 lg:w-auto lg:text-sm"
             onClick={requestStart}
             disabled={disabled}
           >

@@ -68,8 +68,46 @@ export default function VendorWalletPage(): React.ReactElement {
       title="Wallet"
       subtitle="Recharge here, then choose Wallet on the delivery booking payment step. Fees are deducted from this balance."
     >
+      <section className="rounded-3xl bg-gradient-to-br from-[#001B71] to-[#1f4fa8] p-5 text-white shadow-lg lg:hidden">
+        <p className="text-xs font-medium uppercase tracking-wide text-white/70">Wallet balance</p>
+        <p className="mt-1 text-4xl font-bold">₹{balance != null ? balance.toFixed(2) : '—'}</p>
+        <p className="mt-1 text-xs text-white/70">Demo credit — no real payment gateway.</p>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {['500', '1000', '2000'].map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setAmount(v)}
+              className={`h-10 rounded-xl text-sm font-semibold transition-colors ${
+                amount === v ? 'bg-white text-[#001B71]' : 'bg-white/15 text-white active:bg-white/25'
+              }`}
+            >
+              ₹{v}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="h-12 border-white/30 bg-white/10 text-white placeholder:text-white/60"
+            aria-label="Recharge amount"
+          />
+          <Button
+            className="h-12 bg-white px-6 text-[#001B71] hover:bg-white/90"
+            onClick={() => void recharge()}
+            disabled={!vendorId || !(Number(amount) > 0)}
+          >
+            Recharge
+          </Button>
+        </div>
+      </section>
+
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="border-[#001B71]/08 bg-white shadow-sm">
+        <Card className="border-[#001B71]/08 bg-white shadow-sm max-lg:hidden">
           <CardHeader>
             <CardTitle>Balance</CardTitle>
           </CardHeader>
@@ -94,9 +132,9 @@ export default function VendorWalletPage(): React.ReactElement {
           </CardContent>
         </Card>
 
-        <Card className="border-[#001B71]/08 bg-white/90">
+        <Card className="border-[#001B71]/08 bg-white/90 max-lg:gap-3 max-lg:py-4 [&>[data-slot=card-content]]:max-lg:px-3 [&>[data-slot=card-header]]:max-lg:px-4">
           <CardHeader>
-            <CardTitle>Transactions</CardTitle>
+            <CardTitle className="max-lg:text-base">Transactions</CardTitle>
           </CardHeader>
           <CardContent>
             {txs.length === 0 ? (

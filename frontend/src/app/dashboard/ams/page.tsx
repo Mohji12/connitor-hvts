@@ -14,6 +14,8 @@ import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MobileListCard } from '@/components/mobile/MobileListCard';
+import { StatusChip } from '@/components/mobile/StatusChip';
 
 const EMPTY_STATS: AmsStats = {
   patientsAdmitted: 0,
@@ -130,8 +132,32 @@ export default function AmsDashboardPage(): React.ReactElement {
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+        <CardContent className="overflow-x-auto max-lg:px-3">
+          <ul className="space-y-2 lg:hidden">
+            {activity.length === 0 ? (
+              <li className="py-4 text-center text-sm text-muted-foreground">No recent activity.</li>
+            ) : (
+              activity.map((row, idx) => (
+                <li key={`${row.name}-${idx}`}>
+                  <MobileListCard
+                    title={row.name}
+                    subtitle={[
+                      row.companionName ? `With ${row.companionName}` : null,
+                      `${row.patient}${row.bed ? ` · Bed ${row.bed}` : ''}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    status={<StatusChip status={row.status} />}
+                    meta={[
+                      { label: 'Time', value: row.time ? new Date(row.time).toLocaleTimeString() : '—' },
+                      { label: 'Ward', value: row.ward ?? '—' },
+                    ]}
+                  />
+                </li>
+              ))
+            )}
+          </ul>
+          <table className="hidden w-full min-w-[640px] text-left text-sm lg:table">
             <thead className="border-b text-muted-foreground">
               <tr>
                 <th className="py-2 pr-3 font-medium">Time</th>

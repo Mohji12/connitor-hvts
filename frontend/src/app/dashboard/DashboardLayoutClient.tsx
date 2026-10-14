@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { RoleSidebar } from '@/components/sidebar/RoleSidebar';
-import { useResponsive } from '@/hooks/use-mobile';
+import { useIsAppShell, useResponsive } from '@/hooks/use-mobile';
 import { TeamSwitcher } from '@/components/sidebar/team-switcher';
 import { Hospital, Maximize, Shrink } from 'lucide-react';
 import { OvumHospitalLogo } from '@/components/brand/OvumHospitalLogo';
@@ -18,6 +19,15 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { DemoRoleSwitcher } from '@/components/demo/DemoRoleSwitcher';
 import { RoleRoutePrefetcher } from '@/components/navigation/RoleRoutePrefetcher';
+import { AppTopBar, BottomTabBar, MoreSheet } from '@/components/mobile';
+import {
+  findActiveHref,
+  getMobileNav,
+  getMobilePageTitle,
+  isTabRoot,
+} from '@/lib/mobile-nav-config';
+import { displayRole } from '@/lib/role-label';
+import { logout } from '@/lib/logout';
 
 interface User {
   id: string;
@@ -34,6 +44,69 @@ interface User {
   branch: { name: string } | null;
 }
 
+type Notifications = ReturnType<typeof useNotifications>;
+
+function AppShellChrome({
+  user,
+  notifications,
+  children,
+}: {
+  user: User;
+  notifications: Notifications;
+  children: React.ReactNode;
+}): React.ReactElement {
+  const pathname = usePathname() ?? '/dashboard';
+  const searchParams = useSearchParams();
+  const search = new URLSearchParams(searchParams?.toString() ?? '');
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const nav = getMobileNav(user.role);
+  const moreItems = nav.more.flatMap((group) => group.items);
+  const activeTab = findActiveHref(nav.tabs, pathname, search);
+  const activeMore = activeTab ? null : findActiveHref(moreItems, pathname, search);
+  const title = getMobilePageTitle(nav, pathname, search);
+  const showBack = !isTabRoot(nav, pathname, search);
+  const place = user.branchName ?? user.branch?.name ?? user.hospitalChainName ?? user.hospitalChain?.name;
+
+  return (
+    <div className="flex min-h-dvh w-full flex-col bg-[#F7F9FC]">
+      <AppTopBar
+        title={title}
+        subtitle={showBack ? undefined : place}
+        back={showBack}
+        actions={
+          <>
+            <DemoRoleSwitcher />
+            <NotificationBell
+              notifications={notifications.notifications}
+              unreadCount={notifications.unreadCount}
+              onMarkAsRead={notifications.markAsRead}
+              onNotificationView={notifications.handleNotificationView}
+            />
+          </>
+        }
+      />
+      <main className="app-content min-w-0 flex-1 overflow-x-clip">{children}</main>
+      <BottomTabBar
+        tabs={nav.tabs}
+        isActive={(href) => href === activeTab}
+        onMore={() => setMoreOpen(true)}
+        moreActive={Boolean(activeMore)}
+      />
+      <MoreSheet
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        groups={nav.more}
+        user={{
+          name: user.name || user.email,
+          subtitle: [displayRole(user.role), place].filter(Boolean).join(' · '),
+        }}
+        onLogout={() => logout('/app/')}
+      />
+    </div>
+  );
+}
+
 export default function DashboardLayoutClient({
   user,
   children,
@@ -42,11 +115,12 @@ export default function DashboardLayoutClient({
   children: React.ReactNode;
 }) {
   const { isMobile, isTablet } = useResponsive();
+  const isAppShell = useIsAppShell();
   const [isFullScreen, setIsFullScreen] = useState(false);
   const isCompactHeader = isMobile || isTablet;
 
-  const { notifications, unreadCount, markAsRead, handleNotificationView } =
-    useNotifications(user);
+  const notifications = useNotifications(user);
+  const { unreadCount, markAsRead, handleNotificationView } = notifications;
 
   const toggleFullScreen = () => {
     if (!document.fullscreenElement)
@@ -61,6 +135,19 @@ export default function DashboardLayoutClient({
     return () =>
       document.removeEventListener('fullscreenchange', onFullScreenChange);
   }, []);
+
+  if (isAppShell) {
+    return (
+      <>
+        <RoleRoutePrefetcher role={user.role} />
+        <Suspense fallback={null}>
+          <AppShellChrome user={user} notifications={notifications}>
+            {children}
+          </AppShellChrome>
+        </Suspense>
+      </>
+    );
+  }
 
   const teamsData = [buildDashboardTeamEntry(user, Hospital)];
   const showOvumBrand = isOvumHospitalUser({
@@ -87,7 +174,7 @@ export default function DashboardLayoutClient({
           <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
             <DemoRoleSwitcher />
             <NotificationBell
-              notifications={notifications}
+              notifications={notifications.notifications}
               unreadCount={unreadCount}
               onMarkAsRead={markAsRead}
               onNotificationView={handleNotificationView}

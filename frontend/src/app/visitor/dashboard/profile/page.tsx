@@ -55,8 +55,8 @@ export default function VisitorProfileEditPage() {
   };
 
   return (
-    <VisitorPortalShell>
-      <div className="mx-auto max-w-lg p-6 py-10">
+    <VisitorPortalShell appTabs>
+      <div className="mx-auto max-w-lg p-4 py-6 sm:p-6 sm:py-10">
         <Card className="border-[#001B71]/08 shadow-sm">
           <CardHeader>
             <CardTitle>Edit profile</CardTitle>

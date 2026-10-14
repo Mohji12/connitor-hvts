@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { DeliveryStatusBadge } from '@/features/delivery-management/ui';
 import { formatIstDateTime } from '@/lib/datetime';
 import { parseQrScanText, QrCheckInScanner } from '@/components/security/QrCheckInScanner';
+import { ScanVerdict, type ScanVerdictTone } from '@/components/mobile/ScanVerdict';
 
 interface DeliveryScanTabProps {
   branchId: string;
@@ -191,17 +192,28 @@ export function DeliveryScanTab({ branchId }: DeliveryScanTabProps): React.React
     }
   };
 
+  const status = String(delivery?.status ?? '');
+  const verdict: { tone: ScanVerdictTone; title: string; subtitle?: string } | null = !delivery
+    ? null
+    : status === 'SCHEDULED' || status === 'APPROVED'
+      ? { tone: 'allow', title: 'Valid delivery', subtitle: 'Tap Allow entry to let the vehicle in' }
+      : ['ARRIVED_AT_GATE', 'GATE_VERIFIED', 'IN_PROGRESS', 'RECEIVED'].includes(status)
+        ? { tone: 'warn', title: 'Vehicle inside', subtitle: 'Mark exit when it leaves' }
+        : status === 'EXITED' || status === 'CLOSED'
+          ? { tone: 'warn', title: 'Already exited' }
+          : { tone: 'deny', title: 'Do not allow entry', subtitle: `Status: ${status || 'unknown'}` };
+
   return (
     <div className="space-y-4">
-      <Card className="border-amber-100 bg-white/90">
-        <CardHeader>
+      <Card className="border-amber-100 bg-white/90 max-lg:gap-0 max-lg:border-0 max-lg:bg-transparent max-lg:py-0 max-lg:shadow-none">
+        <CardHeader className="max-lg:hidden">
           <CardTitle>Scan delivery QR</CardTitle>
           <p className="text-sm text-muted-foreground">
             Scan the driver&apos;s WhatsApp delivery pass QR to check in. Scan the same QR again to
             check out when the vehicle leaves.
           </p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 max-lg:px-0">
           <QrCheckInScanner
             readerId="delivery-qr-reader"
             onScan={onCameraScan}
@@ -238,12 +250,19 @@ export function DeliveryScanTab({ branchId }: DeliveryScanTabProps): React.React
             </div>
           )}
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <>
+              <ScanVerdict tone="deny" title="Do not allow entry" className="lg:hidden" />
+              <p className="text-sm text-destructive">{error}</p>
+            </>
+          )}
         </CardContent>
       </Card>
 
+      {verdict ? <ScanVerdict {...verdict} className="lg:hidden" /> : null}
+
       {delivery && (
-        <Card className="border-teal-200 bg-teal-50/40">
+        <Card className="border-teal-200 bg-teal-50/40 max-lg:rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{String(delivery.deliveryNumber ?? 'Delivery')}</CardTitle>
             <DeliveryStatusBadge status={String(delivery.status ?? '')} />
@@ -285,15 +304,20 @@ export function DeliveryScanTab({ branchId }: DeliveryScanTabProps): React.React
                 Gate pass: {passNumber}
               </p>
             )}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {(delivery.status === 'SCHEDULED' || delivery.status === 'APPROVED') && (
-                <Button onClick={() => void allowEntry()}>Allow entry</Button>
+                <Button
+                  className="h-12 bg-emerald-600 text-base hover:bg-emerald-700 lg:h-9 lg:bg-primary lg:text-sm lg:hover:bg-primary/90"
+                  onClick={() => void allowEntry()}
+                >
+                  Allow entry
+                </Button>
               )}
               {(delivery.status === 'ARRIVED_AT_GATE' ||
                 delivery.status === 'GATE_VERIFIED' ||
                 delivery.status === 'IN_PROGRESS' ||
                 delivery.status === 'RECEIVED') && (
-                <Button variant="outline" onClick={() => void markExit()}>
+                <Button variant="outline" className="h-12 lg:h-9" onClick={() => void markExit()}>
                   Mark exit (same WhatsApp QR)
                 </Button>
               )}
@@ -312,7 +336,7 @@ export function DeliveryScanTab({ branchId }: DeliveryScanTabProps): React.React
         </Card>
       )}
 
-      <Card className="border-slate-200 bg-white/90">
+      <Card className="border-slate-200 bg-white/90 max-lg:hidden">
         <CardHeader>
           <CardTitle>Unified queue</CardTitle>
         </CardHeader>

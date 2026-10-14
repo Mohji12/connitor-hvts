@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { StickyActionBar } from '@/components/mobile/StickyActionBar';
 import { VISITOR_KINDS, type VisitorKind } from '@/lib/constants/visit-constants';
 import {
   VisitPaymentChoice,
@@ -427,7 +428,7 @@ export function BookAppointmentWizard({
   };
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('space-y-4', step === 5 && 'max-lg:pb-24', className)}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         {step > minStep && step < 7 ? (
           <Button variant="ghost" size="sm" onClick={goBack}>
@@ -448,16 +449,30 @@ export function BookAppointmentWizard({
         )}
       </div>
 
-      <Card className="relative overflow-hidden">
+      <Card className="relative overflow-hidden max-lg:rounded-2xl">
         {fetchingNext && (
           <ConnitorLoader variant="overlay" message={fetchingNext} />
         )}
         <CardHeader>
           <CardTitle>{title}</CardTitle>
           {step < 7 && (
-            <p className="text-sm text-muted-foreground">
-              Step {displayStep} of {totalSteps}
-            </p>
+            <>
+              <p className="text-sm text-muted-foreground">
+                Step {displayStep} of {totalSteps}
+              </p>
+              <div
+                className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
+                role="progressbar"
+                aria-valuemin={1}
+                aria-valuemax={totalSteps}
+                aria-valuenow={displayStep}
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-300"
+                  style={{ width: `${Math.min(100, (displayStep / totalSteps) * 100)}%` }}
+                />
+              </div>
+            </>
           )}
           {initialBranchId && branchName && step < 7 && (
             <p className="text-sm text-primary font-medium">{branchName}</p>
@@ -479,7 +494,7 @@ export function BookAppointmentWizard({
                 <Button
                   key={h.id}
                   variant="outline"
-                  className="h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug"
+                  className="h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug max-lg:min-h-12 max-lg:rounded-xl"
                   disabled={Boolean(fetchingNext)}
                   onClick={() => void selectHospital(h.id)}
                 >
@@ -504,7 +519,7 @@ export function BookAppointmentWizard({
                 <Button
                   key={d.id}
                   variant="outline"
-                  className="h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug"
+                  className="h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug max-lg:min-h-12 max-lg:rounded-xl"
                   disabled={Boolean(fetchingNext)}
                   onClick={() => void selectDepartment(d.id)}
                 >
@@ -526,7 +541,7 @@ export function BookAppointmentWizard({
                 <Button
                   key={s.id}
                   variant="outline"
-                  className="h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug"
+                  className="h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug max-lg:min-h-12 max-lg:rounded-xl"
                   disabled={Boolean(fetchingNext)}
                   onClick={() => void selectSubDepartment(s.id)}
                 >
@@ -672,7 +687,7 @@ export function BookAppointmentWizard({
                       size="sm"
                       variant={!requestCustomSlot && slotId === slot.id ? 'default' : 'outline'}
                       className={cn(
-                        'text-xs',
+                        'text-xs max-lg:h-10',
                         !requestCustomSlot && slotId === slot.id && 'bg-primary',
                       )}
                       onClick={() => {
@@ -820,13 +835,15 @@ export function BookAppointmentWizard({
                   </Button>
                 </div>
               </div>
-              <Button
-                className="w-full"
-                onClick={continueToPayment}
-                disabled={(!requestCustomSlot && !slotId) || (requestCustomSlot && !preferredTime)}
-              >
-                Continue to payment
-              </Button>
+              <StickyActionBar>
+                <Button
+                  className="w-full max-lg:h-12 max-lg:text-base"
+                  onClick={continueToPayment}
+                  disabled={(!requestCustomSlot && !slotId) || (requestCustomSlot && !preferredTime)}
+                >
+                  Continue to payment
+                </Button>
+              </StickyActionBar>
             </div>
           )}
 

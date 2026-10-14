@@ -516,7 +516,7 @@ const UsersTable = ({
   return (
     <div>
       {/* Desktop Table View */}
-      <div className="border rounded-lg hidden md:block">
+      <div className="border rounded-lg hidden lg:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -598,7 +598,7 @@ const UsersTable = ({
       </div>
 
       {/* Mobile Card View */}
-      <div className="space-y-4 md:hidden">
+      <div className="space-y-3 lg:hidden">
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="border rounded-lg p-4">

@@ -37,14 +37,8 @@ import {
 
 // UI Components
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { DialogFooter } from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/mobile/ResponsiveDialog';
 import { Label } from '@/components/ui/label';
 import {
   Form,
@@ -209,15 +203,17 @@ const RejectDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Reject Visitor Request</DialogTitle>
-          <DialogDescription>
-            Please provide a brief reason for rejecting the request from{' '}
-            <span className="font-semibold text-primary">{visitorName}</span>.
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title="Reject Visitor Request"
+      description={
+        <>
+          Please provide a brief reason for rejecting the request from{' '}
+          <span className="font-semibold text-primary">{visitorName}</span>.
+        </>
+      }
+    >
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
@@ -262,8 +258,7 @@ const RejectDialog = ({
             </DialogFooter>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   );
 };
 
@@ -302,18 +297,20 @@ const ApproveDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Approve appointment</DialogTitle>
-          <DialogDescription>
-            Confirm approval for{' '}
-            <span className="font-semibold text-primary">{visitorName}</span>.
-            {visitor.appointmentMode === 'ONLINE'
-              ? ' A video consultation room will be created and the link sent to the visitor.'
-              : ' Add an optional message — the visitor will see it on their dashboard.'}
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title="Approve appointment"
+      description={
+        <>
+          Confirm approval for{' '}
+          <span className="font-semibold text-primary">{visitorName}</span>.
+          {visitor.appointmentMode === 'ONLINE'
+            ? ' A video consultation room will be created and the link sent to the visitor.'
+            : ' Add an optional message — the visitor will see it on their dashboard.'}
+        </>
+      }
+    >
         <form onSubmit={onSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
             <Label>Message for visitor (optional)</Label>
@@ -333,8 +330,7 @@ const ApproveDialog = ({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   );
 };
 
@@ -458,7 +454,7 @@ const VisitorList = ({
   return (
     <>
       {/* Desktop Table View */}
-      <div className="border rounded-lg hidden md:block">
+      <div className="border rounded-lg hidden lg:block">
         <Table className="w-full">
           <TableHeader>
             <TableRow>
@@ -637,26 +633,26 @@ const VisitorList = ({
       </div>
 
       {/* Mobile Card View */}
-      <div className="space-y-4 md:hidden">
+      <div className="space-y-3 lg:hidden">
         {visits.map((visit) => {
           const visitorName = buildVisitorName(visit.visitor);
 
           return (
             <div
               key={visit.id}
-              className="border rounded-lg p-4 text-sm"
+              className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"
               onClick={() => handleRowClick(visit.id)}
             >
-              <div className="flex justify-between items-start cursor-pointer">
-                <div className="flex items-center gap-3">
+              <div className="flex justify-between items-start gap-2 cursor-pointer">
+                <div className="flex min-w-0 items-center gap-3">
                   <VisitorAvatar
                     photoUrl={visit.visitor.photo || undefined}
                     visitorName={visitorName}
                     className="h-10 w-10"
                     fallbackClassName="bg-primary/10"
                   />
-                  <div className="space-y-1">
-                    <p className="font-semibold">{visitorName}</p>
+                  <div className="min-w-0 space-y-1">
+                    <p className="break-words font-semibold">{visitorName}</p>
                     <p className="text-xs text-muted-foreground">
                       {visit.visitor.phone}
                     </p>
@@ -774,7 +770,9 @@ const VisitorList = ({
                 </div>
               </div>
               {renderActions(visit) && (
-                <div className="border-t mt-3 pt-3">{renderActions(visit)}</div>
+                <div className="mt-3 border-t pt-3 [&>div]:pt-0 [&_button]:h-11 [&_button]:flex-1 [&_button]:text-sm">
+                  {renderActions(visit)}
+                </div>
               )}
             </div>
           );
@@ -901,8 +899,8 @@ export default function MyVisitors({ user }: MyVisitorsProps) {
   return (
     <>
       <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6 lg:p-8 pb-4 lg:pb-8">
-        <header className="flex flex-col gap-4 mb-6">
-          <div>
+        <header className="mb-4 flex flex-col gap-3 lg:mb-6 lg:gap-4">
+          <div className="max-lg:hidden">
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg">
                 <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -918,13 +916,13 @@ export default function MyVisitors({ user }: MyVisitorsProps) {
               Monitor and manage visitors assigned to you
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-2 sm:flex-row lg:gap-4">
             <div className="relative flex-grow">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Search by name or phone..."
-                className="w-full rounded-lg bg-background pl-8"
+                className="w-full rounded-lg bg-background pl-8 max-lg:h-11"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -934,7 +932,7 @@ export default function MyVisitors({ user }: MyVisitorsProps) {
                 <Button
                   variant={'outline'}
                   className={cn(
-                    'w-full sm:w-[280px] justify-start text-left font-normal cursor-pointer',
+                    'w-full sm:w-[280px] justify-start text-left font-normal cursor-pointer max-lg:h-11',
                     !date && 'text-muted-foreground',
                   )}
                 >
@@ -955,7 +953,7 @@ export default function MyVisitors({ user }: MyVisitorsProps) {
             </Popover>
             <Button
               type="button"
-              className="bg-indigo-600 hover:bg-indigo-700 shrink-0"
+              className="bg-indigo-600 hover:bg-indigo-700 shrink-0 max-lg:h-11"
               onClick={() => setUrgentPasscodeOpen(true)}
             >
               <KeyRound className="h-4 w-4 mr-2" />
@@ -965,7 +963,7 @@ export default function MyVisitors({ user }: MyVisitorsProps) {
         </header>
 
         <Tabs defaultValue="pending" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-3 max-lg:h-11 max-lg:rounded-xl">
             <TabsTrigger value="pending" className="cursor-pointer">
               Pending{' '}
               <Badge variant="secondary" className="ml-2">

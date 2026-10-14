@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { StickyActionBar } from '@/components/mobile/StickyActionBar';
 
 function branchShortLabel(branch: AttendantPassBranch): string {
   const location = [branch.city, branch.state].filter(Boolean).join(', ');
@@ -222,7 +223,7 @@ function ApplyForm(): React.ReactElement {
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-xl space-y-6">
+    <div className={cn('relative mx-auto w-full max-w-xl space-y-4 lg:space-y-6', lookup && 'max-lg:pb-24')}>
       {(lookupLoading || searching) && (
         <ConnitorLoader
           variant="fullscreen"
@@ -230,8 +231,17 @@ function ApplyForm(): React.ReactElement {
         />
       )}
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">Apply for visit pass</h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <h1 className="text-xl font-bold tracking-tight lg:text-2xl">Apply for visit pass</h1>
+        <div className="lg:hidden">
+          <p className="m-meta">Step {lookup ? 2 : 1} of 2 · {lookup ? 'Your details' : 'Find patient'}</p>
+          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-300"
+              style={{ width: lookup ? '100%' : '50%' }}
+            />
+          </div>
+        </div>
+        <p className="text-sm leading-relaxed text-muted-foreground max-lg:text-xs">
           Book during the hospital visiting hours. The pass is sent on WhatsApp right away. A new
           booking closes only while another visitor is checked in with the patient.
         </p>
@@ -460,13 +470,15 @@ function ApplyForm(): React.ReactElement {
               </>
             )}
             <div className="sm:col-span-2">
-              <Button
-                disabled={submitting || Boolean(lookup?.hasAttendantInside)}
-                className="w-full sm:w-auto"
-                onClick={() => void submit()}
-              >
-                Book pass
-              </Button>
+              <StickyActionBar>
+                <Button
+                  disabled={submitting || Boolean(lookup?.hasAttendantInside)}
+                  className="w-full max-lg:h-12 max-lg:text-base lg:w-auto"
+                  onClick={() => void submit()}
+                >
+                  Book pass
+                </Button>
+              </StickyActionBar>
             </div>
           </CardContent>
         </Card>
@@ -477,7 +489,7 @@ function ApplyForm(): React.ReactElement {
 
 export default function AttendantPassApplyPage(): React.ReactElement {
   return (
-    <main className="min-h-screen bg-[#F7F9FC] px-4 py-8 md:px-8">
+    <main className="pt-safe min-h-screen bg-[#F7F9FC] px-4 py-5 md:px-8 lg:py-8">
       <React.Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
         <ApplyForm />
       </React.Suspense>

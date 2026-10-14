@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { DepartmentHierarchyFields } from './DepartmentHierarchyFields';
 import { AdminUserRowActions } from './AdminUserRowActions';
+import { AdminUserMobileList } from './AdminUserMobileList';
 
 type Props = {
   user: {
@@ -354,7 +355,15 @@ function UserTable({
   onDeactivate: (user: User) => void;
 }) {
   return (
-    <div className="border rounded-lg mt-4">
+    <>
+    <AdminUserMobileList
+      className="mt-4 lg:hidden"
+      users={users}
+      isLoading={isLoading}
+      onEdit={onEdit}
+      onDeactivate={onDeactivate}
+    />
+    <div className="border rounded-lg mt-4 hidden lg:block">
       <Table>
         <TableHeader>
           <TableRow>
@@ -389,5 +398,6 @@ function UserTable({
         </TableBody>
       </Table>
     </div>
+    </>
   );
 }

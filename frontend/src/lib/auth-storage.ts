@@ -1,15 +1,29 @@
-/** Staff/admin JWT — stored per browser tab so multiple roles can stay signed in separately. */
+import { isNativeApp } from '@/lib/platform';
+
+/**
+ * Staff/admin JWT. Browsers keep it per tab so multiple roles can stay signed in separately.
+ * The native app keeps it in localStorage so staff stay signed in after the app is closed.
+ */
 export const AUTH_TOKEN_STORAGE_KEY = 'authToken';
+
+function tokenStore(): Storage {
+  return isNativeApp() ? localStorage : sessionStorage;
+}
 
 export function getStoredAuthToken(): string | null {
   if (typeof window === 'undefined') {
     return null;
   }
-  return sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  return tokenStore().getItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
 export function setStoredAuthToken(token: string): void {
   if (typeof window === 'undefined') {
+    return;
+  }
+  if (isNativeApp()) {
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+    sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     return;
   }
   sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);

@@ -7,8 +7,10 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { getDashboardPathForRole } from '@/lib/auth-routing';
 import { DEMO_BRANCH_ID, IS_DEMO_MODE } from '@/lib/demo-config';
 import { getStoredAuthToken } from '@/lib/auth-storage';
-import { useResponsive } from '@/hooks/use-mobile';
+import { useIsAppShell } from '@/hooks/use-mobile';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
+import { SegmentedControl } from '@/components/mobile/SegmentedControl';
+import { HeartHandshake, Truck, UserRound } from 'lucide-react';
 
 interface User {
   sub: string;
@@ -32,7 +34,16 @@ type SecurityTab =
   | 'logs'
   | 'delivery-scan'
   | 'deliveries'
-  | 'attendant-scan';
+  | 'attendant-scan'
+  | 'on-spot';
+
+type ScanMode = 'check-in' | 'delivery-scan' | 'attendant-scan';
+
+const SCAN_MODES: { value: ScanMode; label: string; icon: React.ElementType }[] = [
+  { value: 'check-in', label: 'Visitor', icon: UserRound },
+  { value: 'delivery-scan', label: 'Delivery', icon: Truck },
+  { value: 'attendant-scan', label: 'Attendant', icon: HeartHandshake },
+];
 
 function PanelFallback(): React.ReactElement {
   return <div className="h-28 animate-pulse rounded-md bg-muted" aria-hidden="true" />;
@@ -80,7 +91,8 @@ function parseTab(value: string | null): SecurityTab {
     value === 'check-in' ||
     value === 'delivery-scan' ||
     value === 'deliveries' ||
-    value === 'attendant-scan'
+    value === 'attendant-scan' ||
+    value === 'on-spot'
   ) {
     return value;
   }
@@ -99,7 +111,7 @@ export default function SecurityDashboardPage(): React.ReactElement {
 
 function SecurityDashboard(): React.ReactElement {
   const searchParams = useSearchParams();
-  const { isDesktop } = useResponsive();
+  const appShell = useIsAppShell();
   const sessionUser = useAuthSession<User>();
   const router = useRouter();
   const [isLive, setIsLive] = React.useState(true);
@@ -141,6 +153,20 @@ function SecurityDashboard(): React.ReactElement {
     return <ConnitorLoader variant="section" message="Opening your dashboard…" className="min-h-[50vh] py-16" />;
   }
 
+  if (appShell) {
+    return (
+      <MobileSecurityPanel
+        activeTab={activeTab}
+        branchId={branchId}
+        branchName={branchName}
+        authToken={authToken}
+        appointmentsRefresh={appointmentsRefresh}
+        onCheckInSuccess={handleCheckInSuccess}
+        onScanModeChange={(mode) => router.replace(`/security/dashboard?tab=${mode}`)}
+      />
+    );
+  }
+
   const panel = (
     <SecurityTabPanel
       activeTab={activeTab}
@@ -152,8 +178,7 @@ function SecurityDashboard(): React.ReactElement {
     />
   );
 
-  if (isDesktop) {
-    return (
+  return (
       <div className="max-w-7xl mx-auto space-y-6 p-4 md:p-6">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -179,10 +204,7 @@ function SecurityDashboard(): React.ReactElement {
         </div>
         {panel}
       </div>
-    );
-  }
-
-  return <div className="p-4 space-y-4">{panel}</div>;
+  );
 }
 
 function SecuritySection({
@@ -263,6 +285,9 @@ function SecurityTabPanel({
       </SecuritySection>
     );
   }
+  if (activeTab === 'on-spot') {
+    return <OnSpotQrPanel branchId={branchId} branchName={branchName} />;
+  }
   return (
     <div className="space-y-6">
       <OnSpotQrPanel branchId={branchId} branchName={branchName} />
@@ -271,4 +296,62 @@ function SecurityTabPanel({
       </SecuritySection>
     </div>
   );
+}
+
+/** Phone / app layout: scan-first, no section chrome (the app top bar carries the title). */
+function MobileSecurityPanel({
+  activeTab,
+  branchId,
+  branchName,
+  authToken,
+  appointmentsRefresh,
+  onCheckInSuccess,
+  onScanModeChange,
+}: {
+  activeTab: SecurityTab;
+  branchId: string;
+  branchName?: string;
+  authToken: string;
+  appointmentsRefresh: number;
+  onCheckInSuccess: () => void;
+  onScanModeChange: (mode: ScanMode) => void;
+}): React.ReactElement {
+  if (activeTab === 'check-in' || activeTab === 'delivery-scan' || activeTab === 'attendant-scan') {
+    return (
+      <div className="space-y-4 p-4">
+        <SegmentedControl
+          value={activeTab}
+          onChange={onScanModeChange}
+          options={SCAN_MODES}
+          ariaLabel="What are you scanning?"
+        />
+        {activeTab === 'check-in' ? (
+          <CheckInTab branchId={branchId} onCheckInSuccess={onCheckInSuccess} />
+        ) : activeTab === 'delivery-scan' ? (
+          <DeliveryScanTab branchId={branchId} />
+        ) : (
+          <AttendantPassScanTab branchId={branchId} />
+        )}
+      </div>
+    );
+  }
+
+  let content: React.ReactNode;
+  switch (activeTab) {
+    case 'appointments':
+      content = <TodayAppointmentsTab branchId={branchId} refreshKey={appointmentsRefresh} />;
+      break;
+    case 'visitor-passes':
+      content = <VisitorPassesTab branchId={branchId} refreshKey={appointmentsRefresh} />;
+      break;
+    case 'logs':
+      content = <LogsTab branchId={branchId} authToken={authToken} />;
+      break;
+    case 'deliveries':
+      content = <TodayDeliveriesTab branchId={branchId} />;
+      break;
+    default:
+      content = <OnSpotQrPanel branchId={branchId} branchName={branchName} />;
+  }
+  return <div className="p-4">{content}</div>;
 }

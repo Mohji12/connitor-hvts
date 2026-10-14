@@ -24,6 +24,12 @@ import {
   type VisitorWalletSummary,
 } from '@/lib/services/visitorWalletService';
 import type { VisitorPreviewData } from '@/features/visitor-pre-registration/schemas/visitorAccountSchema';
+import { StatusChip } from '@/components/mobile/StatusChip';
+import {
+  cacheVisitorPasses,
+  clearVisitorPassCache,
+  pickUpcomingVisit,
+} from '@/lib/visitor-pass-cache';
 
 const STATUS_LABELS: Record<string, string> = {
   REQUEST_SENT: 'Awaiting doctor approval',
@@ -102,7 +108,16 @@ function AppointmentCard({ item }: { item: VisitorAppointment }) {
         )}
 
         {item.status === 'APPROVED' && item.checkInQrCode && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-4 py-4 text-center">
+          <Button asChild className="h-11 w-full bg-emerald-600 hover:bg-emerald-700 lg:hidden">
+            <Link href={`/visitor/pass?id=${encodeURIComponent(item.bookingId)}`}>
+              <QrCode className="mr-2 h-4 w-4" />
+              Show gate pass
+            </Link>
+          </Button>
+        )}
+
+        {item.status === 'APPROVED' && item.checkInQrCode && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-4 py-4 text-center max-lg:hidden">
             <p className="mb-3 flex items-center justify-center gap-2 text-sm font-medium text-emerald-900">
               <QrCode className="h-4 w-4" />
               Show this QR at hospital security
@@ -125,6 +140,41 @@ function AppointmentCard({ item }: { item: VisitorAppointment }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** Phone home hero: the next visit and a one-tap path to its gate pass. */
+function UpcomingVisitCard({ item }: { item: VisitorAppointment }) {
+  const hasPass = (item.status === 'APPROVED' || item.status === 'CHECKED_IN') && Boolean(item.checkInQrCode);
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:hidden">
+      <div className="flex items-start justify-between gap-2">
+        <p className="m-meta font-semibold uppercase tracking-wide">Next visit</p>
+        <StatusChip status={item.status} />
+      </div>
+      <p className="mt-2 text-lg font-semibold leading-snug text-foreground">
+        {item.doctorName ? `Dr. ${item.doctorName.replace(/^Dr\.?\s*/i, '')}` : (item.departmentName ?? 'Appointment')}
+      </p>
+      <p className="m-meta mt-0.5">
+        {[item.departmentName, item.branchName].filter(Boolean).join(' · ')}
+      </p>
+      <p className="mt-3 flex items-center gap-2 text-sm font-medium text-primary">
+        <Calendar className="h-4 w-4" />
+        {formatDate(item.appointmentDate)}
+      </p>
+      {hasPass ? (
+        <Button asChild className="mt-4 h-12 w-full bg-emerald-600 text-base hover:bg-emerald-700">
+          <Link href={`/visitor/pass?id=${encodeURIComponent(item.bookingId)}`}>
+            <QrCode className="mr-2 h-5 w-5" />
+            Show gate pass
+          </Link>
+        </Button>
+      ) : item.status === 'REQUEST_SENT' ? (
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Waiting for the doctor to approve. Your pass appears here once approved.
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -165,10 +215,17 @@ export default function VisitorDashboardPage() {
     },
   );
 
+  useEffect(() => {
+    if (data?.appointments) cacheVisitorPasses(data.appointments);
+  }, [data]);
+
   const logout = () => {
     clearVisitorToken();
+    clearVisitorPassCache();
     router.push('/visitor/login');
   };
+
+  const upcoming = data ? pickUpcomingVisit(data.appointments) : null;
 
   if (!ready || isLoading || walletLoading) {
     return (
@@ -181,6 +238,7 @@ export default function VisitorDashboardPage() {
 
   return (
     <VisitorPortalShell
+      appTabs
       headerExtra={
         <Button
           variant="ghost"
@@ -194,9 +252,18 @@ export default function VisitorDashboardPage() {
         </Button>
       }
     >
-      <main className="mx-auto w-full min-w-0 max-w-4xl space-y-5 p-3 py-6 sm:space-y-6 sm:p-6 sm:py-8">
+      <main className="mx-auto w-full min-w-0 max-w-4xl space-y-4 p-4 sm:p-6 sm:py-8 lg:space-y-6">
+        {data && (
+          <div className="lg:hidden">
+            <p className="m-meta">Welcome back</p>
+            <h1 className="m-title text-xl">{data.visitorName}</h1>
+          </div>
+        )}
+
+        {upcoming ? <UpcomingVisitCard item={upcoming} /> : null}
+
         {data?.profile && (
-          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-3 max-lg:hidden sm:flex-row sm:items-start sm:justify-between">
             <VisitorProfilePreviewCard
               data={data.profile as VisitorPreviewData}
               className="w-full min-w-0 max-w-md flex-1"
@@ -231,18 +298,19 @@ export default function VisitorDashboardPage() {
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900 sm:text-2xl">
+            <h2 className="m-section lg:hidden">Your visits</h2>
+            <h1 className="hidden items-center gap-2 text-xl font-bold text-slate-900 sm:text-2xl lg:flex">
               <Stethoscope className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
               My appointment history
             </h1>
             {data && (
-              <p className="text-muted-foreground mt-1">
+              <p className="text-muted-foreground mt-1 max-lg:hidden">
                 Welcome, {data.visitorName}
                 {data.email ? ` · ${data.email}` : data.phone ? ` · ${data.phone}` : ''}
               </p>
             )}
           </div>
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" className="max-lg:hidden">
             <Link href="/book-appointment">
               <Calendar className="mr-2 h-4 w-4" />
               Book new visit

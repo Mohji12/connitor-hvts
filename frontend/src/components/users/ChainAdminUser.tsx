@@ -524,7 +524,7 @@ const UsersTable = ({
   return (
     <div>
       {/* Desktop Table View */}
-      <div className="border rounded-lg hidden md:block">
+      <div className="border rounded-lg hidden lg:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -620,7 +620,7 @@ const UsersTable = ({
       </div>
 
       {/* Mobile Card View (No changes here, it already handles the empty state correctly) */}
-      <div className="space-y-4 md:hidden">
+      <div className="space-y-3 lg:hidden">
         {isLoading ? (
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (

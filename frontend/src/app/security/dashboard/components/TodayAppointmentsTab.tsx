@@ -13,15 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MEETING_STATUS_LABELS } from '@/lib/constants/visit-constants';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { formatIstDateTime } from '@/lib/datetime';
 import { IdProofVerificationForm } from '@/components/security/IdProofVerificationForm';
 import { VisitorGovernmentIdDialog } from '@/components/security/VisitorGovernmentIdDialog';
+import { SegmentedControl } from '@/components/mobile/SegmentedControl';
+import { EmptyState, ListSkeleton } from '@/components/mobile/EmptyState';
+import { ResponsiveDialog } from '@/components/mobile/ResponsiveDialog';
 
 type Props = {
   branchId: string;
@@ -31,6 +28,8 @@ type Props = {
 };
 
 const REFRESH_MS = 5_000;
+
+type MobileFilter = 'today' | 'pending' | 'upcoming';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   REQUEST_SENT: 'outline',
@@ -54,7 +53,7 @@ function AppointmentCard({
     appt.doctorConfirmed ?? appt.status === 'APPROVED';
 
   return (
-    <Card>
+    <Card className="max-lg:gap-3 max-lg:rounded-2xl max-lg:py-4 [&_[data-slot=button]]:max-lg:h-10">
       <CardHeader className="pb-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -177,6 +176,7 @@ function AppointmentCard({
 export function TodayAppointmentsTab({ className, refreshKey = 0 }: Props) {
   const [verifyVisit, setVerifyVisit] = React.useState<TodayAppointment | null>(null);
   const [viewIdVisit, setViewIdVisit] = React.useState<TodayAppointment | null>(null);
+  const [mobileFilter, setMobileFilter] = React.useState<MobileFilter>('today');
   const { data: pendingData, isLoading: pendingLoading, mutate: mutatePending } = useSWR(
     ['/api/security/appointments/pending', refreshKey],
     () => SecurityAppointmentService.getPendingAppointments(),
@@ -219,9 +219,18 @@ export function TodayAppointmentsTab({ className, refreshKey = 0 }: Props) {
     }
   };
 
+  const mobileLists: Record<MobileFilter, TodayAppointment[]> = {
+    today: appointments,
+    pending: pendingAppointments,
+    upcoming: upcomingConfirmed,
+  };
+  const hideOnMobile = (section: MobileFilter): string | undefined =>
+    mobileFilter === section ? undefined : 'max-lg:hidden';
+  const anyLoading = pendingLoading || isLoading || confirmedLoading;
+
   return (
     <div className={className}>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 hidden items-center justify-between lg:flex">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Calendar className="h-5 w-5" /> Appointments
@@ -235,13 +244,47 @@ export function TodayAppointmentsTab({ className, refreshKey = 0 }: Props) {
         </Button>
       </div>
 
-      {(pendingLoading || isLoading || confirmedLoading) && (
-        <p className="text-sm text-muted-foreground">Loading appointments...</p>
+      <div className="mb-3 flex items-center gap-2 lg:hidden">
+        <SegmentedControl
+          className="flex-1"
+          value={mobileFilter}
+          onChange={setMobileFilter}
+          ariaLabel="Filter appointments"
+          options={[
+            { value: 'today', label: 'Today', count: appointments.length },
+            { value: 'pending', label: 'Pending', count: pendingAppointments.length },
+            { value: 'upcoming', label: 'Upcoming', count: upcomingConfirmed.length },
+          ]}
+        />
+        <Button variant="outline" size="icon" className="h-12 w-12 shrink-0" onClick={refreshAll} aria-label="Refresh">
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {anyLoading && (
+        <>
+          <p className="hidden text-sm text-muted-foreground lg:block">Loading appointments...</p>
+          {mobileLists[mobileFilter].length === 0 ? <ListSkeleton className="lg:hidden" /> : null}
+        </>
+      )}
+
+      {!anyLoading && mobileLists[mobileFilter].length === 0 && (
+        <EmptyState
+          className="lg:hidden"
+          icon={Calendar}
+          title={
+            mobileFilter === 'pending'
+              ? 'Nothing waiting for a doctor'
+              : mobileFilter === 'upcoming'
+                ? 'No upcoming confirmed visits'
+                : 'No appointments today'
+          }
+        />
       )}
 
       {!pendingLoading && pendingAppointments.length > 0 && (
-        <>
-          <h3 className="text-sm font-medium text-amber-800 mb-2 flex items-center gap-1.5">
+        <div className={hideOnMobile('pending')}>
+          <h3 className="text-sm font-medium text-amber-800 mb-2 flex items-center gap-1.5 max-lg:hidden">
             <Hourglass className="h-4 w-4" />
             Pending doctor approval ({pendingAppointments.length})
           </h3>
@@ -257,11 +300,11 @@ export function TodayAppointmentsTab({ className, refreshKey = 0 }: Props) {
               </li>
             ))}
           </ul>
-        </>
+        </div>
       )}
 
       {!isLoading && appointments.length === 0 && pendingAppointments.length === 0 && (
-        <Card className="mb-4">
+        <Card className="mb-4 max-lg:hidden">
           <CardContent className="py-8 text-center text-muted-foreground text-sm">
             No doctor-confirmed appointments scheduled for today.
           </CardContent>
@@ -269,8 +312,8 @@ export function TodayAppointmentsTab({ className, refreshKey = 0 }: Props) {
       )}
 
       {appointments.length > 0 && (
-        <>
-          <h3 className="text-sm font-medium text-muted-foreground mb-2">Today</h3>
+        <div className={hideOnMobile('today')}>
+          <h3 className="text-sm font-medium text-muted-foreground mb-2 max-lg:hidden">Today</h3>
           <ul className="space-y-3 mb-6">
             {appointments.map((appt) => (
               <li key={appt.visitId}>
@@ -283,12 +326,12 @@ export function TodayAppointmentsTab({ className, refreshKey = 0 }: Props) {
               </li>
             ))}
           </ul>
-        </>
+        </div>
       )}
 
       {!confirmedLoading && upcomingConfirmed.length > 0 && (
-        <>
-          <h3 className="text-sm font-medium text-muted-foreground mb-2">
+        <div className={hideOnMobile('upcoming')}>
+          <h3 className="text-sm font-medium text-muted-foreground mb-2 max-lg:hidden">
             Upcoming — doctor confirmed
           </h3>
           <ul className="space-y-3">
@@ -303,7 +346,7 @@ export function TodayAppointmentsTab({ className, refreshKey = 0 }: Props) {
               </li>
             ))}
           </ul>
-        </>
+        </div>
       )}
 
       {viewIdVisit && (
@@ -316,21 +359,20 @@ export function TodayAppointmentsTab({ className, refreshKey = 0 }: Props) {
       )}
 
       {verifyVisit && (
-        <Dialog open onOpenChange={(o) => !o && setVerifyVisit(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Verify ID — {verifyVisit.visitorName}</DialogTitle>
-            </DialogHeader>
-            <IdProofVerificationForm
-              visitId={verifyVisit.visitId}
-              idProofVerified={false}
-              onVerified={() => {
-                setVerifyVisit(null);
-                refreshAll();
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+        <ResponsiveDialog
+          open
+          onOpenChange={(o) => !o && setVerifyVisit(null)}
+          title={`Verify ID — ${verifyVisit.visitorName}`}
+        >
+          <IdProofVerificationForm
+            visitId={verifyVisit.visitId}
+            idProofVerified={false}
+            onVerified={() => {
+              setVerifyVisit(null);
+              refreshAll();
+            }}
+          />
+        </ResponsiveDialog>
       )}
     </div>
   );

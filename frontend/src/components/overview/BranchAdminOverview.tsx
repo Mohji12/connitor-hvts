@@ -237,7 +237,7 @@ export default function BranchAdminOverview() {
       </header>
 
       {/* Stats Row - 2x2 on tablet, 4 on desktop */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {/* Currently In Facility - Clickable */}
         <Card 
           className="border-0 shadow-md hover:shadow-lg transition-all cursor-pointer"

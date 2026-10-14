@@ -14,17 +14,22 @@ export function AuthPageShell({ children }: { children: React.ReactNode }) {
         <div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-[#001B71]/08 blur-3xl" />
       </div>
 
-      <header className="relative z-10 border-b border-[#001B71]/08 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <ConninterWordmark size="md" />
-          <div className="flex items-center gap-2">
+      <header className="pt-safe relative z-10 border-b border-slate-100 bg-white/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6">
+          <div className="sm:hidden">
+            <ConninterWordmark size="sm" />
+          </div>
+          <div className="max-sm:hidden">
+            <ConninterWordmark size="md" />
+          </div>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Button asChild variant="ghost" size="sm" className="text-primary">
               <Link href="/portal">All portals</Link>
             </Button>
             <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-              <Link href="/">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Home
+              <Link href="/" aria-label="Home">
+                <ArrowLeft className="h-4 w-4 sm:mr-2" />
+                <span className="max-sm:hidden">Home</span>
               </Link>
             </Button>
           </div>

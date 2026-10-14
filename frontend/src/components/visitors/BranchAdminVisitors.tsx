@@ -155,7 +155,7 @@ const VisitorsTable = ({
   return (
     <div>
       {/* Desktop Table View */}
-      <div className="border rounded-lg hidden md:block">
+      <div className="border rounded-lg hidden lg:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -291,12 +291,12 @@ const VisitorsTable = ({
       </div>
 
       {/* Mobile Card View (Accordion included) */}
-      <div className="space-y-4 md:hidden">
+      <div className="space-y-2 lg:hidden">
         {visitors.length > 0 ? (
           visitors.map((v) => (
             <div
               key={v.id}
-              className="border rounded-lg p-4 text-sm"
+              className="rounded-2xl border border-slate-100 bg-white p-4 text-sm shadow-sm active:bg-slate-50"
               onClick={() => handleRowClick(v.id)}
             >
               <div className="flex justify-between items-start cursor-pointer">

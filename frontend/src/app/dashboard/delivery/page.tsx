@@ -9,6 +9,7 @@ import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { MobileListCard } from '@/components/mobile/MobileListCard';
 import {
   Select,
   SelectContent,
@@ -103,18 +104,18 @@ export default function DeliveryDashboardPage(): React.ReactElement {
     >
       <DeliveryKpiStrip total={summary.total} byStatus={summary.byStatus} />
 
-      <Card className="border-amber-100/80 bg-white/90">
+      <Card className="border-amber-100/80 bg-white/90 max-lg:gap-3 max-lg:border-0 max-lg:bg-transparent max-lg:py-0 max-lg:shadow-none [&>[data-slot=card-content]]:max-lg:px-0 [&>[data-slot=card-header]]:max-lg:px-0">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Deliveries</CardTitle>
           <div className="flex flex-wrap gap-2">
             <Input
               placeholder="Search number, vendor, goods…"
-              className="w-48"
+              className="w-48 max-lg:h-11 max-lg:w-full"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40 max-lg:h-11 max-lg:w-full">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -135,7 +136,32 @@ export default function DeliveryDashboardPage(): React.ReactElement {
               description="Bookings from approved distributors will appear here."
             />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="space-y-2 lg:hidden">
+              {filtered.map((d) => (
+                <li key={d.id}>
+                  <MobileListCard
+                    href={`/dashboard/delivery/${d.id}`}
+                    title={d.deliveryNumber}
+                    subtitle={d.vendorName ?? '—'}
+                    status={<DeliveryStatusBadge status={d.status} />}
+                    meta={[
+                      {
+                        label: 'Goods',
+                        value: `${d.goodsType ?? '—'}${d.totalBoxes != null ? ` (${d.totalBoxes})` : ''}`,
+                      },
+                      {
+                        label: 'Arrival',
+                        value: d.expectedArrivalTime ? formatIstDateTime(d.expectedArrivalTime) : '—',
+                      },
+                      { label: 'Driver', value: d.agentName ?? '—' },
+                      { label: 'Vehicle', value: d.vehicleNumber ?? '—' },
+                    ]}
+                  />
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full text-left text-sm">
                 <thead className="border-b text-xs uppercase text-muted-foreground">
                   <tr>
@@ -179,6 +205,7 @@ export default function DeliveryDashboardPage(): React.ReactElement {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

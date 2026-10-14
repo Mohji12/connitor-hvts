@@ -460,7 +460,7 @@ export default function SuperAdminOverview() {
       </div>
 
       {/* Metrics Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4 mb-8">
+      <section className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4 mb-8">
         <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 border-0 shadow-lg shadow-indigo-500/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-indigo-100 flex items-center gap-2">

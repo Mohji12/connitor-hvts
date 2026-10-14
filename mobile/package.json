@@ -1,0 +1,28 @@
+{
+  "name": "conninter-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor shell for Conninter HVTS (remote WebView)",
+  "scripts": {
+    "cap:sync": "cap sync",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios",
+    "assets": "capacitor-assets generate --iconBackgroundColor \"#001B71\" --iconBackgroundColorDark \"#001B71\" --splashBackgroundColor \"#F7F9FC\" --splashBackgroundColorDark \"#001B71\""
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.2.0",
+    "@capacitor/core": "^7.2.0",
+    "@capacitor/ios": "^7.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.2.0",
+    "typescript": "^5.8.3"
+  },
+  "capacitor": {
+    "platforms": [
+      "android",
+      "ios"
+    ]
+  }
+}

@@ -30,6 +30,7 @@ import {
 import type { VerifyCheckInOtpResponse } from '@/lib/api/visitors-api';
 import { formatIstDateTime } from '@/lib/datetime';
 import { IdProofVerificationForm } from '@/components/security/IdProofVerificationForm';
+import { ScanVerdict, type ScanVerdictTone } from '@/components/mobile/ScanVerdict';
 
 export interface VisitorDetailsCardProps {
   /** Visitor data from OTP verification */
@@ -91,14 +92,22 @@ export function VisitorDetailsCard({
     visit.idProofVerified ?? false,
   );
   const canProceedCheckIn = canCheckIn && (!isAppointment || idProofVerified);
+  const verdict: { tone: ScanVerdictTone; title: string; subtitle?: string } = canCheckOut
+    ? { tone: 'warn', title: 'Already inside', subtitle: 'Visitor is leaving — confirm exit below' }
+    : canProceedCheckIn
+      ? { tone: 'allow', title: 'Allow entry', subtitle: 'Pass is valid for now' }
+      : canCheckIn
+        ? { tone: 'warn', title: 'Hold — verify ID', subtitle: 'Government ID is required for appointments' }
+        : { tone: 'deny', title: 'Do not allow entry', subtitle: 'See the reason below' };
 
   return (
     <Card
-      className={cn('w-full max-w-lg mx-auto', className)}
+      className={cn('w-full max-w-lg mx-auto max-lg:gap-4 max-lg:rounded-2xl max-lg:py-4', className)}
       role="dialog"
       aria-label="Visitor details"
       data-testid="visitor-details-card"
     >
+      <ScanVerdict {...verdict} className="mx-4 lg:hidden" />
       <CardHeader className="pb-4">
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 border-2 border-emerald-100">
@@ -280,7 +289,7 @@ export function VisitorDetailsCard({
       <CardFooter className="flex gap-3 pt-4">
         <Button
           variant="outline"
-          className="flex-1"
+          className="h-auto min-h-12 flex-1 whitespace-normal lg:min-h-9"
           onClick={onCancel}
           disabled={isCheckingIn}
           aria-label="Cancel and verify another visitor"
@@ -290,7 +299,7 @@ export function VisitorDetailsCard({
         </Button>
         <Button
           className={cn(
-            'flex-1 bg-emerald-600 hover:bg-emerald-700 text-white',
+            'h-auto min-h-12 flex-1 bg-emerald-600 text-base text-white hover:bg-emerald-700 lg:min-h-9 lg:text-sm',
             canCheckOut && 'bg-amber-600 hover:bg-amber-700',
             !canProceedCheckIn && !canCheckOut && 'opacity-50 cursor-not-allowed',
           )}

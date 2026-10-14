@@ -2,6 +2,10 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
+import { useIsAppShell } from '@/hooks/use-mobile';
+import { ResponsiveDialog } from '@/components/mobile/ResponsiveDialog';
+import { SegmentedControl } from '@/components/mobile/SegmentedControl';
 import {
   DistributorDeliveryService,
   type DeliveryAgent,
@@ -27,6 +31,8 @@ export default function VendorFleetPage(): React.ReactElement {
   const [vLength, setVLength] = React.useState('');
   const [vBreadth, setVBreadth] = React.useState('');
   const [vHeight, setVHeight] = React.useState('');
+  const [sheetOpen, setSheetOpen] = React.useState(false);
+  const appShell = useIsAppShell();
 
   const load = React.useCallback(async () => {
     try {
@@ -45,10 +51,10 @@ export default function VendorFleetPage(): React.ReactElement {
     void load();
   }, [load]);
 
-  const addDriver = async () => {
+  const addDriver = async (): Promise<boolean> => {
     if (!name.trim() || !email.trim()) {
       toast.error('Name and email required');
-      return;
+      return false;
     }
     try {
       await DistributorDeliveryService.createAgent({
@@ -61,22 +67,24 @@ export default function VendorFleetPage(): React.ReactElement {
       setEmail('');
       setPhone('');
       await load();
+      return true;
     } catch {
       toast.error('Failed to add driver');
+      return false;
     }
   };
 
-  const addVehicle = async () => {
+  const addVehicle = async (): Promise<boolean> => {
     if (!reg.trim()) {
       toast.error('Registration required');
-      return;
+      return false;
     }
     const lengthCm = parseFloat(vLength);
     const breadthCm = parseFloat(vBreadth);
     const heightCm = parseFloat(vHeight);
     if (!(lengthCm > 0 && breadthCm > 0 && heightCm > 0)) {
       toast.error('Enter vehicle length, breadth, and height (cm)');
-      return;
+      return false;
     }
     try {
       await DistributorDeliveryService.createVehicle({
@@ -93,9 +101,60 @@ export default function VendorFleetPage(): React.ReactElement {
       setVBreadth('');
       setVHeight('');
       await load();
+      return true;
     } catch {
       toast.error('Failed to add vehicle');
+      return false;
     }
+  };
+
+  const driverFields = (
+    <div className="space-y-3">
+      <div>
+        <Label>Name</Label>
+        <Input className="max-lg:h-11" value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div>
+        <Label>Email</Label>
+        <Input className="max-lg:h-11" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </div>
+      <div>
+        <Label>Phone</Label>
+        <Input className="max-lg:h-11" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      </div>
+    </div>
+  );
+
+  const vehicleFields = (
+    <div className="space-y-3">
+      <div>
+        <Label>Registration</Label>
+        <Input className="max-lg:h-11" value={reg} onChange={(e) => setReg(e.target.value)} />
+      </div>
+      <div>
+        <Label>Type (optional)</Label>
+        <Input className="max-lg:h-11" value={vType} onChange={(e) => setVType(e.target.value)} />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <Label>L (cm)</Label>
+          <Input className="max-lg:h-11" type="number" inputMode="decimal" value={vLength} onChange={(e) => setVLength(e.target.value)} />
+        </div>
+        <div>
+          <Label>B (cm)</Label>
+          <Input className="max-lg:h-11" type="number" inputMode="decimal" value={vBreadth} onChange={(e) => setVBreadth(e.target.value)} />
+        </div>
+        <div>
+          <Label>H (cm)</Label>
+          <Input className="max-lg:h-11" type="number" inputMode="decimal" value={vHeight} onChange={(e) => setVHeight(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+
+  const saveFromSheet = async (): Promise<void> => {
+    const ok = tab === 'drivers' ? await addDriver() : await addVehicle();
+    if (ok) setSheetOpen(false);
   };
 
   return (
@@ -103,7 +162,46 @@ export default function VendorFleetPage(): React.ReactElement {
       title="Fleet"
       subtitle="Drivers receive delivery instructions by email when you book. No driver login required."
     >
-      <div className="flex gap-2">
+      {appShell ? (
+        <div className="flex items-center gap-2">
+          <SegmentedControl<Tab>
+            className="min-w-0 flex-1"
+            ariaLabel="Fleet"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'drivers', label: 'Drivers', count: agents.length },
+              { value: 'vehicles', label: 'Vehicles', count: vehicles.length },
+            ]}
+          />
+          <Button className="h-10 shrink-0" onClick={() => setSheetOpen(true)}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add
+          </Button>
+        </div>
+      ) : null}
+
+      {appShell ? (
+        <ResponsiveDialog
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          title={tab === 'drivers' ? 'Add driver' : 'Add vehicle'}
+          description={
+            tab === 'drivers'
+              ? 'The driver receives the gate QR by email for each booking.'
+              : 'Dimensions are used to check the load fits.'
+          }
+          footer={
+            <Button className="h-12 w-full" onClick={() => void saveFromSheet()}>
+              {tab === 'drivers' ? 'Save driver' : 'Save vehicle'}
+            </Button>
+          }
+        >
+          {tab === 'drivers' ? driverFields : vehicleFields}
+        </ResponsiveDialog>
+      ) : null}
+
+      <div className="flex gap-2 max-lg:hidden">
         <Button
           size="sm"
           variant={tab === 'drivers' ? 'default' : 'outline'}
@@ -122,23 +220,12 @@ export default function VendorFleetPage(): React.ReactElement {
 
       {tab === 'drivers' ? (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="border-[#001B71]/08 bg-white/90">
+          <Card className="border-[#001B71]/08 bg-white/90 max-lg:hidden">
             <CardHeader>
               <CardTitle>Add driver</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div>
-                <Label>Name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} />
-              </div>
-              <div>
-                <Label>Email</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              </div>
-              <div>
-                <Label>Phone</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
-              </div>
+              {driverFields}
               <Button onClick={() => void addDriver()}>
                 Save driver
               </Button>
@@ -169,45 +256,12 @@ export default function VendorFleetPage(): React.ReactElement {
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="border-[#001B71]/08 bg-white/90">
+          <Card className="border-[#001B71]/08 bg-white/90 max-lg:hidden">
             <CardHeader>
               <CardTitle>Add vehicle</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div>
-                <Label>Registration</Label>
-                <Input value={reg} onChange={(e) => setReg(e.target.value)} />
-              </div>
-              <div>
-                <Label>Type (optional)</Label>
-                <Input value={vType} onChange={(e) => setVType(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <Label>L (cm)</Label>
-                  <Input
-                    type="number"
-                    value={vLength}
-                    onChange={(e) => setVLength(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>B (cm)</Label>
-                  <Input
-                    type="number"
-                    value={vBreadth}
-                    onChange={(e) => setVBreadth(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>H (cm)</Label>
-                  <Input
-                    type="number"
-                    value={vHeight}
-                    onChange={(e) => setVHeight(e.target.value)}
-                  />
-                </div>
-              </div>
+              {vehicleFields}
               <Button onClick={() => void addVehicle()}>
                 Save vehicle
               </Button>

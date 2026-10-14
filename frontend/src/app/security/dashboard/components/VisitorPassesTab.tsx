@@ -14,6 +14,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { MobileListCard } from '@/components/mobile/MobileListCard';
+import { StatusChip } from '@/components/mobile/StatusChip';
 
 type Props = {
   branchId: string;
@@ -71,15 +73,15 @@ export function VisitorPassesTab({ className, refreshKey = 0 }: Props): React.Re
     <div className={className} data-testid="visitor-passes-tab">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2 max-lg:hidden">
             <IdCard className="h-5 w-5" /> Visitor passes
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground max-lg:hidden">
             Hospital-issued IDs for this location, including unused. Search by pass ID or visitor
             name.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void mutate()}>
+        <Button variant="outline" size="sm" className="self-end sm:self-auto" onClick={() => void mutate()}>
           <RefreshCw className="h-4 w-4 mr-1" /> Refresh
         </Button>
       </div>
@@ -146,7 +148,47 @@ export function VisitorPassesTab({ className, refreshKey = 0 }: Props): React.Re
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading visitor passes...</p>}
 
-      <div className="overflow-x-auto">
+      <ul className="space-y-2 lg:hidden">
+        {(data?.items ?? []).map((row) => (
+          <li key={row.id}>
+            <MobileListCard
+              title={<span className="font-mono">{row.passId}</span>}
+              subtitle={
+                row.visitorName
+                  ? `${row.visitorName}${row.visitorPhone ? ` · ${row.visitorPhone}` : ''}`
+                  : 'Not assigned yet'
+              }
+              status={
+                <StatusChip
+                  status={row.status}
+                  label={row.status === 'UNASSIGNED' ? 'Unused' : 'Assigned'}
+                  tone={row.status === 'UNASSIGNED' ? 'neutral' : 'success'}
+                />
+              }
+              meta={
+                row.doctorName || row.appointmentDate
+                  ? [
+                      { label: 'Doctor', value: row.doctorName ?? '—' },
+                      {
+                        label: 'Slot',
+                        value: row.appointmentDate ? formatIstDateTime(row.appointmentDate) : '—',
+                      },
+                    ]
+                  : undefined
+              }
+              actions={
+                row.status === 'UNASSIGNED' ? (
+                  <Button size="sm" variant="outline" className="h-10 w-full" onClick={() => setAssignRow(row)}>
+                    Assign visitor
+                  </Button>
+                ) : undefined
+              }
+            />
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden overflow-x-auto lg:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-muted-foreground border-b">
@@ -193,12 +235,12 @@ export function VisitorPassesTab({ className, refreshKey = 0 }: Props): React.Re
             ))}
           </tbody>
         </table>
-        {!isLoading && (data?.items ?? []).length === 0 && (
-          <p className="text-sm text-muted-foreground py-6 text-center">
-            No hospital-issued pass IDs for this date.
-          </p>
-        )}
       </div>
+      {!isLoading && (data?.items ?? []).length === 0 && (
+        <p className="text-sm text-muted-foreground py-6 text-center">
+          No hospital-issued pass IDs for this date.
+        </p>
+      )}
     </div>
   );
 }

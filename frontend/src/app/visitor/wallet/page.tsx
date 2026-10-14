@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { formatIstDateTime } from '@/lib/datetime';
 import { clearVisitorToken, getVisitorToken } from '@/lib/services/visitorPortalService';
+import { clearVisitorPassCache } from '@/lib/visitor-pass-cache';
 import {
   VisitorWalletService,
   type VisitorWalletSummary,
@@ -75,6 +76,7 @@ export default function VisitorWalletPage() {
 
   return (
     <VisitorPortalShell
+      appTabs
       headerExtra={
         <Button
           variant="ghost"
@@ -82,6 +84,7 @@ export default function VisitorWalletPage() {
           className="text-muted-foreground"
           onClick={() => {
             clearVisitorToken();
+            clearVisitorPassCache();
             router.push('/visitor/login');
           }}
         >
@@ -89,22 +92,22 @@ export default function VisitorWalletPage() {
         </Button>
       }
     >
-      <main className="mx-auto max-w-4xl space-y-6 p-4 py-8 sm:p-6">
-        <Button asChild variant="ghost" size="sm" className="px-0 text-[#001B71]">
+      <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 lg:space-y-6 lg:py-8">
+        <Button asChild variant="ghost" size="sm" className="px-0 text-[#001B71] max-lg:hidden">
           <Link href="/visitor/dashboard">
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back to dashboard
           </Link>
         </Button>
 
-        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#001B71] via-[#0B2F8A] to-[#4A90E2] p-6 text-white shadow-md">
+        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#001B71] via-[#0B2F8A] to-[#4A90E2] p-5 text-white shadow-md lg:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="flex items-center gap-2 text-sm text-white/80">
                 <Wallet className="h-4 w-4" />
                 Visitor wallet
               </p>
-              <p className="mt-3 text-4xl font-bold tracking-tight">
+              <p className="mt-3 text-3xl font-bold tracking-tight lg:text-4xl">
                 ₹{wallet ? wallet.balance.toFixed(2) : '—'}
               </p>
               <p className="mt-1 text-sm text-white/80">Balance</p>
@@ -121,7 +124,7 @@ export default function VisitorWalletPage() {
               </p>
             </div>
           </div>
-          <p className="mt-4 text-sm text-white/90">
+          <p className="mt-4 text-xs text-white/90 lg:text-sm">
             Demo recharge adds the amount straight to your wallet. Visit fees stay reserved until
             the doctor confirms, then the amount is deducted. There is no withdrawal.
           </p>
@@ -132,7 +135,7 @@ export default function VisitorWalletPage() {
             <CardTitle className="text-[#001B71]">Recharge</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
               {PRESETS.map((preset) => (
                 <Button
                   key={preset}
@@ -154,7 +157,7 @@ export default function VisitorWalletPage() {
                 aria-label="Recharge amount in rupees"
               />
               <Button
-                className="bg-[#4A90E2] hover:bg-[#3b7ccc]"
+                className="bg-[#4A90E2] hover:bg-[#3b7ccc] max-sm:h-11"
                 disabled={busy}
                 onClick={() => void recharge(Number(amount))}
               >

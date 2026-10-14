@@ -9,17 +9,12 @@ import apiClient from '@/lib/api';
 import { formatIstDateTime } from '@/lib/datetime';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/mobile/ResponsiveDialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DeliveryStatusBadge } from '@/features/delivery-management/ui';
+import { cn } from '@/lib/utils';
 
 export interface ScheduledDelivery {
   id: string;
@@ -112,10 +107,10 @@ export function TodayDeliveriesTab({ branchId, className }: Props): React.ReactE
     <div className={className}>
       <div className="mb-4 flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
+          <h2 className="text-base font-semibold flex items-center gap-2 lg:text-lg">
             <Truck className="h-5 w-5" /> Scheduled deliveries
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="hidden text-sm text-muted-foreground lg:block">
             Distributor bookings appear here after scheduling. Use Hold when hospital internal
             delivery needs the dock (you will be told offline by internal staff).
           </p>
@@ -146,7 +141,12 @@ export function TodayDeliveriesTab({ branchId, className }: Props): React.ReactE
             d.status === 'RECEIVED';
           return (
             <li key={d.id}>
-              <Card className={onHold ? 'border-rose-200 bg-rose-50/40' : undefined}>
+              <Card
+                className={cn(
+                  'max-lg:gap-3 max-lg:rounded-2xl max-lg:py-4 [&_[data-slot=button]]:max-lg:h-10',
+                  onHold && 'border-rose-200 bg-rose-50/40',
+                )}
+              >
                 <CardHeader className="pb-2">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
@@ -222,12 +222,26 @@ export function TodayDeliveriesTab({ branchId, className }: Props): React.ReactE
         })}
       </ul>
 
-      <Dialog open={!!holdTarget} onOpenChange={(open) => !open && setHoldTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Put delivery on hold</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
+      <ResponsiveDialog
+        open={!!holdTarget}
+        onOpenChange={(open) => !open && setHoldTarget(null)}
+        title="Put delivery on hold"
+        footer={
+          <>
+            <Button variant="outline" className="max-lg:h-11" onClick={() => setHoldTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 max-lg:h-11"
+              disabled={!!busyId}
+              onClick={() => void submitHold()}
+            >
+              Confirm hold
+            </Button>
+          </>
+        }
+      >
+          <p className="mb-4 text-sm text-muted-foreground">
             {holdTarget?.deliveryNumber} — {holdTarget?.vendorName}. Distributor, driver, hospital
             admin, and super admin will be notified. Original arrival time stays the same.
           </p>
@@ -252,20 +266,7 @@ export function TodayDeliveriesTab({ branchId, className }: Props): React.ReactE
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setHoldTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              className="bg-amber-600 hover:bg-amber-700"
-              disabled={!!busyId}
-              onClick={() => void submitHold()}
-            >
-              Confirm hold
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     </div>
   );
 }
