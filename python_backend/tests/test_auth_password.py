@@ -76,26 +76,56 @@ class AuthPasswordLoginTests(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 403)
         self.assertIn("WhatsApp", ctx.exception.detail)
 
+    def _users_by_phone(self, *users: MagicMock) -> None:
+        query = MagicMock()
+        query.filter.return_value = query
+        query.all.return_value = list(users)
+        self.db.query.return_value = query
+
+    def test_request_password_reset_sends_whatsapp_code(self) -> None:
+        user = MagicMock()
+        user.phone = "9000000001"
+        self._users_by_phone(user)
+
+        with patch("app.services.auth_service.is_test_mode_enabled", return_value=False), patch(
+            "app.services.auth_service.get_fixed_otp", return_value=None
+        ), patch("app.services.auth_service.SmsService") as sms:
+            result = self.service.request_password_reset("+91 90000 00001")
+
+        sms.return_value.send_profile_phone_otp.assert_called_once()
+        phone, otp = sms.return_value.send_profile_phone_otp.call_args[0]
+        self.assertEqual(phone, "9000000001")
+        self.assertEqual(len(otp), 6)
+        self.assertIn("WhatsApp", result["message"])
+        self.assertTrue(user.otp)
+
+    def test_request_password_reset_unknown_phone(self) -> None:
+        self._users_by_phone()
+        with self.assertRaises(HTTPException) as ctx:
+            self.service.request_password_reset("9000000009")
+        self.assertEqual(ctx.exception.status_code, 404)
+
+    def test_request_password_reset_rejects_shared_phone(self) -> None:
+        first, second = MagicMock(), MagicMock()
+        first.phone = second.phone = "9000000001"
+        self._users_by_phone(first, second)
+        with self.assertRaises(HTTPException) as ctx:
+            self.service.request_password_reset("9000000001")
+        self.assertEqual(ctx.exception.status_code, 409)
+
     def test_reset_password_with_otp_updates_hash(self) -> None:
         user = MagicMock()
         user.isActive = True
+        user.phone = "9000000001"
         user.otp = hash_password("654321")
         user.otpExpires = datetime(2099, 1, 1)
         user.passwordHash = hash_password("OldPassword1")
-
-        query = MagicMock()
-        query.filter.return_value = query
-        query.first.return_value = user
-        self.db.query.return_value = query
+        self._users_by_phone(user)
 
         with patch("app.services.auth_service.is_test_mode_enabled", return_value=False), patch(
             "app.services.auth_service.bcrypt.checkpw", return_value=True
         ), patch("app.services.auth_service.now_ist", return_value=datetime(2026, 10, 8)):
-            result = self.service.reset_password_with_otp(
-                "doctor@hospital.com",
-                "654321",
-                "NewPassword1",
-            )
+            result = self.service.reset_password_with_otp("9000000001", "654321", "NewPassword1")
 
         self.assertIn("Password updated", result["message"])
         self.assertTrue(user.passwordHash)
@@ -105,17 +135,14 @@ class AuthPasswordLoginTests(unittest.TestCase):
     def test_reset_password_rejects_short_password(self) -> None:
         user = MagicMock()
         user.isActive = True
+        user.phone = "9000000001"
         user.otp = "hashed"
         user.otpExpires = MagicMock()
-
-        query = MagicMock()
-        query.filter.return_value = query
-        query.first.return_value = user
-        self.db.query.return_value = query
+        self._users_by_phone(user)
 
         with patch("app.services.auth_service.is_test_mode_enabled", return_value=True):
             with self.assertRaises(HTTPException) as ctx:
-                self.service.reset_password_with_otp("doctor@hospital.com", "654321", "short")
+                self.service.reset_password_with_otp("9000000001", "654321", "short")
         self.assertEqual(ctx.exception.status_code, 400)
 
 

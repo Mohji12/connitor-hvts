@@ -1,14 +1,16 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel, EmailStr
+from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.services.auth_service import AuthService
+from app.services.rate_limit_service import RateLimitService
 
 router = APIRouter()
+rate_limits = RateLimitService()
 
 
 class LoginBody(BaseModel):
@@ -26,12 +28,12 @@ class VerifyOtpBody(BaseModel):
 
 
 class ForgotPasswordBody(BaseModel):
-    email: EmailStr
+    phone: str = Field(min_length=10, max_length=20)
 
 
 class ResetPasswordBody(BaseModel):
-    email: EmailStr
-    otp: str
+    phone: str = Field(min_length=10, max_length=20)
+    otp: str = Field(min_length=6, max_length=6)
     password: str
 
 
@@ -51,13 +53,15 @@ def verify_otp(body: VerifyOtpBody, db: Annotated[Session, Depends(get_db)]):
 
 
 @router.post("/forgot-password")
-def forgot_password(body: ForgotPasswordBody, db: Annotated[Session, Depends(get_db)]):
-    return AuthService(db).request_password_reset(str(body.email))
+def forgot_password(body: ForgotPasswordBody, request: Request, db: Annotated[Session, Depends(get_db)]):
+    rate_limits.check_action_rate_limit(request, "staff_forgot_password", limit=5, window_seconds=3600)
+    return AuthService(db).request_password_reset(body.phone)
 
 
 @router.post("/reset-password")
-def reset_password(body: ResetPasswordBody, db: Annotated[Session, Depends(get_db)]):
-    return AuthService(db).reset_password_with_otp(str(body.email), body.otp, body.password)
+def reset_password(body: ResetPasswordBody, request: Request, db: Annotated[Session, Depends(get_db)]):
+    rate_limits.check_action_rate_limit(request, "staff_reset_password", limit=10, window_seconds=3600)
+    return AuthService(db).reset_password_with_otp(body.phone, body.otp, body.password)
 
 
 @router.get("/me")

@@ -217,6 +217,18 @@ function VisitorLoginContent() {
                           <Input {...field} type="password" autoComplete="current-password" />
                         </FormControl>
                         <FormMessage />
+                        <p className="text-right text-sm">
+                          <Link
+                            href={
+                              returnTo
+                                ? `/visitor/forgot-password?returnTo=${encodeURIComponent(returnTo)}`
+                                : '/visitor/forgot-password'
+                            }
+                            className="font-medium text-primary hover:underline"
+                          >
+                            Forgot password?
+                          </Link>
+                        </p>
                       </FormItem>
                     )}
                   />

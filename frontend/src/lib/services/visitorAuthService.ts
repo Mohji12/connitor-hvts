@@ -19,14 +19,15 @@ export const VisitorAuthService = {
     return response.data;
   },
 
-  async forgotPassword(email: string): Promise<{ message: string; testResetLink?: string }> {
-    const response = await apiClient.post('/api/public/visitor-auth/forgot-password', { email });
+  async forgotPassword(phone: string): Promise<{ message: string; testOtp?: string }> {
+    const response = await apiClient.post('/api/public/visitor-auth/forgot-password', { phone });
     return response.data;
   },
 
-  async resetPassword(token: string, password: string): Promise<{ message: string }> {
+  async resetPassword(phone: string, otp: string, password: string): Promise<{ message: string }> {
     const response = await apiClient.post('/api/public/visitor-auth/reset-password', {
-      token,
+      phone,
+      otp,
       password,
     });
     return response.data;

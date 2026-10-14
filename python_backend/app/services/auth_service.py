@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 from app.utils.timezone import ist_day_bounds, now_ist, parse_to_ist_naive, today_end_ist, today_start_ist
 
+import random
+import re
+
 import bcrypt
 import uuid
 from fastapi import HTTPException
@@ -9,7 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.config import get_fixed_otp, get_settings, is_test_mode_enabled
 from app.models import User
-from app.services.messaging_service import EmailService
+from app.services.messaging_service import EmailService, SmsService
 from app.utils.passwords import hash_password, verify_password
 from app.utils.serializers import model_to_dict
 
@@ -176,31 +179,46 @@ class AuthService:
 
         return self._issue_access_token(user)
 
-    def request_password_reset(self, email: str) -> dict:
-        """Email a one-time code so the account can set a new password."""
-        normalized = self.normalize_email(email)
-        user = (
+    @staticmethod
+    def normalize_phone(phone: str) -> str:
+        return re.sub(r"\D", "", phone or "")[-10:]
+
+    def _active_user_by_phone(self, phone: str) -> User | None:
+        normalized = self.normalize_phone(phone)
+        if len(normalized) != 10:
+            raise HTTPException(status_code=400, detail="Enter your 10-digit registered mobile number.")
+        candidates = (
             self.db.query(User)
-            .filter(User.email == normalized, User.isActive.is_(True))
-            .first()
+            .filter(User.isActive.is_(True), User.phone.like(f"%{normalized}"))
+            .all()
         )
-        message = "If this email is registered, a reset code has been sent."
+        matches = [u for u in candidates if self.normalize_phone(u.phone) == normalized]
+        if len(matches) > 1:
+            raise HTTPException(
+                status_code=409,
+                detail="This mobile number is linked to more than one account. Ask your administrator to reset the password.",
+            )
+        return matches[0] if matches else None
+
+    def request_password_reset(self, phone: str) -> dict:
+        """Send a one-time code on WhatsApp (SMS fallback) to the registered mobile."""
+        user = self._active_user_by_phone(phone)
         if not user:
-            return {"message": message}
+            raise HTTPException(status_code=404, detail="No account found with this mobile number.")
 
         settings = get_settings()
         fixed = get_fixed_otp(settings)
-        otp = fixed or f"{__import__('random').randint(100000, 999999)}"
+        otp = fixed or f"{random.randint(100000, 999999)}"
         user.otp = bcrypt.hashpw(otp.encode(), bcrypt.gensalt()).decode()
         user.otpExpires = now_ist() + timedelta(minutes=10)
         self.db.commit()
 
-        response: dict = {"message": message}
+        response: dict = {"message": "A 6-digit code has been sent to your WhatsApp."}
         if is_test_mode_enabled(settings):
             response["testOtp"] = otp
             return response
         try:
-            self.email.send_password_reset_otp(normalized, otp)
+            SmsService().send_profile_phone_otp(user.phone, otp, valid_minutes=10)
         except Exception as exc:
             raise HTTPException(
                 status_code=503,
@@ -208,11 +226,10 @@ class AuthService:
             ) from exc
         return response
 
-    def reset_password_with_otp(self, email: str, otp: str, new_password: str) -> dict:
-        normalized = self.normalize_email(email)
-        user = self.db.query(User).filter(User.email == normalized).first()
+    def reset_password_with_otp(self, phone: str, otp: str, new_password: str) -> dict:
+        user = self._active_user_by_phone(phone)
         invalid = HTTPException(status_code=401, detail="Invalid or expired code.")
-        if not user or not user.isActive:
+        if not user:
             raise invalid
 
         settings = get_settings()

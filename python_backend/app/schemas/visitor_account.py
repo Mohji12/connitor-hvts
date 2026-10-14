@@ -67,11 +67,12 @@ class VisitorLoginBody(BaseModel):
 
 
 class ForgotPasswordBody(BaseModel):
-    email: EmailStr
+    phone: str = Field(min_length=10, max_length=20)
 
 
 class ResetPasswordBody(BaseModel):
-    token: str = Field(min_length=16)
+    phone: str = Field(min_length=10, max_length=20)
+    otp: str = Field(min_length=6, max_length=6)
     password: str = Field(min_length=8, max_length=128)
 
 

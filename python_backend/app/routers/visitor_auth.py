@@ -24,14 +24,16 @@ def login(body: VisitorLoginBody, request: Request, db: Annotated[Session, Depen
 
 @router.post("/forgot-password")
 @public_route
-def forgot_password(body: ForgotPasswordBody, db: Annotated[Session, Depends(get_db)]):
-    return VisitorAuthService(db).forgot_password(str(body.email))
+def forgot_password(body: ForgotPasswordBody, request: Request, db: Annotated[Session, Depends(get_db)]):
+    rate_limits.check_action_rate_limit(request, "visitor_forgot_password", limit=5, window_seconds=3600)
+    return VisitorAuthService(db).forgot_password(body.phone)
 
 
 @router.post("/reset-password")
 @public_route
-def reset_password(body: ResetPasswordBody, db: Annotated[Session, Depends(get_db)]):
-    return VisitorAuthService(db).reset_password(body.token, body.password)
+def reset_password(body: ResetPasswordBody, request: Request, db: Annotated[Session, Depends(get_db)]):
+    rate_limits.check_action_rate_limit(request, "visitor_reset_password", limit=10, window_seconds=3600)
+    return VisitorAuthService(db).reset_password(body.phone, body.otp, body.password)
 
 
 @router.get("/google")

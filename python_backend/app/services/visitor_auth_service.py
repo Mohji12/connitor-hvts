@@ -16,11 +16,9 @@ from fastapi import HTTPException
 from jose import jwt
 from sqlalchemy.orm import Session
 
-from app.config import get_settings, is_test_mode_enabled, get_public_frontend_url
+from app.config import get_settings, is_test_mode_enabled
 from app.models import VisitorAccount, VisitorAccountAuth
 from app.models.enums import ProfileStatus, VisitorAuthProvider
-from app.models.visitor_account_entities import EmailVerificationToken
-from app.schemas.visitor_account import generate_verification_token, hash_token
 from app.services.messaging_service import EmailService
 from app.services.visitor_account_service import VisitorAccountService
 from app.utils.timezone import now_ist
@@ -98,51 +96,69 @@ class VisitorAuthService:
             "name": f"{account.firstName} {account.lastName}".strip(),
         }
 
-    def forgot_password(self, email: str) -> dict[str, str]:
-        account = (
-            self.db.query(VisitorAccount)
-            .filter(VisitorAccount.email == email.strip().lower())
-            .first()
-        )
-        if not account:
-            return {"message": "If an account exists, a reset link has been sent."}
+    def _account_by_phone(self, phone: str) -> VisitorAccount | None:
+        normalized = re.sub(r"\D", "", phone or "")[-10:]
+        if len(normalized) != 10:
+            raise HTTPException(status_code=400, detail="Enter your 10-digit registered mobile number.")
+        return self.db.query(VisitorAccount).filter(VisitorAccount.phone == normalized).first()
 
-        token = generate_verification_token()
-        self.db.add(
-            EmailVerificationToken(
-                visitorAccountId=account.id,
-                tokenHash=hash_token(token),
-                expiresAt=now_ist() + timedelta(hours=1),
+    def forgot_password(self, phone: str) -> dict[str, Any]:
+        """Send a reset code on WhatsApp (SMS fallback) to the registered mobile."""
+        account = self._account_by_phone(phone)
+        if not account:
+            raise HTTPException(status_code=404, detail="No account found with this mobile number.")
+        now = now_ist()
+        if (
+            account.phoneVerificationAttempts >= 3
+            and account.phoneVerificationExpiry
+            and account.phoneVerificationExpiry > now
+        ):
+            raise HTTPException(
+                status_code=429,
+                detail="Too many wrong codes. Wait 10 minutes, then request a new code.",
             )
-        )
-        self.db.commit()
+
         settings = get_settings()
-        link = f"{get_public_frontend_url(settings)}/visitor/reset-password?token={token}"
-        try:
-            self.email.send_notification(
-                account.email,
-                "Reset your Connitor password",
-                f"Click to reset your password:\n{link}\n\nExpires in 1 hour.",
-            )
-        except Exception as exc:
-            logger.error("Password reset email failed: %s", exc)
-        result = {"message": "If an account exists, a reset link has been sent."}
+        otp = f"{secrets.randbelow(900000) + 100000}"
         if is_test_mode_enabled(settings):
-            result["testResetLink"] = link
+            otp = settings.e2e_fixed_otp if len(settings.e2e_fixed_otp) == 6 else "123456"
+        account.phoneVerificationOtpHash = bcrypt.hashpw(otp.encode(), bcrypt.gensalt()).decode()
+        account.phoneVerificationExpiry = now + timedelta(minutes=10)
+        account.phoneVerificationAttempts = 0
+        self.db.commit()
+
+        result: dict[str, Any] = {"message": "A 6-digit code has been sent to your WhatsApp."}
+        if is_test_mode_enabled(settings):
+            result["testOtp"] = otp
+            return result
+        try:
+            self.accounts.sms.send_profile_phone_otp(account.phone, otp, valid_minutes=10)
+        except Exception as exc:
+            logger.error("Password reset OTP failed: %s", exc)
+            raise HTTPException(status_code=503, detail="Failed to send the reset code. Please try again later.") from exc
         return result
 
-    def reset_password(self, token: str, new_password: str) -> dict[str, str]:
-        row = (
-            self.db.query(EmailVerificationToken)
-            .filter(EmailVerificationToken.tokenHash == hash_token(token))
-            .first()
-        )
-        if not row or row.usedAt or row.expiresAt < now_ist():
-            raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    def reset_password(self, phone: str, otp: str, new_password: str) -> dict[str, str]:
+        account = self._account_by_phone(phone)
+        invalid = HTTPException(status_code=400, detail="Invalid or expired code.")
+        if not account or not account.phoneVerificationOtpHash or not account.phoneVerificationExpiry:
+            raise invalid
+        if account.phoneVerificationExpiry < now_ist():
+            raise HTTPException(status_code=400, detail="Code expired. Request a new one.")
+        if account.phoneVerificationAttempts >= 3:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many wrong codes. Wait 10 minutes, then request a new code.",
+            )
+        if not bcrypt.checkpw(otp.encode(), account.phoneVerificationOtpHash.encode()):
+            account.phoneVerificationAttempts += 1
+            self.db.commit()
+            raise invalid
 
-        account = self.db.get(VisitorAccount, row.visitorAccountId)
-        if not account:
-            raise HTTPException(status_code=404, detail="Account not found")
+        account.phoneVerificationOtpHash = None
+        account.phoneVerificationExpiry = None
+        account.phoneVerificationAttempts = 0
+        account.phoneVerified = True
 
         password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
         auth = (
@@ -163,9 +179,10 @@ class VisitorAuthService:
                     passwordHash=password_hash,
                 )
             )
-        row.usedAt = now_ist()
+        self.accounts._audit(account.id, "PASSWORD_RESET_BY_PHONE")
         self.db.commit()
-        return {"message": "Password updated"}
+        self.accounts._activate_if_ready(account.id)
+        return {"message": "Password updated. Sign in with your new password."}
 
     def oauth_authorize_url(self, provider: str) -> dict[str, str]:
         settings = get_settings()
