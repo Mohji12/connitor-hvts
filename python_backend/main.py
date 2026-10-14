@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from mangum import Mangum
 
 from app.config import get_settings, is_lambda_runtime, settings_summary, check_meta_whatsapp_health, get_cors_origins
+from app import cache_invalidation as _cache_invalidation  # noqa: F401  registers Session commit hooks that clear Redis entries
 from app.routers import api_router
 
 logger = logging.getLogger(__name__)

@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
+from app.cache import remember_in_namespace
+from app.cache_invalidation import REFERENCE_CACHE_TTL_SECONDS, REFERENCE_NAMESPACE
 from app.database import get_db
 from app.services.registration_service import RegistrationService
 
@@ -33,12 +35,22 @@ class RegisterVerifyBody(BaseModel):
 
 @router.get("/hospital-chains")
 def list_chains(db: Annotated[Session, Depends(get_db)]):
-    return RegistrationService(db).list_hospital_chains()
+    return remember_in_namespace(
+        REFERENCE_NAMESPACE,
+        ("registration-chains",),
+        REFERENCE_CACHE_TTL_SECONDS,
+        lambda: RegistrationService(db).list_hospital_chains(),
+    )
 
 
 @router.get("/chains/{chain_id}/branches")
 def list_branches(chain_id: str, db: Annotated[Session, Depends(get_db)]):
-    return RegistrationService(db).list_branches(chain_id)
+    return remember_in_namespace(
+        REFERENCE_NAMESPACE,
+        ("registration-branches", chain_id),
+        REFERENCE_CACHE_TTL_SECONDS,
+        lambda: RegistrationService(db).list_branches(chain_id),
+    )
 
 
 @router.post("/register")

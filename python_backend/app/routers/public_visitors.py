@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.cache import remember_in_namespace
+from app.cache_invalidation import DOCTOR_CACHE_TTL_SECONDS, REFERENCE_NAMESPACE
 from app.database import get_db
 from app.config import get_public_frontend_url, get_settings
 from app.dependencies.auth import public_route
@@ -46,7 +48,12 @@ def check_by_phone(phone: str = Query(...), branchId: str = Query(...), db: Sess
 
 @router.get("/branch-info")
 def branch_info(branchId: str = Query(...), db: Session = Depends(get_db)):
-    return VisitorsService(db).get_branch_info(branchId)
+    return remember_in_namespace(
+        REFERENCE_NAMESPACE,
+        ("branch-info", branchId),
+        DOCTOR_CACHE_TTL_SECONDS,
+        lambda: VisitorsService(db).get_branch_info(branchId),
+    )
 
 
 @router.get("/onsite-entry")

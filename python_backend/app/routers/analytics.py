@@ -3,13 +3,14 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.cache_routes import CachedGetRoute
 from app.database import get_db
 from app.dependencies.auth import get_current_user, require_roles
 from app.models.enums import Role
 from app.services.analytics_service import AnalyticsService
 from app.services.super_admin_dashboard_service import SuperAdminDashboardService
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter(dependencies=[Depends(get_current_user)], route_class=CachedGetRoute)
 
 
 def _period(q: str | None = "weekly") -> str:

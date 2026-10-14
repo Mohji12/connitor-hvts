@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.cache import remember_in_namespace
+from app.cache_invalidation import REFERENCE_CACHE_TTL_SECONDS, REFERENCE_NAMESPACE
 from app.database import get_db
 from app.delivery.onboarding_service import DistributorOnboardingService
 from app.delivery.utils import bad_request
@@ -23,7 +25,13 @@ class DistributorPhoneOtpBody(BaseModel):
 
 @router.get("/branches")
 def list_onboarding_branches(db: Annotated[Session, Depends(get_db)]):
-    return {"items": DistributorOnboardingService(db).list_public_branches()}
+    items = remember_in_namespace(
+        REFERENCE_NAMESPACE,
+        ("distributor-onboarding-branches",),
+        REFERENCE_CACHE_TTL_SECONDS,
+        lambda: DistributorOnboardingService(db).list_public_branches(),
+    )
+    return {"items": items}
 
 
 @router.post("/apply", status_code=201)

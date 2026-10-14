@@ -5,6 +5,8 @@ from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy.orm import Session
 
+from app.cache import remember_in_namespace
+from app.cache_invalidation import DOCTOR_CACHE_TTL_SECONDS, REFERENCE_CACHE_TTL_SECONDS, REFERENCE_NAMESPACE
 from app.database import get_db
 from app.dependencies.auth import public_route
 from app.dependencies.visitor_auth import _decode_visitor_token, visitor_security
@@ -75,31 +77,56 @@ def list_hospitals(
     db: Annotated[Session, Depends(get_db)],
     hospitalChainId: str | None = Query(default=None),
 ):
-    return AppointmentsService(db).list_public_hospitals(hospital_chain_id=hospitalChainId)
+    return remember_in_namespace(
+        REFERENCE_NAMESPACE,
+        ("public-hospitals", hospitalChainId or "all"),
+        REFERENCE_CACHE_TTL_SECONDS,
+        lambda: AppointmentsService(db).list_public_hospitals(hospital_chain_id=hospitalChainId),
+    )
 
 
 @router.get("/departments")
 @public_route
 def list_departments(branchId: str = Query(...), db: Session = Depends(get_db)):
-    return AppointmentsService(db).list_public_departments(branchId)
+    return remember_in_namespace(
+        REFERENCE_NAMESPACE,
+        ("public-departments", branchId),
+        REFERENCE_CACHE_TTL_SECONDS,
+        lambda: AppointmentsService(db).list_public_departments(branchId),
+    )
 
 
 @router.get("/sub-departments")
 @public_route
 def list_sub_departments(departmentId: str = Query(...), db: Session = Depends(get_db)):
-    return AppointmentsService(db).list_public_sub_departments(departmentId)
+    return remember_in_namespace(
+        REFERENCE_NAMESPACE,
+        ("public-sub-departments", departmentId),
+        REFERENCE_CACHE_TTL_SECONDS,
+        lambda: AppointmentsService(db).list_public_sub_departments(departmentId),
+    )
 
 
 @router.get("/doctors")
 @public_route
 def list_doctors(subDepartmentId: str = Query(...), db: Session = Depends(get_db)):
-    return AppointmentsService(db).list_public_doctors(subDepartmentId)
+    return remember_in_namespace(
+        REFERENCE_NAMESPACE,
+        ("public-doctors", subDepartmentId),
+        DOCTOR_CACHE_TTL_SECONDS,
+        lambda: AppointmentsService(db).list_public_doctors(subDepartmentId),
+    )
 
 
 @router.get("/doctors/{doctor_id}")
 @public_route
 def get_doctor(doctor_id: str, db: Session = Depends(get_db)):
-    return AppointmentsService(db).get_public_doctor(doctor_id)
+    return remember_in_namespace(
+        REFERENCE_NAMESPACE,
+        ("public-doctor", doctor_id),
+        DOCTOR_CACHE_TTL_SECONDS,
+        lambda: AppointmentsService(db).get_public_doctor(doctor_id),
+    )
 
 
 @router.get("/doctors/{doctor_id}/slots")

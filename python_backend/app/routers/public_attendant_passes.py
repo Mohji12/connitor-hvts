@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.attendant.approval_link_service import AttendantApprovalLinkService
 from app.attendant.pass_service import AttendantPassService
+from app.cache import remember_in_namespace
+from app.cache_invalidation import REFERENCE_CACHE_TTL_SECONDS, REFERENCE_NAMESPACE
 from app.database import get_db
 from app.dependencies.auth import public_route
 
@@ -16,7 +18,12 @@ router = APIRouter()
 
 @router.get("/branches")
 def list_branches(db: Annotated[Session, Depends(get_db)]):
-    return AttendantPassService(db).list_public_branches()
+    return remember_in_namespace(
+        REFERENCE_NAMESPACE,
+        ("attendant-public-branches",),
+        REFERENCE_CACHE_TTL_SECONDS,
+        lambda: AttendantPassService(db).list_public_branches(),
+    )
 
 
 class PublicApplyBody(BaseModel):

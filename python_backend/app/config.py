@@ -387,6 +387,10 @@ class Settings(BaseSettings):
     meeting_join_early_minutes: int = Field(default=15, validation_alias="MEETING_JOIN_EARLY_MINUTES")
     meeting_join_grace_minutes: int = Field(default=60, validation_alias="MEETING_JOIN_GRACE_MINUTES")
 
+    redis_url: str | None = Field(default=None, validation_alias="REDIS_URL")
+    cache_enabled: bool = Field(default=True, validation_alias="CACHE_ENABLED")
+    cache_key_prefix: str = Field(default="connitor", validation_alias="CACHE_KEY_PREFIX")
+
     rate_limit_sms_per_hour: int = Field(default=3, validation_alias="RATE_LIMIT_SMS_PER_HOUR")
     rate_limit_skip_in_test_mode: bool = Field(
         default=True,

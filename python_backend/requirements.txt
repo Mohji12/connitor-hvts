@@ -24,3 +24,4 @@ pywhatkit
 openpyxl
 livekit-api
 razorpay
+redis>=5

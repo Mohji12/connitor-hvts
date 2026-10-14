@@ -5,6 +5,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
+from app.cache import cache_get_json, cache_set_json, is_miss
+from app.cache_invalidation import USER_CACHE_TTL_SECONDS, user_cache_key
 from app.config import get_settings, is_demo_mode_enabled
 from app.constants.demo_users import resolve_demo_user
 from app.database import get_db
@@ -42,11 +44,16 @@ def get_current_user(
         if not user_id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
+        cache_key = user_cache_key(str(user_id))
+        hit = cache_get_json(cache_key)
+        if not is_miss(hit):
+            return hit
+
         user = db.get(User, str(user_id))
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-        return {
+        current = {
             "id": user.id,
             "name": user.name,
             "phone": user.phone,
@@ -63,6 +70,8 @@ def get_current_user(
             "deliveryAgentId": user.deliveryAgentId,
             "isActive": user.isActive,
         }
+        cache_set_json(cache_key, current, USER_CACHE_TTL_SECONDS)
+        return current
 
     if is_demo_mode_enabled(settings):
         return resolve_demo_user(x_demo_user_id)
