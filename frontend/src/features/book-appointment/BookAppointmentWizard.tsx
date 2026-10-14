@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft, MapPin, Stethoscope, Clock, Languages } from 'lucide-react';
 import {
   AppointmentService,
@@ -31,10 +31,13 @@ type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export interface BookAppointmentWizardProps {
   initialBranchId?: string;
   initialBranchName?: string;
-  onSuccess?: (result: { bookingId: string; message: string; phone: string }) => void;
   showHeaderLinks?: boolean;
   title?: string;
   className?: string;
+}
+
+function visitorDashboardHref(bookingId: string): string {
+  return `/visitor/dashboard?booked=${encodeURIComponent(bookingId)}`;
 }
 
 function DoctorDetailCard({ doctor }: { doctor: PublicDoctor }) {
@@ -91,12 +94,12 @@ function DoctorDetailCard({ doctor }: { doctor: PublicDoctor }) {
 export function BookAppointmentWizard({
   initialBranchId,
   initialBranchName,
-  onSuccess,
   showHeaderLinks = true,
   title = 'Book Doctor Appointment',
   className,
 }: BookAppointmentWizardProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const minStep: Step = initialBranchId ? 2 : 1;
   const totalSteps = initialBranchId ? 6 : 7;
 
@@ -407,10 +410,9 @@ export function BookAppointmentWizard({
         razorpayPaymentId: payment.razorpayPaymentId,
         razorpaySignature: payment.razorpaySignature,
       });
-      const bookingResult = { bookingId: res.bookingId, message: res.message };
-      setResult(bookingResult);
+      setResult({ bookingId: res.bookingId, message: res.message });
       setStep(7);
-      onSuccess?.({ ...bookingResult, phone });
+      router.replace(visitorDashboardHref(res.bookingId));
     } catch (e: unknown) {
       const detail =
         typeof e === 'object' && e && 'response' in e
@@ -869,12 +871,10 @@ export function BookAppointmentWizard({
               </p>
               <p className="text-sm text-muted-foreground break-all">Booking ID: {result.bookingId}</p>
               <p className="text-xs text-muted-foreground">
-                Save your booking ID. You will receive approval once the doctor reviews your request.
+                Opening your dashboard, where you can follow the doctor&apos;s approval…
               </p>
-              <Button variant="outline" asChild className="w-full">
-                <Link href={`/book-appointment/status?bookingId=${result.bookingId}&phone=${phone}`}>
-                  Track this booking
-                </Link>
+              <Button asChild className="w-full">
+                <Link href={visitorDashboardHref(result.bookingId)}>Go to my dashboard</Link>
               </Button>
             </div>
           )}

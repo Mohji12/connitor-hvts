@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import type { AxiosError } from 'axios';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { Calendar, LogOut, MessageSquare, QrCode, Stethoscope, Wallet } from 'lucide-react';
+import { Calendar, CheckCircle2, LogOut, MessageSquare, QrCode, Stethoscope, Wallet, X } from 'lucide-react';
 import { VisitorPortalShell } from '@/components/auth/VisitorPortalShell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import {
   type VisitorAppointment,
 } from '@/lib/services/visitorPortalService';
 import { formatIstDateTime } from '@/lib/datetime';
+import { cn } from '@/lib/utils';
 import { VisitorProfilePreviewCard } from '@/features/visitor-pre-registration/preview/VisitorProfilePreviewCard';
 import {
   VisitorWalletService,
@@ -45,10 +46,51 @@ function formatDate(value: string | null): string {
   return formatIstDateTime(value);
 }
 
-function AppointmentCard({ item }: { item: VisitorAppointment }) {
-  const hasFeedback = Boolean(item.doctorFeedback);
+function readBookedIdFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get('booked');
+}
+
+function BookedBanner({ item, onDismiss }: { item: VisitorAppointment | undefined; onDismiss: () => void }) {
+  const label = item ? (STATUS_LABELS[item.status] ?? item.status) : 'Awaiting doctor approval';
   return (
-    <Card className="border-[#001B71]/08">
+    <div
+      role="status"
+      className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950"
+    >
+      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+      <div className="min-w-0 flex-1 text-sm">
+        <p className="font-semibold">Your visit is booked</p>
+        <p className="mt-0.5 text-emerald-900/80">
+          Status: <span className="font-medium">{label}</span>. This page updates automatically, and your
+          gate pass appears here once the doctor approves.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        className="-m-1 rounded-md p-1 text-emerald-700 hover:bg-emerald-100"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+function AppointmentCard({ item, highlighted = false }: { item: VisitorAppointment; highlighted?: boolean }) {
+  const hasFeedback = Boolean(item.doctorFeedback);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlighted) cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlighted]);
+
+  return (
+    <Card
+      ref={cardRef}
+      className={cn('border-[#001B71]/08', highlighted && 'ring-2 ring-emerald-500 ring-offset-2')}
+    >
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
@@ -181,6 +223,14 @@ function UpcomingVisitCard({ item }: { item: VisitorAppointment }) {
 export default function VisitorDashboardPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [bookedId, setBookedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const booked = readBookedIdFromUrl();
+    if (!booked) return;
+    setBookedId(booked);
+    window.history.replaceState(null, '', window.location.pathname);
+  }, []);
 
   const redirectToLogin = useCallback(() => {
     clearVisitorToken();
@@ -226,6 +276,7 @@ export default function VisitorDashboardPage() {
   };
 
   const upcoming = data ? pickUpcomingVisit(data.appointments) : null;
+  const bookedItem = bookedId ? data?.appointments.find((a) => a.bookingId === bookedId) : undefined;
 
   if (!ready || isLoading || walletLoading) {
     return (
@@ -253,6 +304,8 @@ export default function VisitorDashboardPage() {
       }
     >
       <main className="mx-auto w-full min-w-0 max-w-4xl space-y-4 p-4 sm:p-6 sm:py-8 lg:space-y-6">
+        {bookedId && <BookedBanner item={bookedItem} onDismiss={() => setBookedId(null)} />}
+
         {data && (
           <div className="lg:hidden">
             <p className="m-meta">Welcome back</p>
@@ -343,7 +396,7 @@ export default function VisitorDashboardPage() {
         {data && data.appointments.length > 0 && (
           <div className="space-y-4">
             {data.appointments.map((item) => (
-              <AppointmentCard key={item.bookingId} item={item} />
+              <AppointmentCard key={item.bookingId} item={item} highlighted={item.bookingId === bookedId} />
             ))}
           </div>
         )}

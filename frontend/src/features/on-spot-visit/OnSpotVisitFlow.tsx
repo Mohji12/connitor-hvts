@@ -10,7 +10,7 @@ import { VisitorService } from '@/lib/services/visitorService';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
 import { VisitorAccountApi } from '@/features/visitor-pre-registration/api/visitorAccountService';
 
-type OnSpotPhase = 'loading' | 'auth' | 'booking' | 'done';
+type OnSpotPhase = 'loading' | 'auth' | 'booking';
 
 export interface OnSpotVisitFlowProps {
   branchId: string;
@@ -26,11 +26,6 @@ function buildReturnPath(branchId: string, branchName?: string | null): string {
 export function OnSpotVisitFlow({ branchId, branchNameFromQuery }: OnSpotVisitFlowProps) {
   const [phase, setPhase] = React.useState<OnSpotPhase>('loading');
   const [branchName, setBranchName] = React.useState(branchNameFromQuery ?? '');
-  const [bookingResult, setBookingResult] = React.useState<{
-    bookingId: string;
-    message: string;
-    phone: string;
-  } | null>(null);
 
   const returnTo = buildReturnPath(branchId, branchName || branchNameFromQuery);
 
@@ -119,44 +114,12 @@ export function OnSpotVisitFlow({ branchId, branchNameFromQuery }: OnSpotVisitFl
     );
   }
 
-  if (phase === 'done' && bookingResult) {
-    return (
-      <Card>
-        <CardContent className="space-y-4 pt-6 text-center">
-          <p className="font-medium text-green-600">Request submitted</p>
-          <p className="text-sm">{bookingResult.message}</p>
-          <p className="text-sm text-muted-foreground break-all">
-            Booking ID: {bookingResult.bookingId}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            The doctor will review your request. You&apos;ll get a QR pass after approval for security
-            check-in.
-          </p>
-          <Button variant="outline" asChild className="w-full">
-            <Link
-              href={`/book-appointment/status?bookingId=${bookingResult.bookingId}&phone=${bookingResult.phone}`}
-            >
-              Track booking
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild className="w-full">
-            <Link href="/visitor/dashboard">Open visitor dashboard</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <BookAppointmentWizard
       initialBranchId={branchId}
       initialBranchName={branchName || branchNameFromQuery || undefined}
       title="Book your visit"
       showHeaderLinks={false}
-      onSuccess={(result) => {
-        setBookingResult(result);
-        setPhase('done');
-      }}
     />
   );
 }
