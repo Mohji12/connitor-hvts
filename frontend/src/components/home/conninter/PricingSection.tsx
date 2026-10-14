@@ -25,8 +25,8 @@ const PricingSection = () => {
         aria-hidden
       />
 
-      {/* High z + isolate: billing/audience controls must stay above the card grid for hit-testing */}
-      <div className="relative z-[100] isolate pb-12 pt-20 md:pb-14">
+      {/* Above the card grid (z-0) for hit-testing, but below the fixed site navbar (z-50) */}
+      <div className="relative z-20 isolate pb-12 pt-20 md:pb-14">
         <PricingHero
           billing={billing}
           onBillingChange={setBilling}
