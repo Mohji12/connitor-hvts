@@ -540,7 +540,7 @@ export function BookAppointmentWizard({
             <div className="space-y-2">
               <Label>Select Hospital Location</Label>
               {loadingHospitals && (
-                <ConnitorLoader variant="section" message="Loading hospitals…" className="py-8" />
+                <ConnitorLoader variant="section" message="Loading hospitals…" className="min-h-[50vh]" />
               )}
               {!loadingHospitals && hospitals.length === 0 && !error && (
                 <p className="text-sm text-muted-foreground">No hospitals available for booking.</p>
@@ -563,7 +563,7 @@ export function BookAppointmentWizard({
             <div className="space-y-2">
               <Label>Select Department</Label>
               {loadingDepartments && (
-                <ConnitorLoader variant="section" message="Loading departments…" className="py-8" />
+                <ConnitorLoader variant="section" message="Loading departments…" className="min-h-[50vh]" />
               )}
               {!loadingDepartments && departments.length === 0 && (
                 <p className="text-sm text-muted-foreground">

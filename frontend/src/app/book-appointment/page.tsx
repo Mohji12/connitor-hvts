@@ -51,7 +51,7 @@ function BookAppointmentContent() {
   const resolved = useBranchFromSlug(slug);
 
   if (resolved?.status === 'loading') {
-    return <ConnitorLoader variant="section" message="Loading hospital…" className="py-12" />;
+    return <ConnitorLoader variant="section" message="Loading hospital…" className="min-h-[70vh]" />;
   }
 
   if (resolved?.status === 'not-found') {
@@ -93,7 +93,7 @@ export default function BookAppointmentPage() {
   return (
     <div className="pt-safe min-h-screen bg-[#F7F9FC] p-4 md:p-8">
       <div className="mx-auto max-w-4xl">
-        <Suspense fallback={<div className="py-12 text-center text-muted-foreground">Loading…</div>}>
+        <Suspense fallback={<ConnitorLoader variant="section" className="min-h-[70vh]" />}>
           <BookAppointmentContent />
         </Suspense>
       </div>

@@ -49,7 +49,7 @@ export function OvumBranchPicker() {
         </p>
       </div>
 
-      {loading && <ConnitorLoader variant="section" message="Loading centres…" className="py-12" />}
+      {loading && <ConnitorLoader variant="section" message="Loading centres…" className="min-h-[55vh]" />}
 
       {!loading && error && (
         <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
