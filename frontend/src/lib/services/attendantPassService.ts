@@ -293,6 +293,8 @@ export const AttendantPassService = {
     email: string;
     phone: string;
     relationship?: string;
+    /** `data:image/...;base64,` — shown in the circle on the pass card. */
+    photo?: string;
     addCompanion?: boolean;
     companionName?: string;
     companionPhone?: string;
@@ -416,6 +418,8 @@ export const AttendantPassService = {
     phone: string;
     relationship?: string;
     photoUrl?: string;
+    /** `data:image/...;base64,` — shown in the circle on the pass card. */
+    photo?: string;
     idProofType?: string;
     idProofUrl?: string;
     remarks?: string;

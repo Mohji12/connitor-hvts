@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { StickyActionBar } from '@/components/mobile/StickyActionBar';
+import { AttendantPhotoPicker } from '@/features/attendant-passes/AttendantPhotoPicker';
 
 function branchShortLabel(branch: AttendantPassBranch): string {
   const location = [branch.city, branch.state].filter(Boolean).join(', ');
@@ -91,6 +92,7 @@ function ApplyForm(): React.ReactElement {
   const [email, setEmail] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [relationship, setRelationship] = React.useState('');
+  const [photo, setPhoto] = React.useState<string | null>(null);
   const [addCompanion, setAddCompanion] = React.useState(false);
   const [companionName, setCompanionName] = React.useState('');
   const [companionPhone, setCompanionPhone] = React.useState('');
@@ -191,6 +193,7 @@ function ApplyForm(): React.ReactElement {
         email: email.trim(),
         phone: phone.trim(),
         relationship: relationship.trim() || undefined,
+        photo: photo ?? undefined,
         addCompanion,
         companionName: addCompanion ? companionName.trim() : undefined,
         companionPhone: addCompanion ? companionPhone.trim() : undefined,
@@ -393,6 +396,13 @@ function ApplyForm(): React.ReactElement {
             <CardTitle className="text-lg">Your details</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
+            <AttendantPhotoPicker
+              value={photo}
+              onChange={setPhoto}
+              label="Your photo (optional)"
+              className="sm:col-span-2"
+              disabled={submitting}
+            />
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="visitor-name">Full name</Label>
               <Input

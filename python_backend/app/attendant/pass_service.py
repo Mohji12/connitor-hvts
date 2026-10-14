@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import hmac
+import io
 import logging
 import re
 from datetime import date, datetime, timedelta
 
 from fastapi import UploadFile
+from PIL import Image, ImageOps
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -28,6 +32,7 @@ from app.models.attendant_entities import (
 from app.services.auth_service import AuthService
 from app.services.gcp_storage_service import GcpStorageService
 from app.services.messaging_service import EmailService
+from app.services.s3_storage_service import MAX_UPLOAD_BYTES, S3StorageService
 from app.utils.timezone import format_ist_datetime, now_ist, today_start_ist, today_end_ist
 
 logger = logging.getLogger(__name__)
@@ -36,6 +41,7 @@ PASS_VALIDITY_HOURS = 24
 # Hospital-wide default visiting window for every inpatient (IST), every day.
 DEFAULT_VISIT_START = "11:00"
 DEFAULT_VISIT_END = "16:00"
+_PHOTO_MAX_SIDE = 800
 _TIME_RE = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
 
 
@@ -404,6 +410,7 @@ class AttendantPassService:
                     "They must check out at security before another person can apply."
                 )
         email = AuthService.normalize_email(data.get("email") or f"{str(data['phone']).strip()}@placeholder.local")
+        photo_url = self._store_attendant_photo(admission.id, data.get("photo")) or data.get("photoUrl")
         permissions = data.get("specialPermissions")
         if isinstance(permissions, list):
             permissions = ",".join(str(p) for p in permissions if p)
@@ -414,7 +421,7 @@ class AttendantPassService:
             email=email,
             phone=str(data["phone"]).strip(),
             relationship=data.get("relationship"),
-            photoUrl=data.get("photoUrl"),
+            photoUrl=photo_url,
             idProofType=data.get("idProofType"),
             idProofUrl=data.get("idProofUrl"),
             remarks=(data.get("remarks") or "").strip() or None,
@@ -1594,6 +1601,29 @@ class AttendantPassService:
             logger.error("Failed attendant pass WhatsApp to %s: %s", attendant.phone, exc)
             return False
 
+    def _store_attendant_photo(self, admission_id: str, photo: str | None) -> str | None:
+        """Decode a ``data:image/...`` upload, normalise to JPEG and store it privately."""
+        raw = (photo or "").strip()
+        if not raw:
+            return None
+        header, _, encoded = raw.partition(",")
+        if not header.startswith("data:image/") or ";base64" not in header or not encoded:
+            raise bad_request("Photo must be a JPG or PNG image.")
+        try:
+            content = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError):
+            raise bad_request("Photo could not be read. Try another image.")
+        if len(content) > MAX_UPLOAD_BYTES:
+            raise bad_request("Photo is too large (max 5MB).")
+        try:
+            image = ImageOps.exif_transpose(Image.open(io.BytesIO(content))).convert("RGB")
+        except Exception:
+            raise bad_request("Photo could not be read. Upload a JPG or PNG image.")
+        image.thumbnail((_PHOTO_MAX_SIDE, _PHOTO_MAX_SIDE), Image.Resampling.LANCZOS)
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=85)
+        return S3StorageService().upload_attendant_photo(admission_id, buffer.getvalue())
+
     def _attendant_photo_bytes(self, attendant: Attendant) -> bytes | None:
         photo_url = (getattr(attendant, "photoUrl", None) or "").strip()
         if not photo_url or photo_url.startswith("data:"):
@@ -1605,6 +1635,7 @@ class AttendantPassService:
                 response = httpx.get(photo_url, timeout=15.0, follow_redirects=True)
                 response.raise_for_status()
                 return response.content
+            return S3StorageService().read_bytes(photo_url)
         except Exception as exc:
             logger.warning("Attendant photo skipped for %s: %s", attendant.id, exc)
         return None

@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import BinaryIO
 from urllib.parse import quote
+from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
 
@@ -105,7 +106,14 @@ class S3StorageService:
         ext = self._extension_for_mime(mime)
         ts = int(time.time())
         key = f"visitor-accounts/{account_id}/{category}/{ts}{suffix}{ext}"
+        return self._store_private(key, content, mime)
 
+    def upload_attendant_photo(self, admission_id: str, content: bytes) -> str:
+        """Store a JPEG attendant photo privately; returns the storage key."""
+        key = f"attendant-photos/{admission_id}/{int(time.time())}-{uuid4().hex[:8]}.jpg"
+        return self._store_private(key, content, "image/jpeg")
+
+    def _store_private(self, key: str, content: bytes, mime: str) -> str:
         if self._client and self.settings.aws_s3_bucket:
             try:
                 self._client.put_object(

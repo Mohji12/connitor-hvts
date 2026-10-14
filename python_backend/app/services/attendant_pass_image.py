@@ -31,11 +31,12 @@ _VALUE_X = 232
 _VALUE_WIDTH = 252
 _VALUE_YS = (350, 400, 450, 496)
 # Outer corner-bracket frame on the blank artwork.
-_QR_FRAME = (46, 535, 223, 686)
-_QR_SIZE = 124
-# Same top/height as the QR square (not a separate lower band).
+# Inner edge of the printed corner brackets; both panels span y 545-697.
+_QR_FRAME = (57, 560, 219, 682)
+_QR_SIZE = 108
+# Same top/height as the QR square, centred in the right panel (x 261-492).
 _LOGO_LEFT = 276
-_LOGO_RIGHT = 496
+_LOGO_RIGHT = 477
 _PHONE_X = 262
 _PHONE_Y = 952
 _PHONE_WIDTH = 210

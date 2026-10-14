@@ -9,6 +9,7 @@ import {
   type AttendantPassRow,
 } from '@/lib/services/attendantPassService';
 import { AmsPageShell, AmsQrPassCard } from '@/features/attendant-management/ui';
+import { AttendantPhotoPicker } from '@/features/attendant-passes/AttendantPhotoPicker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -64,6 +65,7 @@ export default function AmsRegisterPage(): React.ReactElement {
   const [phone, setPhone] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [relationship, setRelationship] = React.useState('Spouse');
+  const [photo, setPhoto] = React.useState<string | null>(null);
   const [idProofType, setIdProofType] = React.useState('Aadhar');
   const [validFrom, setValidFrom] = React.useState('');
   const [validTo, setValidTo] = React.useState('');
@@ -124,6 +126,7 @@ export default function AmsRegisterPage(): React.ReactElement {
         phone: phone.trim(),
         email: email.trim() || undefined,
         relationship,
+        photo: photo ?? undefined,
         idProofType,
         remarks: remarks.trim() || undefined,
         specialPermissions: permissions,
@@ -249,6 +252,7 @@ export default function AmsRegisterPage(): React.ReactElement {
             <CardTitle>Person with the patient</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <AttendantPhotoPicker value={photo} onChange={setPhoto} disabled={loading} />
             <div>
               <Label>Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} />

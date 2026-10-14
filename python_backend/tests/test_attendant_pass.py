@@ -1,5 +1,6 @@
 """Tests for attendant visit pass lifecycle."""
 
+import base64
 import uuid
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -471,3 +472,62 @@ async def test_fixed_pass_allows_repeated_entry_and_exit(db):
     db.refresh(pass_row)
     assert pass_row.status == "ACTIVE"
     assert pass_row.entriesUsed == 2
+
+
+def _photo_data_url() -> str:
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new("RGB", (1600, 1200), (200, 120, 80)).save(buffer, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+
+
+def test_register_attendant_stores_photo_as_jpeg(db):
+    from PIL import Image
+
+    branch = db.query(Branch).first()
+    admission = _seed_admission(db, branch.id)
+    stored: dict = {}
+
+    def _fake_upload(_self, admission_id, content):
+        stored["admission_id"] = admission_id
+        stored["content"] = content
+        return f"attendant-photos/{admission_id}/photo.jpg"
+
+    with patch(
+        "app.attendant.pass_service.S3StorageService.upload_attendant_photo", _fake_upload
+    ), patch("app.attendant.pass_service.S3StorageService.read_bytes", lambda _s, _k: stored["content"]):
+        svc = AttendantPassService(db)
+        att = svc.register_attendant(
+            _ward_user(branch.id),
+            {
+                "admissionId": admission.id,
+                "name": "Photo Carer",
+                "phone": "9777777777",
+                "attendantKind": "FIXED",
+                "photo": _photo_data_url(),
+            },
+        )
+        row = db.get(Attendant, att["id"])
+        assert row.photoUrl == f"attendant-photos/{admission.id}/photo.jpg"
+        image = Image.open(BytesIO(stored["content"]))
+        assert image.format == "JPEG"
+        assert max(image.size) <= 800
+        assert svc._attendant_photo_bytes(row) == stored["content"]
+
+
+def test_register_attendant_rejects_non_image_photo(db):
+    branch = db.query(Branch).first()
+    admission = _seed_admission(db, branch.id)
+    with pytest.raises(Exception) as exc:
+        AttendantPassService(db).register_attendant(
+            _ward_user(branch.id),
+            {
+                "admissionId": admission.id,
+                "name": "Bad Photo",
+                "phone": "9888888888",
+                "photo": "data:image/png;base64," + base64.b64encode(b"not an image").decode(),
+            },
+        )
+    assert "photo" in str(exc.value.detail).lower()
+    assert db.query(Attendant).filter(Attendant.phone == "9888888888").count() == 0

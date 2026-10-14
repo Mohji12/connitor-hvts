@@ -25,6 +25,7 @@ class PublicApplyBody(BaseModel):
     email: EmailStr
     phone: str
     relationship: str | None = None
+    photo: str | None = Field(default=None, max_length=7_500_000)
     addCompanion: bool = False
     companionName: str | None = None
     companionPhone: str | None = None

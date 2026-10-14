@@ -38,6 +38,7 @@ class AttendantBody(BaseModel):
     phone: str
     relationship: str | None = None
     photoUrl: str | None = None
+    photo: str | None = Field(default=None, max_length=7_500_000)
     idProofType: str | None = None
     idProofUrl: str | None = None
     remarks: str | None = None
