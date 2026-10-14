@@ -6,7 +6,6 @@ import { Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
 import { openRazorpayCheckout } from '@/lib/razorpay-checkout';
-import { GuestBookingService } from '@/lib/services/appointmentService';
 import {
   VisitorWalletService,
   type VisitorWalletSummary,
@@ -23,8 +22,8 @@ type VisitPaymentChoiceProps = {
   returnTo: string;
   busy: boolean;
   onPay: (payment: VisitPaymentResult) => Promise<void>;
-  /** Verified-phone pass for booking without a profile; only online payment is offered. */
-  guestToken?: string | null;
+  /** Offer only Razorpay, e.g. right after the profile was created inside the booking. */
+  onlineOnly?: boolean;
 };
 
 function apiDetail(error: unknown): string {
@@ -40,10 +39,9 @@ export function VisitPaymentChoice({
   returnTo,
   busy,
   onPay,
-  guestToken = null,
+  onlineOnly = false,
 }: VisitPaymentChoiceProps): React.ReactElement {
   const loggedIn = Boolean(getVisitorToken());
-  const isGuest = !loggedIn && Boolean(guestToken);
   const [wallet, setWallet] = React.useState<VisitorWalletSummary | null>(null);
   const [error, setError] = React.useState('');
   const [paying, setPaying] = React.useState<'WALLET' | 'RAZORPAY' | null>(null);
@@ -76,10 +74,7 @@ export function VisitPaymentChoice({
     setError('');
     setPaying('RAZORPAY');
     try {
-      const order =
-        isGuest && guestToken
-          ? await GuestBookingService.createPaymentOrder(guestToken)
-          : await VisitorWalletService.createVisitOrder();
+      const order = await VisitorWalletService.createVisitOrder();
       await openRazorpayCheckout({
         key: order.keyId,
         amount: order.amount,
@@ -108,15 +103,15 @@ export function VisitPaymentChoice({
     }
   };
 
-  if (isGuest) {
+  if (loggedIn && onlineOnly) {
     return (
       <div className="space-y-4">
         <div className="rounded-xl bg-gradient-to-br from-[#001B71] to-[#4A90E2] p-4 text-white">
           <p className="text-xs uppercase tracking-wide text-white/80">Visit fee</p>
           <p className="mt-1 text-3xl font-bold">₹{fee}</p>
           <p className="mt-2 text-sm text-white/90">
-            Paid online now and refunded if the doctor declines. Create a profile to pay from a wallet
-            next time.
+            Paid online now and refunded if the doctor declines. Next time you can also pay from your
+            wallet.
           </p>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}

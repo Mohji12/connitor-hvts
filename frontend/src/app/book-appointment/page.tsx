@@ -21,7 +21,7 @@ function BookAppointmentContent() {
 export default function BookAppointmentPage() {
   return (
     <div className="pt-safe min-h-screen bg-[#F7F9FC] p-4 md:p-8">
-      <div className="mx-auto max-w-lg">
+      <div className="mx-auto max-w-4xl">
         <Suspense fallback={<div className="py-12 text-center text-muted-foreground">Loading…</div>}>
           <BookAppointmentContent />
         </Suspense>

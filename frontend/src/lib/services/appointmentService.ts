@@ -1,52 +1,6 @@
 import apiClient from '@/lib/api';
 import { ensureArray } from '@/lib/ensure-array';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
-import type { RazorpayOrder } from '@/lib/services/visitorWalletService';
-
-const GUEST_TOKEN_HEADER = 'X-Guest-Booking-Token';
-
-export interface GuestVerification {
-  guestToken: string;
-  expiresInMinutes: number;
-  hasPhoto: boolean;
-  hasGovernmentId: boolean;
-}
-
-/** Booking a doctor visit without a visitor profile: WhatsApp code, photo + ID, online payment. */
-export const GuestBookingService = {
-  async sendCode(phone: string, branchId: string): Promise<{ message: string; testOtp?: string }> {
-    const res = await apiClient.post('/api/public/appointments/guest/send-code', { phone, branchId });
-    return res.data;
-  },
-
-  async verifyCode(phone: string, branchId: string, otp: string): Promise<GuestVerification> {
-    const res = await apiClient.post<GuestVerification>('/api/public/appointments/guest/verify-code', {
-      phone,
-      branchId,
-      otp,
-    });
-    return res.data;
-  },
-
-  async uploadDocuments(
-    guestToken: string,
-    files: { photo: File | null; governmentId: File | null },
-  ): Promise<void> {
-    const form = new FormData();
-    if (files.photo) form.append('photo', files.photo);
-    if (files.governmentId) form.append('governmentIdDocument', files.governmentId);
-    await apiClient.post('/api/public/appointments/guest/documents', form, {
-      headers: { [GUEST_TOKEN_HEADER]: guestToken, 'Content-Type': 'multipart/form-data' },
-    });
-  },
-
-  async createPaymentOrder(guestToken: string): Promise<RazorpayOrder> {
-    const res = await apiClient.post<RazorpayOrder>('/api/public/appointments/guest/payment-order', null, {
-      headers: { [GUEST_TOKEN_HEADER]: guestToken },
-    });
-    return res.data;
-  },
-};
 
 export interface PublicHospital {
   id: string;
@@ -163,12 +117,11 @@ export const AppointmentService = {
     razorpayOrderId?: string;
     razorpayPaymentId?: string;
     razorpaySignature?: string;
-  }, guestToken?: string | null) {
+  }) {
     const token = getVisitorToken();
-    const headers: Record<string, string> = {};
-    if (token) headers.Authorization = `Bearer ${token}`;
-    else if (guestToken) headers[GUEST_TOKEN_HEADER] = guestToken;
-    const response = await apiClient.post('/api/public/appointments', data, { headers });
+    const response = await apiClient.post('/api/public/appointments', data, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     return response.data as {
       bookingId: string;
       status: string;

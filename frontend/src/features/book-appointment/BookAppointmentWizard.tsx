@@ -6,12 +6,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft, MapPin, Stethoscope, Clock, Languages } from 'lucide-react';
 import {
   AppointmentService,
-  GuestBookingService,
   type DoctorSlot,
-  type GuestVerification,
   type PublicDoctor,
 } from '@/lib/services/appointmentService';
-import { getApiErrorMessage } from '@/lib/api-errors';
 import { todayIstDateIso } from '@/lib/datetime';
 import { fetchVisitorBookingIdentity } from '@/lib/visitor-booking-profile';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
@@ -28,10 +25,20 @@ import {
   VisitPaymentChoice,
   type VisitPaymentResult,
 } from '@/features/visitor-wallet/VisitPaymentChoice';
-import { GuestBookingDetails, type GuestDocuments } from '@/features/book-appointment/GuestBookingDetails';
+import {
+  BookingProfileStep,
+  type BookingProfileIdentity,
+} from '@/features/book-appointment/BookingProfileStep';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+/** 5 = create profile (visitors without one), 5A = visit details. */
+type Step = 1 | 2 | 3 | 4 | 5 | '5A' | 6 | 7;
+
+const STEP_ORDER: Step[] = [1, 2, 3, 4, 5, '5A', 6, 7];
+
+function stepIndex(step: Step): number {
+  return STEP_ORDER.indexOf(step);
+}
 
 export interface BookAppointmentWizardProps {
   initialBranchId?: string;
@@ -43,10 +50,6 @@ export interface BookAppointmentWizardProps {
 
 function visitorDashboardHref(bookingId: string): string {
   return `/visitor/dashboard?booked=${encodeURIComponent(bookingId)}`;
-}
-
-function guestStatusHref(bookingId: string, phone: string): string {
-  return `/book-appointment/status?bookingId=${encodeURIComponent(bookingId)}&phone=${encodeURIComponent(phone)}`;
 }
 
 function DoctorDetailCard({ doctor }: { doctor: PublicDoctor }) {
@@ -148,22 +151,15 @@ export function BookAppointmentWizard({
   const [fetchingNext, setFetchingNext] = React.useState<string | null>(null);
   const [isRegisteredVisitor, setIsRegisteredVisitor] = React.useState(false);
   const [loadingVisitorProfile, setLoadingVisitorProfile] = React.useState(false);
-  const [isGuest, setIsGuest] = React.useState(false);
-  const [guestVerification, setGuestVerification] = React.useState<GuestVerification | null>(null);
-  const [guestDocuments, setGuestDocuments] = React.useState<GuestDocuments>({ photo: null, governmentId: null });
-  const [uploadingDocuments, setUploadingDocuments] = React.useState(false);
+  /** True once the visitor created their profile inside this booking (step 5). */
+  const [profileCreatedHere, setProfileCreatedHere] = React.useState(false);
 
-  React.useEffect(() => {
-    setIsGuest(!getVisitorToken());
-  }, []);
+  const stepOffset = initialBranchId ? 1 : 0;
+  const displayStep = (step === '5A' ? 5 : step) - stepOffset;
+  const stepLabel = step === '5A' && profileCreatedHere ? `${displayStep}A` : String(displayStep);
+  const isVisitDetailsStep = step === '5A';
 
-  React.useEffect(() => {
-    setGuestVerification(null);
-  }, [branchId]);
-
-  const displayStep = initialBranchId ? step - 1 : step;
-
-  const applyVisitorIdentity = React.useCallback((identity: Awaited<ReturnType<typeof fetchVisitorBookingIdentity>>) => {
+  const applyVisitorIdentity = React.useCallback((identity: BookingProfileIdentity | null) => {
     if (!identity) return;
     setFirstName(identity.firstName);
     setLastName(identity.lastName);
@@ -193,7 +189,7 @@ export function BookAppointmentWizard({
   }, [applyVisitorIdentity]);
 
   React.useEffect(() => {
-    if (step !== 5 || isRegisteredVisitor) return;
+    if (step !== '5A' || isRegisteredVisitor) return;
     let cancelled = false;
     fetchVisitorBookingIdentity().then((identity) => {
       if (!cancelled) applyVisitorIdentity(identity);
@@ -315,11 +311,24 @@ export function BookAppointmentWizard({
     } finally {
       setFetchingNext(null);
     }
-    setStep(5);
+    setStep(getVisitorToken() ? '5A' : 5);
   };
 
+  const onProfileVerified = (identity: BookingProfileIdentity) => {
+    applyVisitorIdentity(identity);
+    setProfileCreatedHere(true);
+    setError('');
+    setStep('5A');
+  };
+
+  const canGoBack = stepIndex(step) > stepIndex(minStep) && step !== 7;
+
   const goBack = () => {
-    if (step > minStep && step < 7) setStep((step - 1) as Step);
+    if (!canGoBack) return;
+    let prev = STEP_ORDER[stepIndex(step) - 1];
+    // The profile step is only for visitors who are not signed in yet.
+    if (prev === 5 && getVisitorToken()) prev = 4;
+    setStep(prev);
   };
 
   React.useEffect(() => {
@@ -327,7 +336,7 @@ export function BookAppointmentWizard({
   }, [doctorId, appointmentDate]);
 
   React.useEffect(() => {
-    if (!doctorId || !appointmentDate || step < 5) return;
+    if (!doctorId || !appointmentDate || stepIndex(step) < stepIndex('5A')) return;
     let cancelled = false;
     setLoadingSlots(true);
     AppointmentService.listDoctorSlots(doctorId, appointmentDate)
@@ -391,43 +400,12 @@ export function BookAppointmentWizard({
         return false;
       }
     }
-    if (isGuest) {
-      if (!guestVerification) {
-        setError('Verify your mobile number with the WhatsApp code.');
-        return false;
-      }
-      if (!guestDocuments.photo && !guestVerification.hasPhoto) {
-        setError('Add your photo (live camera or upload).');
-        return false;
-      }
-      if (!guestDocuments.governmentId && !guestVerification.hasGovernmentId) {
-        setError('Add a government ID (live camera or upload).');
-        return false;
-      }
-    }
     return true;
   };
 
-  const continueToPayment = async () => {
+  const continueToPayment = () => {
     if (!readyToBook()) return;
     setError('');
-    if (isGuest && guestVerification && (guestDocuments.photo || guestDocuments.governmentId)) {
-      setUploadingDocuments(true);
-      try {
-        await GuestBookingService.uploadDocuments(guestVerification.guestToken, guestDocuments);
-        setGuestVerification({
-          ...guestVerification,
-          hasPhoto: guestVerification.hasPhoto || Boolean(guestDocuments.photo),
-          hasGovernmentId: guestVerification.hasGovernmentId || Boolean(guestDocuments.governmentId),
-        });
-        setGuestDocuments({ photo: null, governmentId: null });
-      } catch (e: unknown) {
-        setError(getApiErrorMessage(e, 'Could not upload your documents. Please try again.'));
-        return;
-      } finally {
-        setUploadingDocuments(false);
-      }
-    }
     setStep(6);
   };
 
@@ -461,10 +439,10 @@ export function BookAppointmentWizard({
         razorpayOrderId: payment.razorpayOrderId,
         razorpayPaymentId: payment.razorpayPaymentId,
         razorpaySignature: payment.razorpaySignature,
-      }, isGuest ? guestVerification?.guestToken : null);
+      });
       setResult({ bookingId: res.bookingId, message: res.message });
       setStep(7);
-      router.replace(isGuest ? guestStatusHref(res.bookingId, phone) : visitorDashboardHref(res.bookingId));
+      router.replace(visitorDashboardHref(res.bookingId));
     } catch (e: unknown) {
       const detail =
         typeof e === 'object' && e && 'response' in e
@@ -482,9 +460,16 @@ export function BookAppointmentWizard({
   };
 
   return (
-    <div className={cn('space-y-4', step === 5 && 'max-lg:pb-24', className)}>
+    <div
+      className={cn(
+        'mx-auto w-full max-w-lg space-y-4 transition-[max-width]',
+        step === 5 && 'lg:max-w-4xl',
+        isVisitDetailsStep && 'max-lg:pb-24',
+        className,
+      )}
+    >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        {step > minStep && step < 7 ? (
+        {canGoBack ? (
           <Button variant="ghost" size="sm" onClick={goBack}>
             <ChevronLeft className="mr-1 h-4 w-4" /> Back
           </Button>
@@ -509,10 +494,12 @@ export function BookAppointmentWizard({
         )}
         <CardHeader>
           <CardTitle>{title}</CardTitle>
-          {step < 7 && (
+          {step !== 7 && (
             <>
               <p className="text-sm text-muted-foreground">
-                Step {displayStep} of {totalSteps}
+                Step {stepLabel} of {totalSteps}
+                {step === 5 && ' · Create your profile'}
+                {isVisitDetailsStep && ' · Visit details'}
               </p>
               <div
                 className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
@@ -528,7 +515,7 @@ export function BookAppointmentWizard({
               </div>
             </>
           )}
-          {initialBranchId && branchName && step < 7 && (
+          {initialBranchId && branchName && step !== 7 && (
             <p className="text-sm text-primary font-medium">{branchName}</p>
           )}
         </CardHeader>
@@ -640,6 +627,13 @@ export function BookAppointmentWizard({
           {step === 5 && selectedDoctor && (
             <div className="space-y-4">
               <DoctorDetailCard doctor={selectedDoctor} />
+              <BookingProfileStep onVerified={onProfileVerified} />
+            </div>
+          )}
+
+          {isVisitDetailsStep && selectedDoctor && (
+            <div className="space-y-4">
+              <DoctorDetailCard doctor={selectedDoctor} />
 
               {loadingVisitorProfile && (
                 <ConnitorLoader variant="inline" message="Loading your profile…" />
@@ -647,79 +641,39 @@ export function BookAppointmentWizard({
 
               {isRegisteredVisitor && !loadingVisitorProfile && (
                 <div className="rounded-lg border border-[#4A90E2]/25 bg-[#4A90E2]/5 p-3 text-sm text-muted-foreground">
-                  Signed in — your details are filled from your visitor profile.{' '}
+                  {profileCreatedHere ? 'Profile created and phone verified' : 'Signed in'} — booking as{' '}
+                  <span className="font-medium text-foreground">
+                    {[firstName, lastName].filter(Boolean).join(' ')}
+                  </span>{' '}
+                  (+91 {phone}).{' '}
                   <Link href="/visitor/dashboard" className="font-medium text-primary underline-offset-4 hover:underline">
                     Manage profile
                   </Link>
                 </div>
               )}
 
-              <div>
-                <Label>First Name</Label>
-                <Input
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  readOnly={isRegisteredVisitor}
-                  className={isRegisteredVisitor ? 'bg-muted/50' : undefined}
-                  required
-                />
-              </div>
-              <div>
-                <Label>Last Name</Label>
-                <Input
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  readOnly={isRegisteredVisitor}
-                  className={isRegisteredVisitor ? 'bg-muted/50' : undefined}
-                  required
-                />
-              </div>
-              {!isGuest && (
-                <div>
-                  <Label>Phone (10 digits)</Label>
-                  <Input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    maxLength={10}
-                    readOnly={isRegisteredVisitor}
-                    className={isRegisteredVisitor ? 'bg-muted/50' : undefined}
-                    required
-                  />
-                </div>
-              )}
-              <div>
-                <Label>Email</Label>
-                <Input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  type="email"
-                  readOnly={isRegisteredVisitor}
-                  className={isRegisteredVisitor ? 'bg-muted/50' : undefined}
-                  required
-                  placeholder={isRegisteredVisitor ? undefined : 'Required for dashboard login'}
-                />
-              </div>
-
-              {isGuest && (
-                <GuestBookingDetails
-                  branchId={branchId}
-                  phone={phone}
-                  onPhoneChange={setPhone}
-                  verification={guestVerification}
-                  onVerified={setGuestVerification}
-                  documents={guestDocuments}
-                  onDocumentsChange={setGuestDocuments}
-                />
-              )}
-
               {!isRegisteredVisitor && !loadingVisitorProfile && (
-                <p className="text-xs text-muted-foreground">
-                  Already registered?{' '}
-                  <Link href="/visitor/login?returnTo=/book-appointment/" className="underline">
-                    Sign in
-                  </Link>{' '}
-                  to auto-fill your details.
-                </p>
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Your profile is missing some contact details. Fill them in for this booking.
+                  </p>
+                  <div>
+                    <Label>First Name</Label>
+                    <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                  </div>
+                  <div>
+                    <Label>Last Name</Label>
+                    <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                  </div>
+                  <div>
+                    <Label>Phone (10 digits)</Label>
+                    <Input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={10} required />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+                  </div>
+                </>
               )}
 
               <div>
@@ -906,14 +860,10 @@ export function BookAppointmentWizard({
               <StickyActionBar>
                 <Button
                   className="w-full max-lg:h-12 max-lg:text-base"
-                  onClick={() => void continueToPayment()}
-                  disabled={
-                    uploadingDocuments ||
-                    (!requestCustomSlot && !slotId) ||
-                    (requestCustomSlot && !preferredTime)
-                  }
+                  onClick={continueToPayment}
+                  disabled={(!requestCustomSlot && !slotId) || (requestCustomSlot && !preferredTime)}
                 >
-                  {uploadingDocuments ? 'Uploading documents…' : 'Continue to payment'}
+                  Continue to payment
                 </Button>
               </StickyActionBar>
             </div>
@@ -924,7 +874,7 @@ export function BookAppointmentWizard({
               returnTo={pathname || '/book-appointment'}
               busy={loading}
               onPay={submit}
-              guestToken={isGuest ? guestVerification?.guestToken : null}
+              onlineOnly={profileCreatedHere}
             />
           )}
 
@@ -942,18 +892,10 @@ export function BookAppointmentWizard({
               </p>
               <p className="text-sm text-muted-foreground break-all">Booking ID: {result.bookingId}</p>
               <p className="text-xs text-muted-foreground">
-                {isGuest
-                  ? 'Opening your booking status, where you can follow the doctor\u2019s approval…'
-                  : 'Opening your dashboard, where you can follow the doctor\u2019s approval…'}
+                Opening your dashboard, where you can follow the doctor&apos;s approval…
               </p>
               <Button asChild className="w-full">
-                <Link
-                  href={
-                    isGuest ? guestStatusHref(result.bookingId, phone) : visitorDashboardHref(result.bookingId)
-                  }
-                >
-                  {isGuest ? 'View booking status' : 'Go to my dashboard'}
-                </Link>
+                <Link href={visitorDashboardHref(result.bookingId)}>Go to my dashboard</Link>
               </Button>
             </div>
           )}
