@@ -153,6 +153,11 @@ export function BookAppointmentWizard({
   const [loadingVisitorProfile, setLoadingVisitorProfile] = React.useState(false);
   /** True once the visitor created their profile inside this booking (step 5). */
   const [profileCreatedHere, setProfileCreatedHere] = React.useState(false);
+  const [hasAccount, setHasAccount] = React.useState(false);
+
+  React.useEffect(() => {
+    setHasAccount(Boolean(getVisitorToken()));
+  }, []);
 
   const stepOffset = initialBranchId ? 1 : 0;
   const displayStep = (step === '5A' ? 5 : step) - stepOffset;
@@ -317,6 +322,7 @@ export function BookAppointmentWizard({
   const onProfileVerified = (identity: BookingProfileIdentity) => {
     applyVisitorIdentity(identity);
     setProfileCreatedHere(true);
+    setHasAccount(true);
     setError('');
     setStep('5A');
   };
@@ -473,18 +479,19 @@ export function BookAppointmentWizard({
           <Button variant="ghost" size="sm" onClick={goBack}>
             <ChevronLeft className="mr-1 h-4 w-4" /> Back
           </Button>
+        ) : showHeaderLinks ? (
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={hasAccount ? '/visitor/dashboard' : '/'}>
+              <ChevronLeft className="mr-1 h-4 w-4" /> Back
+            </Link>
+          </Button>
         ) : (
           <span />
         )}
-        {showHeaderLinks && (
-          <div className="flex items-center gap-1">
-            <Button variant="link" size="sm" asChild>
-              <Link href="/book-appointment/how-it-works">How it works</Link>
-            </Button>
-            <Button variant="link" size="sm" asChild>
-              <Link href="/book-appointment/status">Check booking status</Link>
-            </Button>
-          </div>
+        {showHeaderLinks && hasAccount && (
+          <Button variant="link" size="sm" asChild>
+            <Link href="/visitor/dashboard">Check booking status</Link>
+          </Button>
         )}
       </div>
 
