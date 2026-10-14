@@ -93,9 +93,14 @@ function VisitorLoginContent() {
       : '/visitor/dashboard';
 
   useEffect(() => {
-    if (getVisitorToken()) {
-      router.replace(postLoginPath);
-    }
+    if (!getVisitorToken()) return;
+    let cancelled = false;
+    void VisitorAuthService.hasValidSession().then((valid) => {
+      if (valid && !cancelled) router.replace(postLoginPath);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [router, postLoginPath]);
 
   const passwordForm = useForm<z.infer<typeof PasswordLoginSchema>>({

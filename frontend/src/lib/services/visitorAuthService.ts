@@ -1,5 +1,10 @@
+import axios from 'axios';
 import apiClient from '@/lib/api';
-import { getVisitorToken, setVisitorToken } from '@/lib/services/visitorPortalService';
+import {
+  clearVisitorToken,
+  getVisitorToken,
+  setVisitorToken,
+} from '@/lib/services/visitorPortalService';
 
 export interface VisitorAuthLoginResponse {
   access_token: string;
@@ -34,6 +39,40 @@ export const VisitorAuthService = {
 
   storeOAuthToken(token: string): void {
     setVisitorToken(token);
+  },
+
+  /**
+   * True when the saved visitor session still works. Expired sessions, or ones whose profile
+   * was removed, are cleared. Network errors keep the session so offline users stay signed in.
+   */
+  async hasValidSession(): Promise<boolean> {
+    const token = getVisitorToken();
+    if (!token) return false;
+    let payload: { sub?: unknown; exp?: unknown } = {};
+    try {
+      payload = JSON.parse(atob(token.split('.')[1] ?? ''));
+    } catch {
+      clearVisitorToken();
+      return false;
+    }
+    if (typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now()) {
+      clearVisitorToken();
+      return false;
+    }
+    if (!payload.sub || String(payload.sub).includes('@')) return true;
+    try {
+      await apiClient.get('/api/public/visitor-accounts/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return true;
+    } catch (error: unknown) {
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      if (status === 401 || status === 403 || status === 404) {
+        clearVisitorToken();
+        return false;
+      }
+      return true;
+    }
   },
 
   isAccountSession(): boolean {

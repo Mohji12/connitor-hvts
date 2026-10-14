@@ -24,7 +24,7 @@ export default function VisitorPassPage() {
           <Button asChild variant="brand" className="h-12 !rounded-full font-semibold">
             <Link href={`/visitor/login?returnTo=${encodeURIComponent(RETURN_TO)}`}>
               <LogIn className="mr-2 h-4 w-4" />
-              Sign in as visitor
+              Login as Visitor
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-12 !rounded-full font-semibold">

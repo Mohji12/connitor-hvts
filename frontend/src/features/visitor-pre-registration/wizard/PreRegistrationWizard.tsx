@@ -46,6 +46,7 @@ import {
 import { LivePhotoStep } from './steps/LivePhotoStep';
 import { GovernmentIdStep } from './steps/GovernmentIdStep';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
+import { VisitorAuthService } from '@/lib/services/visitorAuthService';
 
 const STEPS = [
   'Basic info',
@@ -87,19 +88,25 @@ export function PreRegistrationWizard() {
   const [accountExists, setAccountExists] = useState(false);
 
   useEffect(() => {
-    if (getVisitorToken()) {
-      toast.info('You are already signed in.');
-      const dest =
-        returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
-          ? returnTo
-          : '/visitor/dashboard';
-      router.replace(dest);
-      return;
-    }
+    let cancelled = false;
     const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored) {
       setAccountId(stored);
     }
+    if (getVisitorToken()) {
+      void VisitorAuthService.hasValidSession().then((valid) => {
+        if (!valid || cancelled) return;
+        toast.info('You are already signed in.');
+        const dest =
+          returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
+            ? returnTo
+            : '/visitor/dashboard';
+        router.replace(dest);
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
   }, [router, returnTo]);
 
   const basicForm = useForm<BasicInfoValues>({

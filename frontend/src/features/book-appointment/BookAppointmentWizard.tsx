@@ -30,6 +30,7 @@ import {
   type BookingProfileIdentity,
 } from '@/features/book-appointment/BookingProfileStep';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
+import { VisitorAuthService } from '@/lib/services/visitorAuthService';
 
 /** 5 = create profile (visitors without one), 5A = visit details. */
 type Step = 1 | 2 | 3 | 4 | 5 | '5A' | 6 | 7;
@@ -156,7 +157,13 @@ export function BookAppointmentWizard({
   const [hasAccount, setHasAccount] = React.useState(false);
 
   React.useEffect(() => {
-    setHasAccount(Boolean(getVisitorToken()));
+    let cancelled = false;
+    void VisitorAuthService.hasValidSession().then((valid) => {
+      if (!cancelled) setHasAccount(valid);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const stepOffset = initialBranchId ? 1 : 0;
