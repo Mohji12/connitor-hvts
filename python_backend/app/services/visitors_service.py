@@ -526,10 +526,10 @@ class VisitorsService:
             if data.get(field):
                 setattr(visitor, field, data[field])
 
-        photo_file = files.get("photo")
-        if photo_file and photo_file.filename:
-            self._validate_file(photo_file, IMAGE_TYPES, "photo")
-            visitor.photo = await self.gcp.upload_visitor_document(photo_file, visitor.id, "photo")
+        urls = await self._upload_files(visitor.id, files)
+        for key, url in urls.items():
+            if url:
+                setattr(visitor, key, url)
 
         self.db.commit()
         visit = Visit(

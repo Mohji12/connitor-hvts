@@ -16,6 +16,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { ArrowLeft, Loader2, Camera, X } from 'lucide-react';
+import { CameraOrUploadPicker } from '@/components/visitors/shared/CameraOrUploadPicker';
 
 // Schema as per spec
 // Custom File validation that works in both browser and test environments
@@ -344,31 +345,16 @@ export function DeliveryRegistrationForm({
                       <p className="text-sm text-gray-600 mb-4">
                         Capture visitor photo for identification
                       </p>
-                      <Input
-                        type="file"
+                      <CameraOrUploadPicker
+                        inputId="photo-input"
+                        inputAriaLabel="Capture visitor photo"
                         accept="image/jpeg,image/png,image/jpg"
-                        capture="user"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handlePhotoChange(file);
-                          }
-                        }}
-                        className="hidden"
-                        id="photo-input"
+                        facingMode="user"
+                        fileNamePrefix="visitor-photo"
                         disabled={isLoading}
-                        aria-label="Capture visitor photo"
+                        buttonClassName="border-amber-400 text-amber-700 hover:bg-amber-100"
+                        onFile={handlePhotoChange}
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => document.getElementById('photo-input')?.click()}
-                        disabled={isLoading}
-                        className="border-amber-400 text-amber-700 hover:bg-amber-100 min-h-[60px]"
-                      >
-                        <Camera className="mr-2 h-5 w-5" />
-                        Capture Photo
-                      </Button>
                     </div>
                   )}
                 </div>

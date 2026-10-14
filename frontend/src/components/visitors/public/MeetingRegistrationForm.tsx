@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/form';
 import { ArrowLeft, Loader2, Camera, X, Upload } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CameraOrUploadPicker } from '@/components/visitors/shared/CameraOrUploadPicker';
 
 // Custom File validation that works in both browser and test environments
 const fileSchema = z.custom<File>(
@@ -610,31 +611,16 @@ export function MeetingRegistrationForm({
                       <p className="text-sm text-gray-600 mb-4">
                         Capture visitor photo for identification
                       </p>
-                      <Input
-                        type="file"
+                      <CameraOrUploadPicker
+                        inputId="photo-input"
+                        inputAriaLabel="Capture visitor photo"
                         accept="image/jpeg,image/png,image/jpg"
-                        capture="user"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handlePhotoChange(file);
-                          }
-                        }}
-                        className="hidden"
-                        id="photo-input"
+                        facingMode="user"
+                        fileNamePrefix="visitor-photo"
                         disabled={isLoading}
-                        aria-label="Capture visitor photo"
+                        buttonClassName="border-emerald-400 text-emerald-700 hover:bg-emerald-100"
+                        onFile={handlePhotoChange}
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => document.getElementById('photo-input')?.click()}
-                        disabled={isLoading}
-                        className="border-emerald-400 text-emerald-700 hover:bg-emerald-100 min-h-[60px]"
-                      >
-                        <Camera className="mr-2 h-5 w-5" />
-                        Capture Photo
-                      </Button>
                     </div>
                   )}
                 </div>
@@ -698,33 +684,19 @@ export function MeetingRegistrationForm({
                     <div className="border-2 border-dashed border-emerald-300 rounded-lg p-6 text-center bg-emerald-50">
                       <Upload className="mx-auto h-10 w-10 text-emerald-600 mb-3" />
                       <p className="text-sm text-gray-600 mb-4">
-                        Upload or capture government ID (JPG, PNG, PDF)
+                        Upload or capture government ID: take a live photo or upload a file (JPG, PNG, PDF)
                       </p>
-                      <Input
-                        type="file"
+                      <CameraOrUploadPicker
+                        inputId="gov-id-input"
+                        inputAriaLabel="Upload government ID document"
                         accept="image/jpeg,image/png,image/jpg,application/pdf"
-                        capture="environment"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handleGovIdChange(file);
-                          }
-                        }}
-                        className="hidden"
-                        id="gov-id-input"
+                        facingMode="environment"
+                        fileNamePrefix="government-id"
+                        captureLabel="Take live photo of ID"
                         disabled={isLoading}
-                        aria-label="Upload government ID document"
+                        buttonClassName="border-emerald-400 text-emerald-700 hover:bg-emerald-100"
+                        onFile={handleGovIdChange}
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => document.getElementById('gov-id-input')?.click()}
-                        disabled={isLoading}
-                        className="border-emerald-400 text-emerald-700 hover:bg-emerald-100"
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Document
-                      </Button>
                     </div>
                   )}
                 </div>
@@ -786,33 +758,19 @@ export function MeetingRegistrationForm({
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
                       <Upload className="mx-auto h-10 w-10 text-gray-500 mb-3" />
                       <p className="text-sm text-gray-600 mb-4">
-                        Upload or capture office ID (JPG, PNG, PDF)
+                        Upload or capture office ID: take a live photo or upload a file (JPG, PNG, PDF)
                       </p>
-                      <Input
-                        type="file"
+                      <CameraOrUploadPicker
+                        inputId="office-id-input"
+                        inputAriaLabel="Upload office ID document"
                         accept="image/jpeg,image/png,image/jpg,application/pdf"
-                        capture="environment"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handleOfficeIdChange(file);
-                          }
-                        }}
-                        className="hidden"
-                        id="office-id-input"
+                        facingMode="environment"
+                        fileNamePrefix="office-id"
+                        captureLabel="Take live photo of ID"
                         disabled={isLoading}
-                        aria-label="Upload office ID document"
+                        buttonClassName="border-gray-400 text-gray-700 hover:bg-gray-100"
+                        onFile={handleOfficeIdChange}
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => document.getElementById('office-id-input')?.click()}
-                        disabled={isLoading}
-                        className="border-gray-400 text-gray-700 hover:bg-gray-100"
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Document
-                      </Button>
                     </div>
                   )}
                 </div>
