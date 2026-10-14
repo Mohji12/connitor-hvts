@@ -6,9 +6,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft, MapPin, Stethoscope, Clock, Languages } from 'lucide-react';
 import {
   AppointmentService,
+  GuestBookingService,
   type DoctorSlot,
+  type GuestVerification,
   type PublicDoctor,
 } from '@/lib/services/appointmentService';
+import { getApiErrorMessage } from '@/lib/api-errors';
 import { todayIstDateIso } from '@/lib/datetime';
 import { fetchVisitorBookingIdentity } from '@/lib/visitor-booking-profile';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
@@ -25,6 +28,8 @@ import {
   VisitPaymentChoice,
   type VisitPaymentResult,
 } from '@/features/visitor-wallet/VisitPaymentChoice';
+import { GuestBookingDetails, type GuestDocuments } from '@/features/book-appointment/GuestBookingDetails';
+import { getVisitorToken } from '@/lib/services/visitorPortalService';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -38,6 +43,10 @@ export interface BookAppointmentWizardProps {
 
 function visitorDashboardHref(bookingId: string): string {
   return `/visitor/dashboard?booked=${encodeURIComponent(bookingId)}`;
+}
+
+function guestStatusHref(bookingId: string, phone: string): string {
+  return `/book-appointment/status?bookingId=${encodeURIComponent(bookingId)}&phone=${encodeURIComponent(phone)}`;
 }
 
 function DoctorDetailCard({ doctor }: { doctor: PublicDoctor }) {
@@ -139,6 +148,18 @@ export function BookAppointmentWizard({
   const [fetchingNext, setFetchingNext] = React.useState<string | null>(null);
   const [isRegisteredVisitor, setIsRegisteredVisitor] = React.useState(false);
   const [loadingVisitorProfile, setLoadingVisitorProfile] = React.useState(false);
+  const [isGuest, setIsGuest] = React.useState(false);
+  const [guestVerification, setGuestVerification] = React.useState<GuestVerification | null>(null);
+  const [guestDocuments, setGuestDocuments] = React.useState<GuestDocuments>({ photo: null, governmentId: null });
+  const [uploadingDocuments, setUploadingDocuments] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsGuest(!getVisitorToken());
+  }, []);
+
+  React.useEffect(() => {
+    setGuestVerification(null);
+  }, [branchId]);
 
   const displayStep = initialBranchId ? step - 1 : step;
 
@@ -370,12 +391,43 @@ export function BookAppointmentWizard({
         return false;
       }
     }
+    if (isGuest) {
+      if (!guestVerification) {
+        setError('Verify your mobile number with the WhatsApp code.');
+        return false;
+      }
+      if (!guestDocuments.photo && !guestVerification.hasPhoto) {
+        setError('Add your photo (live camera or upload).');
+        return false;
+      }
+      if (!guestDocuments.governmentId && !guestVerification.hasGovernmentId) {
+        setError('Add a government ID (live camera or upload).');
+        return false;
+      }
+    }
     return true;
   };
 
-  const continueToPayment = () => {
+  const continueToPayment = async () => {
     if (!readyToBook()) return;
     setError('');
+    if (isGuest && guestVerification && (guestDocuments.photo || guestDocuments.governmentId)) {
+      setUploadingDocuments(true);
+      try {
+        await GuestBookingService.uploadDocuments(guestVerification.guestToken, guestDocuments);
+        setGuestVerification({
+          ...guestVerification,
+          hasPhoto: guestVerification.hasPhoto || Boolean(guestDocuments.photo),
+          hasGovernmentId: guestVerification.hasGovernmentId || Boolean(guestDocuments.governmentId),
+        });
+        setGuestDocuments({ photo: null, governmentId: null });
+      } catch (e: unknown) {
+        setError(getApiErrorMessage(e, 'Could not upload your documents. Please try again.'));
+        return;
+      } finally {
+        setUploadingDocuments(false);
+      }
+    }
     setStep(6);
   };
 
@@ -409,10 +461,10 @@ export function BookAppointmentWizard({
         razorpayOrderId: payment.razorpayOrderId,
         razorpayPaymentId: payment.razorpayPaymentId,
         razorpaySignature: payment.razorpaySignature,
-      });
+      }, isGuest ? guestVerification?.guestToken : null);
       setResult({ bookingId: res.bookingId, message: res.message });
       setStep(7);
-      router.replace(visitorDashboardHref(res.bookingId));
+      router.replace(isGuest ? guestStatusHref(res.bookingId, phone) : visitorDashboardHref(res.bookingId));
     } catch (e: unknown) {
       const detail =
         typeof e === 'object' && e && 'response' in e
@@ -622,17 +674,19 @@ export function BookAppointmentWizard({
                   required
                 />
               </div>
-              <div>
-                <Label>Phone (10 digits)</Label>
-                <Input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  maxLength={10}
-                  readOnly={isRegisteredVisitor}
-                  className={isRegisteredVisitor ? 'bg-muted/50' : undefined}
-                  required
-                />
-              </div>
+              {!isGuest && (
+                <div>
+                  <Label>Phone (10 digits)</Label>
+                  <Input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    maxLength={10}
+                    readOnly={isRegisteredVisitor}
+                    className={isRegisteredVisitor ? 'bg-muted/50' : undefined}
+                    required
+                  />
+                </div>
+              )}
               <div>
                 <Label>Email</Label>
                 <Input
@@ -645,6 +699,18 @@ export function BookAppointmentWizard({
                   placeholder={isRegisteredVisitor ? undefined : 'Required for dashboard login'}
                 />
               </div>
+
+              {isGuest && (
+                <GuestBookingDetails
+                  branchId={branchId}
+                  phone={phone}
+                  onPhoneChange={setPhone}
+                  verification={guestVerification}
+                  onVerified={setGuestVerification}
+                  documents={guestDocuments}
+                  onDocumentsChange={setGuestDocuments}
+                />
+              )}
 
               {!isRegisteredVisitor && !loadingVisitorProfile && (
                 <p className="text-xs text-muted-foreground">
@@ -840,10 +906,14 @@ export function BookAppointmentWizard({
               <StickyActionBar>
                 <Button
                   className="w-full max-lg:h-12 max-lg:text-base"
-                  onClick={continueToPayment}
-                  disabled={(!requestCustomSlot && !slotId) || (requestCustomSlot && !preferredTime)}
+                  onClick={() => void continueToPayment()}
+                  disabled={
+                    uploadingDocuments ||
+                    (!requestCustomSlot && !slotId) ||
+                    (requestCustomSlot && !preferredTime)
+                  }
                 >
-                  Continue to payment
+                  {uploadingDocuments ? 'Uploading documents…' : 'Continue to payment'}
                 </Button>
               </StickyActionBar>
             </div>
@@ -854,6 +924,7 @@ export function BookAppointmentWizard({
               returnTo={pathname || '/book-appointment'}
               busy={loading}
               onPay={submit}
+              guestToken={isGuest ? guestVerification?.guestToken : null}
             />
           )}
 
@@ -871,10 +942,18 @@ export function BookAppointmentWizard({
               </p>
               <p className="text-sm text-muted-foreground break-all">Booking ID: {result.bookingId}</p>
               <p className="text-xs text-muted-foreground">
-                Opening your dashboard, where you can follow the doctor&apos;s approval…
+                {isGuest
+                  ? 'Opening your booking status, where you can follow the doctor\u2019s approval…'
+                  : 'Opening your dashboard, where you can follow the doctor\u2019s approval…'}
               </p>
               <Button asChild className="w-full">
-                <Link href={visitorDashboardHref(result.bookingId)}>Go to my dashboard</Link>
+                <Link
+                  href={
+                    isGuest ? guestStatusHref(result.bookingId, phone) : visitorDashboardHref(result.bookingId)
+                  }
+                >
+                  {isGuest ? 'View booking status' : 'Go to my dashboard'}
+                </Link>
               </Button>
             </div>
           )}

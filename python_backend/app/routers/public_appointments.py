@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy.orm import Session
@@ -13,9 +13,22 @@ from app.dependencies.visitor_auth import _decode_visitor_token, visitor_securit
 from app.models import VisitorAccount
 from app.models.enums import ProfileStatus
 from app.services.appointments_service import AppointmentsService
+from app.services.guest_booking_service import GuestBookingService
+from app.services.rate_limit_service import RateLimitService
 from app.services.visit_notification_dispatch import dispatch_new_visit_request_notifications
 
 router = APIRouter()
+rate_limits = RateLimitService()
+GuestTokenHeader = Annotated[str | None, Header(alias="X-Guest-Booking-Token")]
+
+
+class GuestCodeBody(BaseModel):
+    phone: str = Field(min_length=10, max_length=20)
+    branchId: str
+
+
+class GuestVerifyBody(GuestCodeBody):
+    otp: str = Field(min_length=6, max_length=6)
 
 
 class BookAppointmentBody(BaseModel):
@@ -145,6 +158,7 @@ def book_appointment(
     body: BookAppointmentBody,
     db: Annotated[Session, Depends(get_db)],
     background_tasks: BackgroundTasks,
+    guest_token: GuestTokenHeader = None,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(visitor_security)] = None,
 ):
     payload = body.model_dump()
@@ -163,7 +177,8 @@ def book_appointment(
         except Exception:
             pass
     if not payload.get("visitorAccountId"):
-        raise HTTPException(status_code=401, detail="Sign in to book and pay for this visit.")
+        guests = GuestBookingService(db)
+        payload = guests.prepare_booking(guests.decode_token(guest_token), payload)
     if payload.get("paymentMethod") not in ("WALLET", "RAZORPAY"):
         raise HTTPException(status_code=400, detail="Choose wallet or online payment.")
     if payload.get("paymentMethod") == "RAZORPAY" and not (
@@ -175,6 +190,39 @@ def book_appointment(
     result = AppointmentsService(db).book_appointment(payload, defer_notifications=True)
     background_tasks.add_task(dispatch_new_visit_request_notifications, result["bookingId"])
     return result
+
+
+@router.post("/guest/send-code")
+@public_route
+def guest_send_code(body: GuestCodeBody, request: Request, db: Annotated[Session, Depends(get_db)]):
+    rate_limits.check_action_rate_limit(request, "guest_booking_code", limit=5, window_seconds=3600)
+    return GuestBookingService(db).send_code(body.phone, body.branchId)
+
+
+@router.post("/guest/verify-code")
+@public_route
+def guest_verify_code(body: GuestVerifyBody, request: Request, db: Annotated[Session, Depends(get_db)]):
+    rate_limits.check_action_rate_limit(request, "guest_booking_verify", limit=15, window_seconds=3600)
+    return GuestBookingService(db).verify_code(body.phone, body.branchId, body.otp)
+
+
+@router.post("/guest/documents")
+@public_route
+async def guest_documents(
+    db: Annotated[Session, Depends(get_db)],
+    guest_token: GuestTokenHeader = None,
+    photo: UploadFile | None = File(None),
+    governmentIdDocument: UploadFile | None = File(None),
+):
+    guests = GuestBookingService(db)
+    return await guests.save_documents(guests.decode_token(guest_token), photo, governmentIdDocument)
+
+
+@router.post("/guest/payment-order")
+@public_route
+def guest_payment_order(db: Annotated[Session, Depends(get_db)], guest_token: GuestTokenHeader = None):
+    guests = GuestBookingService(db)
+    return guests.create_payment_order(guests.decode_token(guest_token))
 
 
 @router.get("/{booking_id}/status")

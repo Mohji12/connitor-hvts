@@ -335,7 +335,7 @@ class VisitorWalletService:
         razorpay_signature: str | None = None,
         immediate_debit: bool = False,
     ) -> None:
-        if not account_id:
+        if not account_id and payment_method != "RAZORPAY":
             raise HTTPException(status_code=401, detail="Sign in to pay for this visit.")
         fee = self.visit_fee()
         visit.feeAmount = fee
