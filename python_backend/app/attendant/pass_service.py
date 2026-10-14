@@ -667,8 +667,10 @@ class AttendantPassService:
                 pass_row.durationMinutes = max(
                     0, int((exit_time - pass_row.enteredAt).total_seconds() // 60)
                 )
-            # Visit finished — pass is no longer active (new attendant can be approved)
-            pass_row.status = "USED"
+            # A visitor pass covers one visit; a fixed attendant may go in and out until
+            # validity or maxEntries runs out.
+            if kind != "FIXED":
+                pass_row.status = "USED"
 
         self.db.add(
             AttendantPassScan(

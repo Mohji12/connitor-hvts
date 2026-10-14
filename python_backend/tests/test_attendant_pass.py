@@ -431,3 +431,43 @@ async def test_entry_exit_duration_and_inside_block(db):
             }
         )
     assert again["status"] == "ACTIVE"
+
+
+@pytest.mark.asyncio
+async def test_fixed_pass_allows_repeated_entry_and_exit(db):
+    branch = db.query(Branch).first()
+    admission = _seed_admission(db, branch.id)
+    svc = AttendantPassService(db)
+    user = _ward_user(branch.id)
+    security = {"id": str(uuid.uuid4()), "role": "SECURITY", "branchId": branch.id}
+
+    att = svc.register_attendant(
+        user,
+        {
+            "admissionId": admission.id,
+            "name": "Fixed Carer",
+            "phone": "9666666666",
+            "attendantKind": "FIXED",
+        },
+    )
+    svc.approve_attendant(user, att["id"])
+    with patch.object(EmailService, "send_attendant_pass_email"):
+        issued = svc.issue_pass(user, att["id"])
+    pass_row = db.get(AttendantPass, issued["id"])
+
+    with patch.object(EmailService, "send_attendant_checkout_qr_email"), patch.object(
+        svc, "_notify_visit_exit"
+    ):
+        for _ in range(2):
+            entry = await svc.scan_pass(
+                security, qr_payload=pass_row.qrPayload, signature=pass_row.qrSignature
+            )
+            assert entry["scanType"] == "ENTRY"
+            exit_result = await svc.scan_pass(
+                security, qr_payload=pass_row.qrPayload, signature=pass_row.qrSignature
+            )
+            assert exit_result["scanType"] == "EXIT"
+
+    db.refresh(pass_row)
+    assert pass_row.status == "ACTIVE"
+    assert pass_row.entriesUsed == 2

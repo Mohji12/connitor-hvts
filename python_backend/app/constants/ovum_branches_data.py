@@ -53,6 +53,10 @@ def branch_security_email(branch_slug: str) -> str:
     return f"security.{branch_slug}@{OVUM_ADMIN_EMAIL_DOMAIN}"
 
 
+def branch_receptionist_email(branch_slug: str) -> str:
+    return f"reception.{branch_slug}@{OVUM_ADMIN_EMAIL_DOMAIN}"
+
+
 class OvumBranchSeed(TypedDict):
     id: str
     location: str

@@ -81,3 +81,11 @@ def ovum_nurse_phone(branch_index: int, dept_index: int) -> str:
 
 def ovum_security_phone(branch_index: int) -> str:
     return str(9100700000 + branch_index)
+
+
+def ovum_receptionist_id(branch_id: str) -> str:
+    return _uuid5("receptionist", branch_id, "front-desk")
+
+
+def ovum_receptionist_phone(branch_index: int) -> str:
+    return str(9100900000 + branch_index)
