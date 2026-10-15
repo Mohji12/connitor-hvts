@@ -206,6 +206,16 @@ def create_admission(
     return AttendantPassService(db).create_admission(user, body.model_dump())
 
 
+@router.get("/departments")
+def list_branch_departments(
+    user: Annotated[dict, Depends(require_permission("VIEW_ATTENDANT_PASS"))],
+    db: Annotated[Session, Depends(get_db)],
+    branchId: str = Query(...),
+):
+    branch = user.get("branchId") or branchId
+    return AttendantPassService(db).list_branch_departments(branch)
+
+
 @router.get("/admissions")
 def list_admissions(
     user: Annotated[dict, Depends(require_permission("VIEW_ATTENDANT_PASS"))],

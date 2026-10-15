@@ -837,6 +837,18 @@ class AttendantPassService:
         rows = q.order_by(AttendantPass.createdAt.desc()).offset(skip).limit(limit).all()
         return {"total": total, "items": [self._serialize_pass(p, full=True) for p in rows]}
 
+    def list_branch_departments(self, branch_id: str) -> list[dict]:
+        """Active departments a patient can be admitted under, for reception's dropdown."""
+        from app.models import Department
+
+        rows = (
+            self.db.query(Department)
+            .filter(Department.branchId == branch_id, Department.isActive.is_(True))
+            .order_by(Department.name)
+            .all()
+        )
+        return [{"id": d.id, "name": d.name} for d in rows]
+
     def list_admissions(self, branch_id: str, skip: int = 0, limit: int = 50) -> dict:
         q = (
             self.db.query(Admission)

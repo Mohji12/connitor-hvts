@@ -163,6 +163,13 @@ export interface AttendantAdmissionLookup {
 }
 
 export const AttendantPassService = {
+  async listDepartments(branchId: string): Promise<Array<{ id: string; name: string }>> {
+    const res = await apiClient.get('/api/attendant-passes/departments', {
+      params: { branchId },
+    });
+    return res.data ?? [];
+  },
+
   async listAdmissions(branchId: string): Promise<AttendantAdmission[]> {
     const res = await apiClient.get('/api/attendant-passes/admissions', {
       params: { branchId },

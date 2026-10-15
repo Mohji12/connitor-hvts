@@ -11,8 +11,6 @@ import {
 } from '@/lib/services/attendantPassService';
 import { AmsPageShell, AmsQrPassCard } from '@/features/attendant-management/ui';
 import { AttendantPhotoPicker } from '@/features/attendant-passes/AttendantPhotoPicker';
-import { DepartmentService } from '@/lib/services/departmentService';
-import type { Department } from '@/lib/schema/schema';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -62,7 +60,7 @@ export default function AmsRegisterPage(): React.ReactElement {
   const [firstName, setFirstName] = React.useState('');
   const [lastName, setLastName] = React.useState('');
   const [department, setDepartment] = React.useState('');
-  const [departments, setDepartments] = React.useState<Department[]>([]);
+  const [departments, setDepartments] = React.useState<Array<{ id: string; name: string }>>([]);
   const [name, setName] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [email, setEmail] = React.useState('');
@@ -81,7 +79,7 @@ export default function AmsRegisterPage(): React.ReactElement {
   React.useEffect(() => {
     if (!branchId) return;
     AttendantPassService.listAdmissions(branchId).then(setAdmissions).catch(() => undefined);
-    DepartmentService.list({ branchId })
+    AttendantPassService.listDepartments(branchId)
       .then(setDepartments)
       .catch(() => toast.error('Could not load departments'));
   }, [branchId]);
