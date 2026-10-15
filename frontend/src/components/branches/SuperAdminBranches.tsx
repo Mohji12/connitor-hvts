@@ -67,6 +67,7 @@ import {
   GitBranch,
 } from 'lucide-react';
 import Image from 'next/image';
+import { BranchPublicLinkField } from '@/components/branches/BranchPublicLinkField';
 
 const CreateBranchWithAdminSchema = BranchSchema.extend({
   hospitalChainId: z.string().min(1, 'Hospital chain is required.'),
@@ -224,6 +225,7 @@ const ManageBranchDialog = ({
   allAdmins,
   isLoadingAdmins,
   onAdminAdded,
+  onBranchUpdated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -231,6 +233,7 @@ const ManageBranchDialog = ({
   allAdmins: User[] | undefined;
   isLoadingAdmins: boolean;
   onAdminAdded: () => void;
+  onBranchUpdated: () => void;
 }) => {
   const [isAddAdminOpen, setAddAdminOpen] = useState(false);
 
@@ -305,6 +308,7 @@ const ManageBranchDialog = ({
                     <p>{branch.country}</p>
                   </div>
                 </div>
+                <BranchPublicLinkField branch={branch} onSaved={onBranchUpdated} />
                 {/* QR Code Section */}
                 {branch.qrCode && (
                   <div className="flex flex-col items-center gap-2 mt-6">
@@ -985,6 +989,7 @@ export function SuperAdminBranches() {
         allAdmins={allBranchAdmins}
         isLoadingAdmins={isLoadingAdmins}
         onAdminAdded={mutateAdmins}
+        onBranchUpdated={() => void mutateBranches()}
       />
     </>
   );

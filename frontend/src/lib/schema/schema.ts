@@ -168,6 +168,8 @@ export const BranchSchema = z.object({
   state: z.string().min(1, 'State is required.'),
   pinCode: z.string().length(6, 'PIN code must be 6 digits.'),
   country: z.string().min(1, 'Country is required.'),
+  /** Public link name; the server generates one when omitted. */
+  slug: z.string().optional(),
 });
 
 // Response schemas must accept seeded landline phones (e.g. 08040110001 = 11 chars).
@@ -207,6 +209,7 @@ export const BranchResponseSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string().optional(),
   qrCode: z.string().nullable().optional(),
+  slug: z.string().nullable().optional(),
 });
 
 export type HospitalChain = z.infer<typeof HospitalChainResponseSchema>;

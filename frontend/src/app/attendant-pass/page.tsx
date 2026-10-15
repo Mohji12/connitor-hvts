@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { attendantApplyPath } from '@/lib/attendant-pass-url';
 import { AttendantPassService, type AttendantPassBranch } from '@/lib/services/attendantPassService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,9 +52,7 @@ export default function AttendantPassLandingPage(): React.ReactElement {
               </CardHeader>
               <CardContent>
                 <Button asChild className="w-full sm:w-auto">
-                  <Link href={`/attendant-pass/apply?branchId=${encodeURIComponent(branch.id)}`}>
-                    Apply for visit pass
-                  </Link>
+                  <a href={attendantApplyPath(branch)}>Apply for visit pass</a>
                 </Button>
               </CardContent>
             </Card>

@@ -78,6 +78,8 @@ class Branch(Base):
     pinCode: Mapped[str] = mapped_column(String(191))
     country: Mapped[str] = mapped_column(String(191), default="India")
     qrCode: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Public link name, e.g. /attendant-pass/ovum-kalyan-nagar
+    slug: Mapped[str | None] = mapped_column(String(60), unique=True, nullable=True)
     hospitalChainId: Mapped[str] = mapped_column(String(36), ForeignKey("HospitalChain.id"))
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist)
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist, onupdate=now_ist)

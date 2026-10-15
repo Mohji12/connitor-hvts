@@ -1556,6 +1556,7 @@ class AttendantPassService:
         return [
             {
                 "id": b.id,
+                "slug": b.slug,
                 "name": b.name,
                 "city": b.city,
                 "state": b.state,

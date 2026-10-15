@@ -22,6 +22,7 @@ class BranchBody(BaseModel):
     state: str
     pinCode: str
     country: str = "India"
+    slug: str | None = None
 
 
 @router.post("", dependencies=[Depends(require_roles(Role.SUPER_ADMIN.value, Role.CHAIN_ADMIN.value))])

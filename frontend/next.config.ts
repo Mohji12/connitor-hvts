@@ -28,6 +28,11 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         destination: `${backendProxyTarget}/api/:path*`,
       },
+      // Mirrors vercel.json: /attendant-pass/<branch slug>/ serves the apply page
+      {
+        source: '/attendant-pass/:slug/',
+        destination: '/attendant-pass/apply/',
+      },
     ];
   },
   trailingSlash: true,

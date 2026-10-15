@@ -1,10 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import { Copy, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { buildAttendantApplyUrl } from '@/lib/attendant-pass-url';
+import { attendantApplyPath, buildAttendantApplyUrl } from '@/lib/attendant-pass-url';
 import {
   AttendantPassService,
   type AttendantPassBranch,
@@ -54,8 +53,8 @@ export function AttendantPassBranchLinks({
     };
   }, [branchId]);
 
-  const copyLink = async (id: string) => {
-    const url = buildAttendantApplyUrl(id);
+  const copyLink = async (branch: AttendantPassBranch) => {
+    const url = buildAttendantApplyUrl(branch);
     try {
       await navigator.clipboard.writeText(url);
       toast.success('Link copied to clipboard');
@@ -76,7 +75,7 @@ export function AttendantPassBranchLinks({
           <p className="text-sm text-muted-foreground">No hospitals found.</p>
         )}
         {branches.map((branch) => {
-          const url = buildAttendantApplyUrl(branch.id);
+          const url = buildAttendantApplyUrl(branch);
           return (
             <div
               key={branch.id}
@@ -85,15 +84,15 @@ export function AttendantPassBranchLinks({
               <p className="font-medium text-sm">{branchLabel(branch)}</p>
               <p className="text-xs text-muted-foreground break-all font-mono">{url}</p>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => void copyLink(branch.id)}>
+                <Button size="sm" variant="outline" onClick={() => void copyLink(branch)}>
                   <Copy className="h-3.5 w-3.5 mr-1" />
                   Copy link
                 </Button>
                 <Button size="sm" variant="secondary" asChild>
-                  <Link href={`/attendant-pass/apply?branchId=${encodeURIComponent(branch.id)}`}>
+                  <a href={attendantApplyPath(branch)}>
                     <ExternalLink className="h-3.5 w-3.5 mr-1" />
                     Open
-                  </Link>
+                  </a>
                 </Button>
               </div>
             </div>

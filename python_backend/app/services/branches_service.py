@@ -8,6 +8,29 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.models import Branch, HospitalChain, User
 from app.models.enums import Role
+from app.utils.slug import RESERVED_BRANCH_SLUGS, branch_slug_base, normalize_branch_slug
+
+
+def unique_branch_slug(db: Session, base: str, exclude_branch_id: str | None = None) -> str:
+    """``base``, or ``base-2``, ``base-3``… when another branch already uses it."""
+    candidate = base
+    n = 2
+    while True:
+        q = db.query(Branch.id).filter(Branch.slug == candidate)
+        if exclude_branch_id:
+            q = q.filter(Branch.id != exclude_branch_id)
+        if candidate not in RESERVED_BRANCH_SLUGS and q.first() is None:
+            return candidate
+        candidate = f"{base}-{n}"
+        n += 1
+
+
+def auto_branch_slug(db: Session, branch: Branch) -> str:
+    chain = branch.hospitalChain or (
+        db.get(HospitalChain, branch.hospitalChainId) if branch.hospitalChainId else None
+    )
+    base = branch_slug_base(branch.name, chain.name if chain else None)
+    return unique_branch_slug(db, base, exclude_branch_id=branch.id)
 
 
 class BranchesService:
@@ -23,6 +46,18 @@ class BranchesService:
     def _ensure_access(self, user: dict, chain_id: str) -> None:
         if user["role"] == Role.CHAIN_ADMIN.value and user.get("hospitalChainId") != chain_id:
             raise HTTPException(status_code=403, detail="You can only access branches in your own chain")
+
+    def _validated_slug(self, value: str, branch_id: str | None) -> str:
+        try:
+            slug = normalize_branch_slug(value)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        taken = self.db.query(Branch.id).filter(Branch.slug == slug)
+        if branch_id:
+            taken = taken.filter(Branch.id != branch_id)
+        if taken.first() is not None:
+            raise HTTPException(status_code=409, detail=f'The link name "{slug}" is already used by another hospital.')
+        return slug
 
     def _generate_qr(self, branch: Branch) -> str:
         settings = get_settings()
@@ -48,10 +83,15 @@ class BranchesService:
         )
         if existing:
             raise HTTPException(status_code=409, detail="A branch with this phone or email already exists in this chain.")
+        requested_slug = data.pop("slug", None)
         branch = Branch(**data, hospitalChainId=chain_id)
+        if requested_slug:
+            branch.slug = self._validated_slug(requested_slug, None)
         self.db.add(branch)
         self.db.commit()
         self.db.refresh(branch)
+        if not branch.slug:
+            branch.slug = auto_branch_slug(self.db, branch)
         branch.qrCode = self._generate_qr(branch)
         self.db.commit()
         self.db.refresh(branch)
@@ -76,8 +116,16 @@ class BranchesService:
 
     def update(self, chain_id: str, branch_id: str, data: dict, user: dict) -> Branch:
         branch = self.find_one(chain_id, branch_id, user)
+        data = dict(data)
+        if "slug" in data:
+            requested = data.pop("slug")
+            branch.slug = (
+                self._validated_slug(requested, branch.id)
+                if isinstance(requested, str) and requested.strip()
+                else auto_branch_slug(self.db, branch)
+            )
         for key, value in data.items():
-            if value is not None:
+            if value is not None and key in Branch.__table__.columns and key not in ("id", "hospitalChainId"):
                 setattr(branch, key, value)
         self.db.commit()
         self.db.refresh(branch)

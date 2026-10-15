@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -26,6 +26,7 @@ import { getApiErrorMessage } from '@/lib/api-errors';
 import { cn } from '@/lib/utils';
 import { StickyActionBar } from '@/components/mobile/StickyActionBar';
 import { AttendantPhotoPicker } from '@/features/attendant-passes/AttendantPhotoPicker';
+import { attendantApplyPath, attendantSlugFromPath } from '@/lib/attendant-pass-url';
 
 function branchShortLabel(branch: AttendantPassBranch): string {
   const location = [branch.city, branch.state].filter(Boolean).join(', ');
@@ -78,6 +79,40 @@ function PatientSummary({
   );
 }
 
+const HOME_REDIRECT_SECONDS = 5;
+
+function PassSent(): React.ReactElement {
+  const router = useRouter();
+  const [secondsLeft, setSecondsLeft] = React.useState(HOME_REDIRECT_SECONDS);
+
+  React.useEffect(() => {
+    if (secondsLeft <= 0) {
+      router.replace('/');
+      return;
+    }
+    const handle = window.setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => window.clearTimeout(handle);
+  }, [secondsLeft, router]);
+
+  return (
+    <Card className="mx-auto w-full max-w-xl">
+      <CardContent className="space-y-3 pt-8 text-center">
+        <h2 className="text-xl font-semibold">Pass sent</h2>
+        <p className="text-sm text-muted-foreground">
+          Your attendant pass and QR are on the way to your WhatsApp. Show that same QR at
+          security to check in, and scan it again when you leave.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Taking you to the home page in {secondsLeft} second{secondsLeft === 1 ? '' : 's'}…
+        </p>
+        <Button className="w-full sm:w-auto" onClick={() => router.replace('/')}>
+          Go to home page
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ApplyForm(): React.ReactElement {
   const params = useSearchParams();
   const initialBranchId = params.get('branchId') ?? '';
@@ -102,10 +137,26 @@ function ApplyForm(): React.ReactElement {
   const [lookupLoading, setLookupLoading] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
+  const [unknownSlug, setUnknownSlug] = React.useState<string | null>(null);
+
   React.useEffect(() => {
+    const slug = attendantSlugFromPath(window.location.pathname);
     AttendantPassService.listPublicBranches()
       .then((items) => {
         setBranches(items);
+        if (slug) {
+          const match = items.find((b) => b.slug?.toLowerCase() === slug);
+          if (match) {
+            setBranchId(match.id);
+          } else {
+            setUnknownSlug(slug);
+          }
+          return;
+        }
+        const linked = initialBranchId ? items.find((b) => b.id === initialBranchId) : undefined;
+        if (linked?.slug) {
+          window.history.replaceState(null, '', attendantApplyPath(linked));
+        }
         if (!initialBranchId && items.length === 1) {
           setBranchId(items[0].id);
         }
@@ -209,17 +260,7 @@ function ApplyForm(): React.ReactElement {
   };
 
   if (done) {
-    return (
-      <Card className="mx-auto w-full max-w-xl">
-        <CardContent className="space-y-3 pt-8 text-center">
-          <h2 className="text-xl font-semibold">Pass sent</h2>
-          <p className="text-sm text-muted-foreground">
-            Your attendant pass and QR are on the way to your WhatsApp. Show that same QR at
-            security to check in, and scan it again when you leave.
-          </p>
-        </CardContent>
-      </Card>
-    );
+    return <PassSent />;
   }
 
   return (
@@ -245,6 +286,12 @@ function ApplyForm(): React.ReactElement {
           Book during the hospital visiting hours. The pass is sent on WhatsApp right away. A new
           booking closes only while another visitor is checked in with the patient.
         </p>
+        {unknownSlug && !selectedBranch && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            The link &ldquo;{unknownSlug}&rdquo; does not match any hospital. Please pick your hospital
+            below.
+          </div>
+        )}
         {selectedBranch && (
           <div className="rounded-lg border border-[#001B71]/08 bg-[#4A90E2]/10 px-4 py-3 text-sm text-primary">
             <span className="font-medium">Hospital:</span> {branchFullLabel(selectedBranch)}

@@ -141,6 +141,8 @@ export interface AmsPassPolicy {
 
 export interface AttendantPassBranch {
   id: string;
+  /** Public link name, e.g. `ovum-kalyan-nagar`. */
+  slug?: string | null;
   name: string;
   city: string;
   state: string;

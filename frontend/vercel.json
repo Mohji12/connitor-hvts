@@ -11,6 +11,14 @@
       "destination": "https://api.conninter.com/api/$1"
     },
     {
+      "source": "/attendant-pass/:slug/",
+      "destination": "/attendant-pass/apply/index.html"
+    },
+    {
+      "source": "/attendant-pass/:slug",
+      "destination": "/attendant-pass/apply/index.html"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

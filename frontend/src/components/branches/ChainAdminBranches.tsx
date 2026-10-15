@@ -69,6 +69,7 @@ import {
   Building,
 } from 'lucide-react';
 import Image from 'next/image';
+import { BranchPublicLinkField } from '@/components/branches/BranchPublicLinkField';
 import { GitBranch as GitBranchIcon } from 'lucide-react';
 
 // Define a user type specific to this component's needs
@@ -230,6 +231,7 @@ const ManageBranchDialog = ({
   allAdmins,
   isLoadingAdmins,
   onAdminAdded,
+  onBranchUpdated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -237,6 +239,7 @@ const ManageBranchDialog = ({
   allAdmins: User[] | undefined;
   isLoadingAdmins: boolean;
   onAdminAdded: () => void;
+  onBranchUpdated: () => void;
 }) => {
   const [isAddAdminOpen, setAddAdminOpen] = useState(false);
 
@@ -311,6 +314,7 @@ const ManageBranchDialog = ({
                     <p>{branch.country}</p>
                   </div>
                 </div>
+                <BranchPublicLinkField branch={branch} onSaved={onBranchUpdated} />
                 {/* QR Code Section */}
                 {branch.qrCode && (
                   <div className="flex flex-col items-center gap-2 mt-6">
@@ -946,6 +950,7 @@ export function ChainAdminBranches({ user }: { user: ChainAdminUser }) {
         allAdmins={allBranchAdmins}
         isLoadingAdmins={isLoadingAdmins}
         onAdminAdded={mutateAdmins}
+        onBranchUpdated={() => void mutateBranches()}
       />
     </>
   );
