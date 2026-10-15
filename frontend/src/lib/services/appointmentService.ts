@@ -32,6 +32,34 @@ export interface DoctorSlot {
   label: string;
 }
 
+export type SlotRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface SlotRequestRecord {
+  id: string;
+  status: SlotRequestStatus;
+  doctorId: string;
+  doctorName: string;
+  branchId: string;
+  branchName: string;
+  hospitalName: string;
+  departmentId: string;
+  departmentName: string;
+  subDepartmentId: string;
+  requestedStart: string;
+  date: string;
+  time: string;
+  purpose: string;
+  slotId: string | null;
+  slotBooked: boolean;
+  createdAt: string | null;
+  decidedAt: string | null;
+}
+
+function visitorAuthHeaders(): Record<string, string> {
+  const token = getVisitorToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export interface AppointmentRecord {
   id: string;
   status: string;
@@ -90,7 +118,7 @@ export const AppointmentService = {
   async listDoctorSlots(doctorId: string, date: string): Promise<DoctorSlot[]> {
     const response = await apiClient.get(
       `/api/public/appointments/doctors/${doctorId}/slots`,
-      { params: { date } },
+      { params: { date }, headers: visitorAuthHeaders() },
     );
     return ensureArray<DoctorSlot>(response.data);
   },
@@ -99,9 +127,40 @@ export const AppointmentService = {
   async listAvailableDates(doctorId: string, from: string, to: string): Promise<string[]> {
     const response = await apiClient.get(
       `/api/public/appointments/doctors/${doctorId}/available-dates`,
-      { params: { from, to } },
+      { params: { from, to }, headers: visitorAuthHeaders() },
     );
     return ensureArray<string>(response.data);
+  },
+
+  /** Ask the doctor (on WhatsApp) to open a slot at a specific date and time. No payment yet. */
+  async createSlotRequest(data: {
+    branchId: string;
+    departmentId: string;
+    subDepartmentId: string;
+    doctorId: string;
+    date: string;
+    time: string;
+    purpose: string;
+  }): Promise<SlotRequestRecord> {
+    const response = await apiClient.post('/api/public/appointments/slot-requests', data, {
+      headers: visitorAuthHeaders(),
+    });
+    return response.data as SlotRequestRecord;
+  },
+
+  async listSlotRequests(): Promise<SlotRequestRecord[]> {
+    const response = await apiClient.get('/api/public/appointments/slot-requests', {
+      headers: visitorAuthHeaders(),
+    });
+    return ensureArray<SlotRequestRecord>(response.data);
+  },
+
+  async getSlotRequest(id: string): Promise<SlotRequestRecord> {
+    const response = await apiClient.get(
+      `/api/public/appointments/slot-requests/${encodeURIComponent(id)}`,
+      { headers: visitorAuthHeaders() },
+    );
+    return response.data as SlotRequestRecord;
   },
 
   /** Ask to be told on WhatsApp once the doctor publishes slots on `date`. */

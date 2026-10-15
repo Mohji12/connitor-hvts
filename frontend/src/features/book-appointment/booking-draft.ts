@@ -26,6 +26,8 @@ export interface BookingDraft {
   phone: string;
   email: string;
   profileCreatedHere: boolean;
+  /** Step to reopen at; payment (6) unless the visitor still has to fill visit details. */
+  resumeStep?: 6 | '5A';
 }
 
 export function saveBookingDraft(draft: BookingDraft): void {

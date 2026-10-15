@@ -321,6 +321,33 @@ class Settings(BaseSettings):
         validation_alias="WHATSAPP_TEMPLATE_ATTENDANT_PASS_LANGUAGE",
         description="conninter_patient_attendant_pass language.",
     )
+    whatsapp_template_visit_slot_request: str = Field(
+        default="conninter_visit_slot_request",
+        validation_alias="WHATSAPP_TEMPLATE_VISIT_SLOT_REQUEST",
+        description="Sent to the doctor when a visitor asks for a slot. Body {{1}}..{{8}}; Confirm/Reject quick replies.",
+    )
+    whatsapp_template_visit_slot_request_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_VISIT_SLOT_REQUEST_LANGUAGE",
+    )
+    whatsapp_template_visit_slot_approved: str = Field(
+        default="conninter_visit_slot_approved",
+        validation_alias="WHATSAPP_TEMPLATE_VISIT_SLOT_APPROVED",
+        description="Sent to the visitor when the doctor confirms their slot. Book Visit URL button ends with {{1}}.",
+    )
+    whatsapp_template_visit_slot_approved_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_VISIT_SLOT_APPROVED_LANGUAGE",
+    )
+    whatsapp_template_visit_slot_rejected: str = Field(
+        default="conninter_visit_slot_rejected",
+        validation_alias="WHATSAPP_TEMPLATE_VISIT_SLOT_REJECTED",
+        description="Sent to the visitor when the doctor rejects their slot request.",
+    )
+    whatsapp_template_visit_slot_rejected_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_VISIT_SLOT_REJECTED_LANGUAGE",
+    )
     whatsapp_template_language: str = Field(
         default="en_GB",
         validation_alias="WHATSAPP_TEMPLATE_LANGUAGE",

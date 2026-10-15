@@ -54,6 +54,8 @@ export interface VisitorPreviewData {
   linkedinUrl?: string | null;
   photoUrl?: string | null;
   photoBlobUrl?: string | null;
+  govtIdType?: string | null;
+  govtIdUrl?: string | null;
   emailVerified?: boolean;
   phoneVerified?: boolean;
   profileStatus?: string;

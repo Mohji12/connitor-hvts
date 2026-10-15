@@ -20,6 +20,7 @@ import {
 import { formatIstDateTime } from '@/lib/datetime';
 import { cn } from '@/lib/utils';
 import { VisitorProfilePreviewCard } from '@/features/visitor-pre-registration/preview/VisitorProfilePreviewCard';
+import { SlotRequestsCard } from '@/features/book-appointment/SlotRequestsCard';
 import {
   VisitorWalletService,
   type VisitorWalletSummary,
@@ -314,6 +315,8 @@ export default function VisitorDashboardPage() {
         )}
 
         {upcoming ? <UpcomingVisitCard item={upcoming} /> : null}
+
+        <SlotRequestsCard />
 
         {data?.profile && (
           <div className="flex min-w-0 flex-col gap-3 max-lg:hidden sm:flex-row sm:items-start sm:justify-between">

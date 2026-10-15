@@ -19,6 +19,7 @@ jest.mock('@/lib/services/appointmentService', () => ({
     listDoctorSlots: jest.fn(),
     listAvailableDates: jest.fn().mockResolvedValue([]),
     joinSlotWaitlist: jest.fn().mockResolvedValue(undefined),
+    createSlotRequest: jest.fn().mockResolvedValue({ id: 'req-1', status: 'PENDING' }),
   },
 }));
 
@@ -45,6 +46,7 @@ jest.mock('@/features/visitor-wallet/VisitPaymentChoice', () => ({
 
 const mockedSlots = AppointmentService.listDoctorSlots as jest.Mock;
 const mockedWaitlist = AppointmentService.joinSlotWaitlist as jest.Mock;
+const mockedCreateRequest = AppointmentService.createSlotRequest as jest.Mock;
 
 const draft: BookingDraft = {
   branchId: 'branch-1',
@@ -106,6 +108,42 @@ describe('BookAppointmentWizard resume after recharge', () => {
     fireEvent.click(screen.getByRole('button', { name: /Exit and notify me/ }));
 
     await waitFor(() => expect(mockedWaitlist).toHaveBeenCalledWith('doc-1', '2026-10-20'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/visitor/dashboard'));
+  });
+
+  it('opens visit details with the approved slot selected when resumeStep is 5A', async () => {
+    saveBookingDraft({ ...draft, itemsCarrying: '', resumeStep: '5A' });
+    mockedSlots.mockResolvedValue([
+      { id: 'slot-1', slotStart: '2026-10-20T10:00:00', slotEnd: '2026-10-20T10:30:00', label: '10:00 AM' },
+    ]);
+    render(<BookAppointmentWizard initialBranchId="branch-1" initialBranchName="Ovum" />);
+
+    const slotButton = await screen.findByRole('button', { name: '10:00 AM' });
+    await waitFor(() => expect(slotButton.className).toMatch(/bg-primary/));
+    expect(screen.getByLabelText('Purpose of the visit')).toHaveValue('Follow-up consultation');
+    expect(screen.queryByText('Payment options')).not.toBeInTheDocument();
+  });
+
+  it('sends a slot request to the doctor without payment', async () => {
+    mockedSlots.mockResolvedValue([]);
+    render(<BookAppointmentWizard initialBranchId="branch-1" initialBranchName="Ovum" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Request a visit slot' }));
+    expect(screen.queryByLabelText('What are you carrying?')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Requested time'), { target: { value: '15:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send request to doctor' }));
+
+    await waitFor(() =>
+      expect(mockedCreateRequest).toHaveBeenCalledWith({
+        branchId: 'branch-1',
+        departmentId: 'dept-1',
+        subDepartmentId: 'sub-1',
+        doctorId: 'doc-1',
+        date: '2026-10-20',
+        time: '15:30',
+        purpose: 'Follow-up consultation',
+      }),
+    );
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/visitor/dashboard'));
   });
 });

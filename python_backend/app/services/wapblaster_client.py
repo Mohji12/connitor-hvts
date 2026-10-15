@@ -314,6 +314,121 @@ def send_wapblaster_visit_rejected(
     )
 
 
+def send_wapblaster_visit_slot_request(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    doctor_name: str,
+    visitor_name: str,
+    hospital_name: str,
+    branch_name: str,
+    department: str,
+    requested_date: str,
+    requested_time: str,
+    purpose: str,
+    approval_code: str,
+) -> None:
+    """Doctor notice via conninter_visit_slot_request.
+
+    Body {{1}}..{{8}}: doctor, visitor, hospital, branch, department, date, time, purpose.
+    Confirm is button_0 and Reject is button_1 (quick-reply payloads carry the code).
+    """
+    code = (approval_code or "").strip()
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=[
+            doctor_name or "Doctor",
+            visitor_name or "Visitor",
+            hospital_name or "—",
+            branch_name or "—",
+            department or "—",
+            requested_date or "—",
+            requested_time or "—",
+            purpose or "Visit",
+        ],
+        extra={
+            "button_0": f"slotok_{code}" if code else "slotok",
+            "button_1": f"slotno_{code}" if code else "slotno",
+        },
+    )
+
+
+def send_wapblaster_visit_slot_approved(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    visitor_name: str,
+    doctor_name: str,
+    hospital_name: str,
+    branch_name: str,
+    department: str,
+    approved_date: str,
+    approved_time: str,
+    purpose: str,
+    book_path: str,
+) -> None:
+    """Visitor notice via conninter_visit_slot_approved.
+
+    Body {{1}}..{{8}}: visitor, doctor, hospital, branch, department, date, time, purpose.
+    The Book Visit URL button ends with {{1}}; button_0 is the path after the site root.
+    """
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=[
+            visitor_name or "Visitor",
+            doctor_name or "Doctor",
+            hospital_name or "—",
+            branch_name or "—",
+            department or "—",
+            approved_date or "—",
+            approved_time or "—",
+            purpose or "Visit",
+        ],
+        extra={"button_0": book_path.lstrip("/")},
+    )
+
+
+def send_wapblaster_visit_slot_rejected(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    visitor_name: str,
+    doctor_name: str,
+    hospital_name: str,
+    branch_name: str,
+    department: str,
+    requested_date: str,
+    requested_time: str,
+    purpose: str,
+) -> None:
+    """Visitor notice via conninter_visit_slot_rejected.
+
+    Body {{1}}..{{8}} uses the same order as conninter_visit_slot_approved.
+    """
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=[
+            visitor_name or "Visitor",
+            doctor_name or "Doctor",
+            hospital_name or "—",
+            branch_name or "—",
+            department or "—",
+            requested_date or "—",
+            requested_time or "—",
+            purpose or "Visit",
+        ],
+    )
+
+
 def _meet_join_button_param(meeting_url: str) -> str:
     """Dynamic URL button value for /meet/?t=… links (token only when present)."""
     from urllib.parse import parse_qs, urlparse

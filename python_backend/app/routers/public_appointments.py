@@ -13,6 +13,7 @@ from app.dependencies.visitor_auth import _decode_visitor_token, visitor_securit
 from app.models import VisitorAccount
 from app.models.enums import ProfileStatus
 from app.services.appointments_service import AppointmentsService
+from app.services.slot_request_service import SlotRequestService, dispatch_slot_request_to_doctor
 from app.services.slot_waitlist_service import SlotWaitlistService
 from app.services.visit_notification_dispatch import dispatch_new_visit_request_notifications
 
@@ -130,14 +131,29 @@ def get_doctor(doctor_id: str, db: Session = Depends(get_db)):
     )
 
 
+def _visitor_account_id(credentials: HTTPAuthorizationCredentials | None) -> str | None:
+    if not credentials:
+        return None
+    try:
+        token_payload = _decode_visitor_token(credentials.credentials)
+    except Exception:
+        return None
+    if token_payload.get("role") != "VISITOR":
+        return None
+    return token_payload.get("sub")
+
+
 @router.get("/doctors/{doctor_id}/slots")
 @public_route
 def list_doctor_slots(
     doctor_id: str,
     date: str = Query(..., description="YYYY-MM-DD"),
     db: Session = Depends(get_db),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(visitor_security)] = None,
 ):
-    return AppointmentsService(db).list_doctor_slots(doctor_id, date)
+    return AppointmentsService(db).list_doctor_slots(
+        doctor_id, date, viewer_account_id=_visitor_account_id(credentials)
+    )
 
 
 @router.get("/doctors/{doctor_id}/available-dates")
@@ -147,8 +163,77 @@ def list_doctor_available_dates(
     from_date: str = Query(..., alias="from", description="YYYY-MM-DD"),
     to_date: str = Query(..., alias="to", description="YYYY-MM-DD"),
     db: Session = Depends(get_db),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(visitor_security)] = None,
 ):
-    return AppointmentsService(db).list_available_dates(doctor_id, from_date, to_date)
+    return AppointmentsService(db).list_available_dates(
+        doctor_id, from_date, to_date, viewer_account_id=_visitor_account_id(credentials)
+    )
+
+
+class SlotRequestBody(BaseModel):
+    branchId: str
+    departmentId: str
+    subDepartmentId: str
+    doctorId: str
+    date: str = Field(min_length=10, max_length=10, description="YYYY-MM-DD")
+    time: str = Field(min_length=4, max_length=5, description="HH:MM (24h)")
+    purpose: str = Field(min_length=3, max_length=191)
+
+
+def _require_active_visitor(
+    db: Session, credentials: HTTPAuthorizationCredentials | None, message: str
+) -> VisitorAccount:
+    account_id = _visitor_account_id(credentials)
+    account = db.get(VisitorAccount, account_id) if account_id else None
+    if not account or account.profileStatus != ProfileStatus.ACTIVE.value:
+        raise HTTPException(status_code=401, detail=message)
+    return account
+
+
+@router.post("/slot-requests")
+@public_route
+def create_slot_request(
+    body: SlotRequestBody,
+    db: Annotated[Session, Depends(get_db)],
+    background_tasks: BackgroundTasks,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(visitor_security)] = None,
+):
+    account = _require_active_visitor(db, credentials, "Sign in to request a visit slot.")
+    service = SlotRequestService(db)
+    request = service.create(
+        account,
+        branch_id=body.branchId,
+        department_id=body.departmentId,
+        sub_department_id=body.subDepartmentId,
+        doctor_id=body.doctorId,
+        date_str=body.date,
+        time_str=body.time,
+        purpose=body.purpose.strip(),
+    )
+    background_tasks.add_task(dispatch_slot_request_to_doctor, request.id)
+    return service.serialize(request)
+
+
+@router.get("/slot-requests")
+@public_route
+def list_slot_requests(
+    db: Annotated[Session, Depends(get_db)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(visitor_security)] = None,
+):
+    account = _require_active_visitor(db, credentials, "Sign in to see your slot requests.")
+    return SlotRequestService(db).list_for_account(account.id)
+
+
+@router.get("/slot-requests/{request_id}")
+@public_route
+def get_slot_request(
+    request_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(visitor_security)] = None,
+):
+    account = _require_active_visitor(db, credentials, "Sign in to see this slot request.")
+    service = SlotRequestService(db)
+    return service.serialize(service.get_for_account(request_id, account.id))
 
 
 class SlotWaitlistBody(BaseModel):

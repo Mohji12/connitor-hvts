@@ -9,6 +9,7 @@ from app.models.enums import AppointmentMode, Role, VisitCategory, VisitStatus
 from app.services.livekit_service import meeting_join_url
 from app.services.notifications_service import NotificationsService
 from app.services.sales_meeting_service import apply_visitor_kind
+from app.services.slot_request_service import reserved_slot_ids_for_others
 from app.services.visitor_account_link_service import VisitorAccountLinkService
 from app.utils.serializers import model_to_dict
 from app.utils.timezone import now_ist, parse_to_ist_naive
@@ -18,7 +19,6 @@ DEPARTMENT_CODE_TO_LEGACY: dict[str, str] = {
     "CARDIO": "CARDIOLOGY",
     "ICU-CARD": "INTENSIVE_CARE_UNIT",
 }
-
 
 MAX_AVAILABLE_DATES_RANGE_DAYS = 62
 
@@ -190,7 +190,9 @@ class AppointmentsService:
                 ),
             )
 
-    def list_doctor_slots(self, doctor_id: str, date_str: str) -> list[dict]:
+    def list_doctor_slots(
+        self, doctor_id: str, date_str: str, *, viewer_account_id: str | None = None
+    ) -> list[dict]:
         doctor = self.db.get(User, doctor_id)
         if not doctor or not doctor.isActive or doctor.role != Role.STAFF.value:
             raise HTTPException(status_code=404, detail="Staff not found.")
@@ -218,6 +220,9 @@ class AppointmentsService:
         earliest = self._earliest_bookable_start(doctor_id, now)
         if earliest > now:
             slots = [s for s in slots if s.slotStart >= earliest]
+        hidden = reserved_slot_ids_for_others(self.db, doctor_id, viewer_account_id)
+        if hidden:
+            slots = [s for s in slots if s.id not in hidden]
         return [
             {
                 "id": s.id,
@@ -228,7 +233,14 @@ class AppointmentsService:
             for s in slots
         ]
 
-    def list_available_dates(self, doctor_id: str, from_str: str, to_str: str) -> list[str]:
+    def list_available_dates(
+        self,
+        doctor_id: str,
+        from_str: str,
+        to_str: str,
+        *,
+        viewer_account_id: str | None = None,
+    ) -> list[str]:
         """Distinct YYYY-MM-DD dates in [from, to] that still have a bookable slot."""
         doctor = self.db.get(User, doctor_id)
         if not doctor or not doctor.isActive or doctor.role != Role.STAFF.value:
@@ -249,7 +261,7 @@ class AppointmentsService:
         now = now_ist()
         earliest = max(now, self._earliest_bookable_start(doctor_id, now))
         rows = (
-            self.db.query(DoctorAvailabilitySlot.slotStart)
+            self.db.query(DoctorAvailabilitySlot.id, DoctorAvailabilitySlot.slotStart)
             .filter(
                 DoctorAvailabilitySlot.doctorId == doctor_id,
                 DoctorAvailabilitySlot.slotStart >= start_day,
@@ -259,9 +271,17 @@ class AppointmentsService:
             )
             .all()
         )
-        return sorted({row[0].strftime("%Y-%m-%d") for row in rows})
+        hidden = reserved_slot_ids_for_others(self.db, doctor_id, viewer_account_id)
+        return sorted({start.strftime("%Y-%m-%d") for slot_id, start in rows if slot_id not in hidden})
 
-    def _reserve_slot(self, doctor_id: str, slot_id: str | None, appt_date: datetime | None) -> tuple[datetime, DoctorAvailabilitySlot | None]:
+    def _reserve_slot(
+        self,
+        doctor_id: str,
+        slot_id: str | None,
+        appt_date: datetime | None,
+        *,
+        viewer_account_id: str | None = None,
+    ) -> tuple[datetime, DoctorAvailabilitySlot | None]:
         if slot_id:
             q = self.db.query(DoctorAvailabilitySlot).filter(DoctorAvailabilitySlot.id == slot_id)
             try:
@@ -271,7 +291,9 @@ class AppointmentsService:
             slot = q.first()
             if not slot or slot.doctorId != doctor_id:
                 raise HTTPException(status_code=404, detail="Selected time slot not found.")
-            if slot.isBooked:
+            if slot.isBooked or slot.id in reserved_slot_ids_for_others(
+                self.db, doctor_id, viewer_account_id
+            ):
                 raise HTTPException(status_code=409, detail="This time slot is no longer available.")
             if slot.slotStart <= now_ist():
                 raise HTTPException(status_code=400, detail="Cannot book a past time slot.")
@@ -354,7 +376,9 @@ class AppointmentsService:
             self._assert_custom_time_available(data["doctorId"], appt_date)
             slot = None
         else:
-            appt_date, slot = self._reserve_slot(data["doctorId"], slot_id, appt_date)
+            appt_date, slot = self._reserve_slot(
+                data["doctorId"], slot_id, appt_date, viewer_account_id=data.get("visitorAccountId")
+            )
 
         visitor_account_id = data.get("visitorAccountId")
         if visitor_account_id:

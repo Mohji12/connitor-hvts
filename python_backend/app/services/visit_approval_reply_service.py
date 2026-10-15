@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.config import get_doctor_approval_link_url, get_settings
 from app.models import User, Visit
 from app.models.enums import Role, VisitStatus
+from app.services.slot_request_service import SlotRequestService
 from app.services.staff_service import StaffService
 from app.services.visit_approval_link_service import VisitApprovalLinkService, build_approval_urls
 from app.utils.phone import normalize_phone, phones_match, strip_channel_prefix
@@ -20,6 +22,7 @@ logger = logging.getLogger(__name__)
 REPLY_PATTERN = re.compile(r"^(YES|NO|Y|N|CONFIRM)\s*(\d{6})$", re.IGNORECASE)
 ACTION_ONLY_PATTERN = re.compile(r"^(YES|NO|Y|N|CONFIRM)$", re.IGNORECASE)
 BUTTON_ID_PATTERN = re.compile(r"^(yes|no|confirm|reject)_(\d{6})$", re.IGNORECASE)
+SLOT_BUTTON_PATTERN = re.compile(r"^slot(ok|no)_(\d{6})$", re.IGNORECASE)
 RESCHEDULE_BUTTON_PATTERN = re.compile(r"^reschedule_(\d{6})$", re.IGNORECASE)
 RESCHEDULE_TEXT_PATTERN = re.compile(r"^RESCHEDULE\s*(\d{6})$", re.IGNORECASE)
 BUTTON_LABEL_PATTERN = re.compile(
@@ -55,9 +58,23 @@ def parse_approval_reply(body: str) -> tuple[str, str | None] | None:
     return None
 
 
+def _slot_request_is_newer(request, visit) -> bool:
+    if visit is None:
+        return True
+    request_at, visit_at = request.createdAt, visit.createdAt
+    if not isinstance(request_at, datetime) or not isinstance(visit_at, datetime):
+        return False
+    return request_at > visit_at
+
+
 def parse_button_reply(button_id: str) -> tuple[str, str | None] | None:
     """Parse button id or label: confirm_482901, Confirm, Reschedule, yes_482901."""
     stripped = button_id.strip()
+    match = SLOT_BUTTON_PATTERN.match(stripped)
+    if match:
+        action = "slot_approve" if match.group(1).lower() == "ok" else "slot_reject"
+        return action, match.group(2)
+
     match = RESCHEDULE_BUTTON_PATTERN.match(stripped)
     if match:
         return "reschedule", match.group(1)
@@ -153,7 +170,24 @@ class VisitApprovalReplyService:
             logger.warning("Approval reply from unknown phone: %s", from_phone)
             return "This number is not registered as a doctor in Connitor."
 
+        slot_requests = SlotRequestService(self.db)
+        if action in ("slot_approve", "slot_reject"):
+            request = slot_requests.find_pending(doctor.id, code)
+            if not request:
+                return "This slot request was already processed or could not be found."
+            if action == "slot_approve":
+                return slot_requests.approve(request)
+            return slot_requests.reject(request)
+
         visit = self._find_pending_visit(doctor, code=code)
+        if action in ("approve", "reject") and (visit is None or not code):
+            # Plain Confirm/Reject labels carry no code: act on the newest item waiting on this doctor.
+            request = slot_requests.find_pending(doctor.id, code)
+            if request is not None and _slot_request_is_newer(request, visit):
+                if action == "approve":
+                    return slot_requests.approve(request)
+                return slot_requests.reject(request)
+
         if not visit:
             if code:
                 return (

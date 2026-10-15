@@ -42,6 +42,11 @@ class TwilioWebhookServiceTests(unittest.TestCase):
         self.db = MagicMock()
         self.service = TwilioWebhookService(self.db)
         self.service.approval.staff_service = MagicMock()
+        no_slot_requests = patch(
+            "app.services.visit_approval_reply_service.SlotRequestService.find_pending", return_value=None
+        )
+        no_slot_requests.start()
+        self.addCleanup(no_slot_requests.stop)
 
     def _doctor(self) -> MagicMock:
         doctor = MagicMock()

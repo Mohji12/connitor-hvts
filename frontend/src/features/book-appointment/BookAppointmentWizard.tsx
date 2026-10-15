@@ -394,7 +394,54 @@ export function BookAppointmentWizard({
     if (draft.email) setEmail(draft.email);
     setProfileCreatedHere(draft.profileCreatedHere);
     pendingSlotIdRef.current = draft.requestCustomSlot ? null : draft.slotId || null;
-    setStep(6);
+    setStep(draft.resumeStep ?? 6);
+  }, []);
+
+  React.useEffect(() => {
+    const requestId = new URLSearchParams(window.location.search).get('slotRequest');
+    if (!requestId) return;
+    if (!getVisitorToken()) {
+      setError('Please sign in to book the visit slot the doctor approved.');
+      return;
+    }
+    let cancelled = false;
+    AppointmentService.getSlotRequest(requestId)
+      .then((request) => {
+        if (cancelled) return;
+        if (request.status !== 'APPROVED' || !request.slotId) {
+          setError(
+            request.status === 'REJECTED'
+              ? 'The doctor could not approve this visit request. Please request another time.'
+              : 'The doctor has not confirmed this visit request yet.',
+          );
+          return;
+        }
+        if (request.slotBooked) {
+          setError('This approved slot is already booked.');
+          return;
+        }
+        setBranchId(request.branchId);
+        setBranchName(request.branchName);
+        setDepartmentId(request.departmentId);
+        setSubDepartmentId(request.subDepartmentId);
+        setDoctorId(request.doctorId);
+        setAppointmentDate(request.date);
+        setRequestCustomSlot(false);
+        setPurpose(request.purpose);
+        pendingSlotIdRef.current = request.slotId;
+        AppointmentService.getPublicDoctor(request.doctorId)
+          .then((doctor) => {
+            if (!cancelled) setSelectedDoctor(doctor);
+          })
+          .catch(() => undefined);
+        setStep('5A');
+      })
+      .catch(() => {
+        if (!cancelled) setError('Could not load your approved visit slot.');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   React.useEffect(() => {
@@ -434,8 +481,47 @@ export function BookAppointmentWizard({
   }, [doctorId, appointmentDate, step]);
 
   const selectedSlot = slots.find((s) => s.id === slotId);
-  const noSlotsOnDate = step === '5A' && Boolean(appointmentDate) && !loadingSlots && slots.length === 0;
+  const noSlotsOnDate =
+    step === '5A' && !requestCustomSlot && Boolean(appointmentDate) && !loadingSlots && slots.length === 0;
   const [exiting, setExiting] = React.useState(false);
+  const [sendingRequest, setSendingRequest] = React.useState(false);
+
+  const sendSlotRequest = async () => {
+    if (!appointmentDate || !preferredTime) {
+      setError('Please choose a date and time for your visit request.');
+      return;
+    }
+    if (purpose.trim().length < 3) {
+      setError('Please enter the purpose of your visit.');
+      return;
+    }
+    if (!getVisitorToken()) {
+      setError('Please sign in to send a visit request to the doctor.');
+      return;
+    }
+    setError('');
+    setSendingRequest(true);
+    try {
+      await AppointmentService.createSlotRequest({
+        branchId,
+        departmentId,
+        subDepartmentId,
+        doctorId,
+        date: appointmentDate,
+        time: preferredTime,
+        purpose: purpose.trim(),
+      });
+      toast.success("Request sent. We'll WhatsApp you once the doctor confirms.");
+      router.push('/visitor/dashboard');
+    } catch (e: unknown) {
+      const detail =
+        typeof e === 'object' && e && 'response' in e
+          ? String((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? '')
+          : '';
+      setError(detail || 'Could not send your request. Please try again.');
+      setSendingRequest(false);
+    }
+  };
 
   const exitAndNotify = async () => {
     setExiting(true);
@@ -883,12 +969,9 @@ export function BookAppointmentWizard({
                         required
                       />
                       <p className="text-xs text-muted-foreground">
-                        Choose a date, time, purpose, and meeting mode. The doctor will be emailed
-                        your name with {appointmentDate || 'the selected date'} at{' '}
-                        {preferredTime || 'the selected time'} ({appointmentMode === 'ONLINE'
-                          ? 'online'
-                          : 'offline'}
-                        ) and can approve or decline.
+                        The doctor gets your request for {appointmentDate || 'the selected date'} at{' '}
+                        {preferredTime || 'the selected time'} on WhatsApp. Once they confirm, we
+                        WhatsApp you a link to book and pay for that slot. Nothing is charged now.
                       </p>
                     </div>
                   )}
@@ -907,6 +990,18 @@ export function BookAppointmentWizard({
                   placeholder="For example: product discussion, follow-up consultation"
                 />
               </div>
+              {requestCustomSlot ? (
+                <StickyActionBar>
+                  <Button
+                    className="w-full max-lg:h-12 max-lg:text-base"
+                    onClick={() => void sendSlotRequest()}
+                    disabled={sendingRequest || !preferredTime || purpose.trim().length < 3}
+                  >
+                    {sendingRequest ? 'Sending…' : 'Send request to doctor'}
+                  </Button>
+                </StickyActionBar>
+              ) : (
+              <>
               <div className="space-y-2">
                 <Label htmlFor="items-carrying">What are you carrying?</Label>
                 <Textarea
@@ -996,11 +1091,13 @@ export function BookAppointmentWizard({
                 <Button
                   className="w-full max-lg:h-12 max-lg:text-base"
                   onClick={continueToPayment}
-                  disabled={(!requestCustomSlot && !slotId) || (requestCustomSlot && !preferredTime)}
+                  disabled={!slotId}
                 >
                   Continue to payment
                 </Button>
               </StickyActionBar>
+              </>
+              )}
             </div>
           )}
 
