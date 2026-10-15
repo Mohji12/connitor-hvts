@@ -45,12 +45,13 @@ _PASS_Y = 337
 _LEFT_VALUE = (100, 142)
 _RIGHT_VALUE = (352, 140)
 _VALUE_ROWS = (400, 480, 561)
-# Open band under the date card and above the instructions box (~y=710).
-# 136px holds a version-5 code at 3 pixels per module.
-_QR_TOP = 572
-_QR_LEFT = 46
-_QR_SIZE = 136
+# Open band between the Date/Time cards (bottom ~y=586) and the
+# "Valid for today only" line (~y=700). The QR is centered under the left column.
+_QR_TOP = 589
+_QR_SIZE = 108
+_QR_LEFT = 140 - _QR_SIZE // 2
 _DIVIDER_X = 262
+_LOGO_RIGHT = 494
 _LABEL_BLUE = (0, 102, 204)
 _SIZE_ABBREV = {
     "SMALL": "S",
@@ -318,7 +319,7 @@ def render_delivery_pass(content: DeliveryPassContent, *, scale: int = 1) -> byt
     _fit_text(draw, (right_x, row_date), content.time_text, max_width=right_width, size=12, fill=_NAVY)
 
     logo_left = _DIVIDER_X + 18
-    logo_right = 500
+    logo_right = _LOGO_RIGHT
     if content.logo_png or content.qr_png:
         try:
             paste_aligned_qr_and_logo(

@@ -257,9 +257,6 @@ export default function VendorRegisterPage(): React.ReactElement {
       if (form.gstRegistrationType !== 'Unregistered' && !files.gstCertificate) {
         return 'Upload GST registration certificate';
       }
-      if (form.vendorType === 'PHARMA' && !form.drugLicenseNumber.trim()) {
-        return 'Drug license number is required for pharma';
-      }
     }
     if (s === 5) {
       if (form.branchIds.length < 1) return 'Select at least one hospital';
@@ -783,7 +780,7 @@ export default function VendorRegisterPage(): React.ReactElement {
                 {form.vendorType === 'PHARMA' && (
                   <>
                     <div className="space-y-2">
-                      <Label>Drug license number</Label>
+                      <Label>Drug license number (optional)</Label>
                       <Input
                         value={form.drugLicenseNumber}
                         onChange={(e) => setField('drugLicenseNumber', e.target.value)}

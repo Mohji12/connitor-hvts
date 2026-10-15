@@ -143,17 +143,6 @@ class DistributorOnboardingService:
         if not addr1 or not city or not state or not re.match(r"^\d{6}$", pin):
             raise bad_request("Complete registered address with 6-digit PIN is required")
 
-        if vendor_type == "PHARMA":
-            docs = data.get("documents") or []
-            has_drug = any(
-                (d.get("documentType") or "").upper() in ("DRUG_LICENSE_20", "DRUG_LICENSE_21", "DRUG_LICENSE")
-                and (d.get("documentNumber") or "").strip()
-                for d in docs
-                if isinstance(d, dict)
-            )
-            if not has_drug:
-                raise bad_request("Drug license number is required for PHARMA vendors")
-
         existing_user = self.db.query(User).filter(User.email == email).first()
         if existing_user:
             raise bad_request("An account with this email already exists")

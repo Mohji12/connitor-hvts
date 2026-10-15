@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DeliveryEmptyState, DeliveryPageShell } from '@/features/delivery-management/ui';
+import { DriverPhotoField } from '@/features/distributor-delivery/DriverPhotoField';
 
 type Tab = 'drivers' | 'vehicles';
 
@@ -26,6 +27,8 @@ export default function VendorFleetPage(): React.ReactElement {
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [phone, setPhone] = React.useState('');
+  const [photo, setPhoto] = React.useState<{ file: File; preview: string } | null>(null);
+  const [savingDriver, setSavingDriver] = React.useState(false);
   const [reg, setReg] = React.useState('');
   const [vType, setVType] = React.useState('');
   const [vLength, setVLength] = React.useState('');
@@ -51,26 +54,53 @@ export default function VendorFleetPage(): React.ReactElement {
     void load();
   }, [load]);
 
+  const rememberPhoto = (file: File, preview: string) => {
+    setPhoto((current) => {
+      if (current?.preview.startsWith('blob:')) URL.revokeObjectURL(current.preview);
+      return { file, preview };
+    });
+  };
+
+  const clearPhoto = () => {
+    setPhoto((current) => {
+      if (current?.preview.startsWith('blob:')) URL.revokeObjectURL(current.preview);
+      return null;
+    });
+  };
+
   const addDriver = async (): Promise<boolean> => {
     if (!name.trim() || !email.trim()) {
       toast.error('Name and email required');
       return false;
     }
+    setSavingDriver(true);
     try {
-      await DistributorDeliveryService.createAgent({
+      const created = await DistributorDeliveryService.createAgent({
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim() || undefined,
       });
-      toast.success('Driver added');
+      let photoFailed = false;
+      if (photo) {
+        try {
+          await DistributorDeliveryService.uploadAgentPhoto(created.id, photo.file);
+        } catch {
+          photoFailed = true;
+        }
+      }
+      if (photoFailed) toast.warning('Driver added, but the photo could not be uploaded');
+      else toast.success('Driver added');
       setName('');
       setEmail('');
       setPhone('');
+      clearPhoto();
       await load();
       return true;
     } catch {
       toast.error('Failed to add driver');
       return false;
+    } finally {
+      setSavingDriver(false);
     }
   };
 
@@ -121,6 +151,14 @@ export default function VendorFleetPage(): React.ReactElement {
       <div>
         <Label>Phone</Label>
         <Input className="max-lg:h-11" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      </div>
+      <div>
+        <Label>Driver photo (optional)</Label>
+        <DriverPhotoField
+          previewUrl={photo?.preview ?? null}
+          onPhoto={rememberPhoto}
+          onClear={photo ? clearPhoto : undefined}
+        />
       </div>
     </div>
   );
@@ -192,7 +230,11 @@ export default function VendorFleetPage(): React.ReactElement {
               : 'Dimensions are used to check the load fits.'
           }
           footer={
-            <Button className="h-12 w-full" onClick={() => void saveFromSheet()}>
+            <Button
+              className="h-12 w-full"
+              disabled={tab === 'drivers' && savingDriver}
+              onClick={() => void saveFromSheet()}
+            >
               {tab === 'drivers' ? 'Save driver' : 'Save vehicle'}
             </Button>
           }
@@ -226,8 +268,8 @@ export default function VendorFleetPage(): React.ReactElement {
             </CardHeader>
             <CardContent className="space-y-3">
               {driverFields}
-              <Button onClick={() => void addDriver()}>
-                Save driver
+              <Button disabled={savingDriver} onClick={() => void addDriver()}>
+                {savingDriver ? 'Saving…' : 'Save driver'}
               </Button>
             </CardContent>
           </Card>
@@ -241,12 +283,26 @@ export default function VendorFleetPage(): React.ReactElement {
               ) : (
                 <ul className="space-y-2 text-sm">
                   {agents.map((a) => (
-                    <li key={a.id} className="rounded-lg border p-3">
-                      <p className="font-medium">{a.name}</p>
-                      <p className="text-muted-foreground">
-                        {a.email}
-                        {a.phone ? ` · ${a.phone}` : ''}
-                      </p>
+                    <li key={a.id} className="flex items-center gap-3 rounded-lg border p-3">
+                      {a.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
+                        <img
+                          src={a.photoUrl}
+                          alt=""
+                          className="h-10 w-10 shrink-0 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-500">
+                          {a.name.slice(0, 1).toUpperCase()}
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium">{a.name}</p>
+                        <p className="truncate text-muted-foreground">
+                          {a.email}
+                          {a.phone ? ` · ${a.phone}` : ''}
+                        </p>
+                      </div>
                     </li>
                   ))}
                 </ul>

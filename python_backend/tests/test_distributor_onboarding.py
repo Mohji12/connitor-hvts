@@ -105,18 +105,10 @@ def test_validate_apply_rejects_invalid_gstin(db):
     assert "GSTIN" in ctx.value.detail
 
 
-def test_validate_apply_requires_drug_license_for_pharma(db):
+def test_validate_apply_allows_pharma_without_drug_license(db):
     branch = db.query(Branch).first()
     svc = DistributorOnboardingService(db)
-    with pytest.raises(HTTPException) as ctx:
-        svc._validate_apply(
-            _valid_payload(
-                branch.id,
-                vendorType="PHARMA",
-                documents=[],
-            )
-        )
-    assert "Drug license" in ctx.value.detail
+    svc._validate_apply(_valid_payload(branch.id, vendorType="PHARMA", documents=[]))
 
 
 @pytest.mark.asyncio

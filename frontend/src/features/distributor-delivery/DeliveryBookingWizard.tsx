@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { CheckCircle2, Plus, X } from 'lucide-react';
 import {
@@ -17,6 +17,15 @@ import { todayIstDateIso, formatIstDateTime } from '@/lib/datetime';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { DeliveryStepper } from '@/features/delivery-management/ui';
 import { DriverPhotoField } from '@/features/distributor-delivery/DriverPhotoField';
+import {
+  DELIVERY_BOOK_PATH,
+  clearDeliveryDraft,
+  dataUrlToFile,
+  fileToDataUrl,
+  loadDeliveryDraft,
+  saveDeliveryDraft,
+  walletRechargeHref,
+} from '@/features/distributor-delivery/delivery-draft';
 import { StickyActionBar } from '@/components/mobile/StickyActionBar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -164,6 +173,9 @@ function computeQuote(packages: PackageRow[], vehicleType: VehicleCategory | '')
 export function DeliveryBookingWizard(): React.ReactElement {
   const user = useAuthSession<{ distributorId?: string }>();
   const vendorId = user?.distributorId;
+  const router = useRouter();
+  /** Set when the form was restored after a wallet recharge, so list loads don't reset choices. */
+  const restoredRef = React.useRef(false);
   const [step, setStep] = React.useState<Step>(1);
   const [branches, setBranches] = React.useState<ApprovedBranch[]>([]);
   const [branchId, setBranchId] = React.useState('');
@@ -216,19 +228,53 @@ export function DeliveryBookingWizard(): React.ReactElement {
   };
 
   React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('resume') !== '1') return;
+    window.history.replaceState(null, '', DELIVERY_BOOK_PATH);
+    const draft = loadDeliveryDraft();
+    clearDeliveryDraft();
+    if (!draft) return;
+    restoredRef.current = true;
+    setBranchId(draft.branchId);
+    setPoNumber(draft.poNumber);
+    setSlotDate(draft.slotDate);
+    setSlotId(draft.slotId);
+    setUseUnscheduled(draft.useUnscheduled);
+    setExpectedArrivalTime(draft.expectedArrivalTime);
+    setVehicleCategory(draft.vehicleCategory);
+    setVehicleMode(draft.vehicleMode);
+    setVehicleId(draft.vehicleId);
+    setVehicleReg(draft.vehicleReg);
+    setAgentMode(draft.agentMode);
+    setAgentId(draft.agentId);
+    setAgentName(draft.agentName);
+    setAgentEmail(draft.agentEmail);
+    setAgentPhone(draft.agentPhone);
+    setPackages(draft.packages.length ? draft.packages : [newPackageRow()]);
+    setPayMethod('WALLET');
+    setStep(2);
+    const photo = draft.driverPhoto;
+    if (photo) {
+      dataUrlToFile(photo.dataUrl, photo.name, photo.type)
+        .then((file) => setDriverPhoto({ file, preview: photo.dataUrl }))
+        .catch(() => undefined);
+    }
+  }, []);
+
+  React.useEffect(() => {
     DistributorDeliveryService.listBranches()
       .then(setBranches)
       .catch(() => toast.error('Could not load hospitals'));
     DistributorDeliveryService.listVehicles()
       .then((rows) => {
         setVehicles(rows);
-        if (rows.length > 0) setVehicleMode('existing');
+        if (rows.length > 0 && !restoredRef.current) setVehicleMode('existing');
       })
       .catch(() => undefined);
     DistributorDeliveryService.listAgents()
       .then((rows) => {
         setAgents(rows);
-        if (rows.length > 0) setAgentMode('existing');
+        if (rows.length > 0 && !restoredRef.current) setAgentMode('existing');
       })
       .catch(() => undefined);
   }, []);
@@ -332,6 +378,44 @@ export function DeliveryBookingWizard(): React.ReactElement {
       cardExpiry.trim().length >= 3 &&
       cardCvv.trim().length >= 3
     );
+  };
+
+  const goToRecharge = async () => {
+    let photo: { dataUrl: string; name: string; type: string } | null = null;
+    if (driverPhoto) {
+      try {
+        photo = {
+          dataUrl: await fileToDataUrl(driverPhoto.file),
+          name: driverPhoto.file.name,
+          type: driverPhoto.file.type,
+        };
+      } catch {
+        photo = null;
+      }
+    }
+    const saved = saveDeliveryDraft({
+      branchId,
+      poNumber,
+      slotDate,
+      slotId,
+      useUnscheduled,
+      expectedArrivalTime,
+      vehicleCategory,
+      vehicleMode,
+      vehicleId,
+      vehicleReg,
+      agentMode,
+      agentId,
+      agentName,
+      agentEmail,
+      agentPhone,
+      packages,
+      driverPhoto: photo,
+    });
+    if (!saved) toast.message('Could not save this booking; you may need to re-enter details.');
+    const shortfall =
+      feePreview && walletBalance != null ? feePreview.walletFee - walletBalance : null;
+    router.push(walletRechargeHref(shortfall));
   };
 
   const submit = async (simulateFailure = false) => {
@@ -1069,12 +1153,13 @@ export function DeliveryBookingWizard(): React.ReactElement {
                       Fee is deducted from your distributor wallet when you confirm.
                     </p>
                   )}
-                  <Link
-                    href="/vendor/wallet"
+                  <button
+                    type="button"
+                    onClick={() => void goToRecharge()}
                     className="inline-block text-sm font-medium text-amber-700 underline-offset-2 hover:underline"
                   >
                     Recharge wallet
-                  </Link>
+                  </button>
                 </div>
               ) : payMethod === 'UPI' ? (
                 <div>

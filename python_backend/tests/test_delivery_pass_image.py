@@ -100,8 +100,8 @@ def test_long_values_stay_inside_the_printed_boxes() -> None:
         (346, 474, 508, 500),
         (94, 554, 250, 582),
         (346, 554, 508, 582),
-        (46, 572, 182, 708),
-        (274, 572, 506, 708),
+        (86, 589, 194, 697),
+        (280, 589, 494, 697),
     ]
     blank_px = blank.load()
     rendered_px = rendered.load()

@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { DistributorDeliveryService } from '@/lib/services/distributorDeliveryService';
@@ -10,11 +12,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DeliveryEmptyState, DeliveryPageShell } from '@/features/delivery-management/ui';
 
+/** Only same-site paths, so a crafted link can't send distributors to another domain. */
+function safeReturnTo(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) {
+    return null;
+  }
+  return value;
+}
+
 export default function VendorWalletPage(): React.ReactElement {
   const user = useAuthSession<{ distributorId?: string }>();
   const vendorId = user?.distributorId;
+  const router = useRouter();
   const [balance, setBalance] = React.useState<number | null>(null);
   const [amount, setAmount] = React.useState('1000');
+  const [returnTo, setReturnTo] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setReturnTo(safeReturnTo(params.get('returnTo')));
+    const needed = Number(params.get('amount'));
+    if (needed > 0) setAmount(String(Math.ceil(needed)));
+  }, []);
   const [txs, setTxs] = React.useState<
     Array<{
       id: string;
@@ -52,6 +71,11 @@ export default function VendorWalletPage(): React.ReactElement {
     }
     try {
       await DistributorDeliveryService.rechargeWallet(vendorId, value);
+      if (returnTo) {
+        toast.success(`₹${value} added. Taking you back to your delivery payment…`);
+        router.replace(returnTo);
+        return;
+      }
       toast.success('Wallet recharged');
       await load();
     } catch (e: unknown) {
@@ -68,6 +92,16 @@ export default function VendorWalletPage(): React.ReactElement {
       title="Wallet"
       subtitle="Recharge here, then choose Wallet on the delivery booking payment step. Fees are deducted from this balance."
     >
+      {returnTo && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <span className="font-medium">
+            Recharge to continue your delivery booking. You will go straight back to payment.
+          </span>
+          <Link href={returnTo} className="text-xs font-semibold underline">
+            Back to booking
+          </Link>
+        </div>
+      )}
       <section className="rounded-3xl bg-gradient-to-br from-[#001B71] to-[#1f4fa8] p-5 text-white shadow-lg lg:hidden">
         <p className="text-xs font-medium uppercase tracking-wide text-white/70">Wallet balance</p>
         <p className="mt-1 text-4xl font-bold">₹{balance != null ? balance.toFixed(2) : '—'}</p>
