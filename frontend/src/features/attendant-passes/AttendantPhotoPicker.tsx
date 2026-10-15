@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Camera, ImagePlus, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { LiveCamera } from '@/components/camera/LiveCamera';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -47,14 +48,18 @@ export function AttendantPhotoPicker({
   className,
   disabled,
 }: AttendantPhotoPickerProps): React.ReactElement {
-  const cameraRef = React.useRef<HTMLInputElement>(null);
   const uploadRef = React.useRef<HTMLInputElement>(null);
   const [busy, setBusy] = React.useState(false);
+  const [cameraOpen, setCameraOpen] = React.useState(false);
 
   const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
+    await acceptImage(file);
+  };
+
+  const acceptImage = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       toast.error('Choose a JPG or PNG image');
       return;
@@ -90,8 +95,8 @@ export function AttendantPhotoPicker({
             type="button"
             variant="outline"
             size="sm"
-            disabled={disabled || busy}
-            onClick={() => cameraRef.current?.click()}
+            disabled={disabled || busy || cameraOpen}
+            onClick={() => setCameraOpen(true)}
           >
             <Camera className="mr-1.5 h-4 w-4" />
             Take photo
@@ -120,15 +125,18 @@ export function AttendantPhotoPicker({
           )}
         </div>
       </div>
+      {cameraOpen ? (
+        <LiveCamera
+          initialFacing="user"
+          fileNamePrefix="attendant-photo"
+          onCapture={(file) => {
+            setCameraOpen(false);
+            void acceptImage(file);
+          }}
+          onCancel={() => setCameraOpen(false)}
+        />
+      ) : null}
       <p className="text-xs text-muted-foreground">Shown on the pass so security can match the face.</p>
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="user"
-        className="hidden"
-        onChange={(e) => void handleFile(e)}
-      />
       <input
         ref={uploadRef}
         type="file"

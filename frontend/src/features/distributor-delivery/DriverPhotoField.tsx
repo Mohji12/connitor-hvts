@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Camera, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { LiveCamera } from '@/components/camera/LiveCamera';
 import { Button } from '@/components/ui/button';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -18,20 +19,8 @@ export function DriverPhotoField({
   onPhoto,
   onClear,
 }: DriverPhotoFieldProps): React.ReactElement {
-  const videoRef = React.useRef<HTMLVideoElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [cameraOn, setCameraOn] = React.useState(false);
-
-  const stopCamera = React.useCallback(() => {
-    const stream = videoRef.current?.srcObject;
-    if (stream instanceof MediaStream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-    if (videoRef.current) videoRef.current.srcObject = null;
-    setCameraOn(false);
-  }, []);
-
-  React.useEffect(() => () => stopCamera(), [stopCamera]);
 
   const acceptFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -43,43 +32,6 @@ export function DriverPhotoField({
       return;
     }
     onPhoto(file, URL.createObjectURL(file));
-  };
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false,
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setCameraOn(true);
-      }
-    } catch {
-      toast.error('Camera access is needed for a live photo. You can upload an image instead.');
-    }
-  };
-
-  const capture = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const context = canvas.getContext('2d');
-    if (!context) return;
-    context.drawImage(video, 0, 0);
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return;
-        const file = new File([blob], `driver-live-${Date.now()}.jpg`, { type: 'image/jpeg' });
-        onPhoto(file, canvas.toDataURL('image/jpeg', 0.85));
-        stopCamera();
-      },
-      'image/jpeg',
-      0.85,
-    );
   };
 
   return (
@@ -104,7 +56,13 @@ export function DriverPhotoField({
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => void startCamera()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={cameraOn}
+            onClick={() => setCameraOn(true)}
+          >
             <Camera className="mr-1 h-4 w-4" />
             Live photo
           </Button>
@@ -131,21 +89,16 @@ export function DriverPhotoField({
         />
       </div>
       {cameraOn ? (
-        <div className="flex gap-2">
-          <Button type="button" size="sm" onClick={capture}>
-            Capture
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={stopCamera}>
-            Cancel
-          </Button>
-        </div>
+        <LiveCamera
+          initialFacing="user"
+          fileNamePrefix="driver-live"
+          onCapture={(file, preview) => {
+            setCameraOn(false);
+            onPhoto(file, preview);
+          }}
+          onCancel={() => setCameraOn(false)}
+        />
       ) : null}
-      <video
-        ref={videoRef}
-        className={cameraOn ? 'max-h-64 w-full rounded-md bg-black object-cover' : 'hidden'}
-        playsInline
-        muted
-      />
     </div>
   );
 }
