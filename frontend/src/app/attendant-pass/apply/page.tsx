@@ -27,6 +27,8 @@ import { cn } from '@/lib/utils';
 import { StickyActionBar } from '@/components/mobile/StickyActionBar';
 import { AttendantPhotoPicker } from '@/features/attendant-passes/AttendantPhotoPicker';
 import { attendantApplyPath, attendantSlugFromPath } from '@/lib/attendant-pass-url';
+import { APP_HOME_PATH } from '@/lib/app-back';
+import { isNativeApp } from '@/lib/platform';
 
 function branchShortLabel(branch: AttendantPassBranch): string {
   const location = [branch.city, branch.state].filter(Boolean).join(', ');
@@ -84,15 +86,18 @@ const HOME_REDIRECT_SECONDS = 5;
 function PassSent(): React.ReactElement {
   const router = useRouter();
   const [secondsLeft, setSecondsLeft] = React.useState(HOME_REDIRECT_SECONDS);
+  const goHome = React.useCallback(() => {
+    router.replace(isNativeApp() ? APP_HOME_PATH : '/');
+  }, [router]);
 
   React.useEffect(() => {
     if (secondsLeft <= 0) {
-      router.replace('/');
+      goHome();
       return;
     }
     const handle = window.setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
     return () => window.clearTimeout(handle);
-  }, [secondsLeft, router]);
+  }, [secondsLeft, goHome]);
 
   return (
     <Card className="mx-auto w-full max-w-xl">
@@ -105,7 +110,7 @@ function PassSent(): React.ReactElement {
         <p className="text-xs text-muted-foreground">
           Taking you to the home page in {secondsLeft} second{secondsLeft === 1 ? '' : 's'}…
         </p>
-        <Button className="w-full sm:w-auto" onClick={() => router.replace('/')}>
+        <Button className="w-full sm:w-auto" onClick={goHome}>
           Go to home page
         </Button>
       </CardContent>

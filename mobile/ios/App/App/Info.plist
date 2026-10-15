@@ -46,7 +46,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Conninter needs the camera to scan visitor and attendant pass QR codes at the security gate.</string>
+	<string>Conninter uses the camera to scan pass QR codes at the security gate and to take visitor, attendant and driver photos.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Conninter needs the microphone for online doctor meetings when you join a video visit.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
