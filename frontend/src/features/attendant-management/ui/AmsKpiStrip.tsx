@@ -22,9 +22,11 @@ const KPI_META: Array<{ key: keyof AmsStats; label: string }> = [
 
 export function AmsKpiStrip({
   stats,
+  labels,
   className,
 }: {
   stats: AmsStats;
+  labels?: Partial<Record<keyof AmsStats, string>>;
   className?: string;
 }): React.ReactElement {
   return (
@@ -33,7 +35,7 @@ export function AmsKpiStrip({
         <Card key={item.key} className="rounded-xl border-[#0052CC]/15 bg-white shadow-sm max-lg:py-3">
           <CardContent className="pt-4 max-lg:px-3 max-lg:pt-0">
             <p className="text-xs font-medium uppercase tracking-wide text-[#0052CC]/80 max-lg:text-[10px] max-lg:leading-tight">
-              {item.label}
+              {labels?.[item.key] ?? item.label}
             </p>
             <p className="mt-1 text-3xl font-bold text-slate-900 max-lg:text-2xl">{stats[item.key] ?? 0}</p>
           </CardContent>

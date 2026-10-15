@@ -99,6 +99,7 @@ export interface AmsDashboardSummary {
     pendingApproval: number;
     emergencyPasses: number;
   };
+  range?: { from: string; to: string; filtered: boolean };
   recentActivity: Array<{
     time?: string | null;
     name: string;
@@ -311,9 +312,13 @@ export const AttendantPassService = {
     return res.data;
   },
 
-  async dashboardSummary(branchId: string): Promise<AmsDashboardSummary> {
+  /** `fromTime` / `toTime` are IST wall times (`YYYY-MM-DDTHH:mm`); omit both for today. */
+  async dashboardSummary(
+    branchId: string,
+    range?: { fromTime?: string; toTime?: string },
+  ): Promise<AmsDashboardSummary> {
     const res = await apiClient.get('/api/attendant-passes/dashboard/summary', {
-      params: { branchId },
+      params: { branchId, fromTime: range?.fromTime || undefined, toTime: range?.toTime || undefined },
     });
     return res.data;
   },

@@ -1034,17 +1034,46 @@ class AttendantPassService:
         self.db.refresh(row)
         return row
 
-    def dashboard_summary(self, branch_id: str) -> dict:
-        day_start = today_start_ist()
-        day_end = today_end_ist()
-        patients_admitted = (
-            self.db.query(Admission)
-            .filter(Admission.branchId == branch_id, Admission.status == "ACTIVE")
-            .count()
-        )
-        attendants_registered = (
-            self.db.query(Attendant).filter(Attendant.branchId == branch_id).count()
-        )
+    def dashboard_summary(
+        self,
+        branch_id: str,
+        *,
+        from_time: datetime | str | None = None,
+        to_time: datetime | str | None = None,
+    ) -> dict:
+        """Counts for the AMS dashboard.
+
+        Without a range: today's activity plus live totals (active admissions, all pending).
+        With a range: every count except "currently inside" is limited to that window.
+        """
+        from app.utils.timezone import to_ist_naive
+
+        try:
+            range_start = to_ist_naive(from_time)
+            range_end = to_ist_naive(to_time)
+        except ValueError as exc:
+            raise bad_request("Invalid date or time filter") from exc
+        ranged = range_start is not None or range_end is not None
+        day_start = range_start or today_start_ist()
+        day_end = range_end or (now_ist() if ranged else today_end_ist())
+        if day_start > day_end:
+            raise bad_request("Start must be before end")
+
+        admissions_q = self.db.query(Admission).filter(Admission.branchId == branch_id)
+        if ranged:
+            admissions_q = admissions_q.filter(
+                Admission.admittedAt >= day_start, Admission.admittedAt <= day_end
+            )
+        else:
+            admissions_q = admissions_q.filter(Admission.status == "ACTIVE")
+        patients_admitted = admissions_q.count()
+
+        attendants_q = self.db.query(Attendant).filter(Attendant.branchId == branch_id)
+        if ranged:
+            attendants_q = attendants_q.filter(
+                Attendant.createdAt >= day_start, Attendant.createdAt <= day_end
+            )
+        attendants_registered = attendants_q.count()
         currently_inside = (
             self.db.query(AttendantPass)
             .filter(
@@ -1064,11 +1093,14 @@ class AttendantPassService:
             )
             .count()
         )
-        pending_approval = (
-            self.db.query(Attendant)
-            .filter(Attendant.branchId == branch_id, Attendant.status == "PENDING")
-            .count()
+        pending_q = self.db.query(Attendant).filter(
+            Attendant.branchId == branch_id, Attendant.status == "PENDING"
         )
+        if ranged:
+            pending_q = pending_q.filter(
+                Attendant.createdAt >= day_start, Attendant.createdAt <= day_end
+            )
+        pending_approval = pending_q.count()
         emergency_today = (
             self.db.query(Attendant)
             .filter(
@@ -1080,7 +1112,7 @@ class AttendantPassService:
             .count()
         )
 
-        recent_passes = (
+        recent_q = (
             self.db.query(AttendantPass)
             .options(
                 joinedload(AttendantPass.attendant)
@@ -1088,9 +1120,13 @@ class AttendantPassService:
                 .joinedload(Admission.patient)
             )
             .filter(AttendantPass.branchId == branch_id)
-            .order_by(AttendantPass.updatedAt.desc())
-            .limit(15)
-            .all()
+        )
+        if ranged:
+            recent_q = recent_q.filter(
+                AttendantPass.updatedAt >= day_start, AttendantPass.updatedAt <= day_end
+            )
+        recent_passes = (
+            recent_q.order_by(AttendantPass.updatedAt.desc()).limit(50 if ranged else 15).all()
         )
         activity = []
         for p in recent_passes:
@@ -1178,6 +1214,11 @@ class AttendantPassService:
                 "exitedToday": exited_today,
                 "pendingApproval": pending_approval,
                 "emergencyPasses": emergency_today,
+            },
+            "range": {
+                "from": day_start.isoformat(),
+                "to": day_end.isoformat(),
+                "filtered": ranged,
             },
             "recentActivity": activity,
             "meetings": meetings,

@@ -113,8 +113,10 @@ def dashboard_summary(
     user: Annotated[dict, Depends(require_permission("VIEW_ATTENDANT_PASS"))],
     db: Annotated[Session, Depends(get_db)],
     branchId: str = Query(...),
+    fromTime: str | None = Query(None, description="Range start, ISO (IST when no offset)"),
+    toTime: str | None = Query(None, description="Range end, ISO (IST when no offset)"),
 ):
-    return AttendantPassService(db).dashboard_summary(branchId)
+    return AttendantPassService(db).dashboard_summary(branchId, from_time=fromTime, to_time=toTime)
 
 
 @router.get("/search")

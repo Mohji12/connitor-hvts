@@ -117,6 +117,60 @@ def test_dashboard_summary(db):
     assert summary["stats"]["patientsAdmitted"] == 1
     assert summary["stats"]["pendingApproval"] == 1
     assert summary["stats"]["attendantsRegistered"] == 1
+    assert summary["range"]["filtered"] is False
+
+
+def test_dashboard_summary_date_range_filters_counts(db):
+    branch = db.query(Branch).first()
+    admission = _seed_admission(db, branch.id)
+    week_ago = now_ist() - timedelta(days=7)
+    db.add_all(
+        [
+            Attendant(
+                admissionId=admission.id,
+                branchId=branch.id,
+                name="Old Pending",
+                email="old@test.com",
+                phone="9876543211",
+                status="PENDING",
+                createdAt=week_ago,
+            ),
+            Attendant(
+                admissionId=admission.id,
+                branchId=branch.id,
+                name="New Pending",
+                email="new@test.com",
+                phone="9876543212",
+                status="PENDING",
+            ),
+        ]
+    )
+    db.commit()
+    svc = AttendantPassService(db)
+
+    old_day = week_ago.strftime("%Y-%m-%d")
+    old = svc.dashboard_summary(
+        branch.id, from_time=f"{old_day}T00:00", to_time=f"{old_day}T23:59"
+    )
+    assert old["range"]["filtered"] is True
+    assert old["stats"]["attendantsRegistered"] == 1
+    assert old["stats"]["pendingApproval"] == 1
+    assert old["stats"]["patientsAdmitted"] == 0
+
+    today = now_ist().strftime("%Y-%m-%d")
+    recent = svc.dashboard_summary(branch.id, from_time=f"{today}T00:00")
+    assert recent["stats"]["attendantsRegistered"] == 1
+    assert recent["stats"]["patientsAdmitted"] == 1
+
+
+def test_dashboard_summary_rejects_reversed_range(db):
+    from fastapi import HTTPException
+
+    branch = db.query(Branch).first()
+    with pytest.raises(HTTPException):
+        AttendantPassService(db).dashboard_summary(
+            branch.id, from_time="2026-10-15T10:00", to_time="2026-10-14T10:00"
+        )
 
 
 def test_emergency_pass(db):

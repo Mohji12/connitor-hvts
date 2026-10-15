@@ -2,12 +2,17 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { AttendantPassService } from '@/lib/services/attendantPassService';
 import {
+  AmsDateRangeFilter,
   AmsKpiStrip,
   AmsPageShell,
   AmsStatusLegend,
+  formatIstWallTime,
+  type AmsDateRange,
+  type AmsRangePreset,
   type AmsStats,
 } from '@/features/attendant-management/ui';
 import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
@@ -45,18 +50,44 @@ export default function AmsDashboardPage(): React.ReactElement {
   const [meetings, setMeetings] = React.useState<
     Array<{ message: string; companionName?: string | null; ward?: string | null; passNumber: string }>
   >([]);
+  const [preset, setPreset] = React.useState<AmsRangePreset>('today');
+  const [range, setRange] = React.useState<AmsDateRange>(null);
+  const [refreshing, setRefreshing] = React.useState(false);
 
   const load = React.useCallback(() => {
     if (!branchId) return;
-    AttendantPassService.dashboardSummary(branchId)
+    setRefreshing(true);
+    AttendantPassService.dashboardSummary(branchId, range ?? undefined)
       .then((data) => {
         setStats(data.stats);
         setActivity(data.recentActivity ?? []);
         setMeetings(data.meetings ?? []);
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, [branchId]);
+      .catch(() => toast.error('Could not load attendant data for this period'))
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
+  }, [branchId, range]);
+
+  const changeRange = (next: AmsRangePreset, nextRange: AmsDateRange) => {
+    setPreset(next);
+    setRange(nextRange);
+  };
+
+  const rangeLabel = range
+    ? `${formatIstWallTime(range.fromTime)} – ${formatIstWallTime(range.toTime)}`
+    : null;
+
+  const activityTime = (time?: string | null): string => {
+    if (!time) return '—';
+    if (range) return formatIstWallTime(time.slice(0, 16));
+    return new Date(time).toLocaleTimeString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   React.useEffect(() => {
     if (!user) return;
@@ -119,8 +150,31 @@ export default function AmsDashboardPage(): React.ReactElement {
       )}
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-slate-800">Today&apos;s Statistics</h2>
-        <AmsKpiStrip stats={stats} />
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-800">
+            {range ? 'Statistics' : 'Today\u2019s Statistics'}
+          </h2>
+          <p className="text-xs text-slate-500">
+            {rangeLabel ?? 'Live · refreshes automatically'}
+            {refreshing ? ' · updating…' : ''}
+          </p>
+        </div>
+        <AmsDateRangeFilter preset={preset} onChange={changeRange} />
+        <AmsKpiStrip
+          stats={stats}
+          labels={
+            range
+              ? {
+                  patientsAdmitted: 'Patients Admitted',
+                  attendantsRegistered: 'Attendants Registered',
+                  currentlyInside: 'Currently Inside (now)',
+                  exitedToday: 'Exited',
+                  pendingApproval: 'Pending Approval',
+                  emergencyPasses: 'Emergency Passes',
+                }
+              : undefined
+          }
+        />
       </section>
 
       <section className="space-y-2">
@@ -149,7 +203,7 @@ export default function AmsDashboardPage(): React.ReactElement {
                       .join(' · ')}
                     status={<StatusChip status={row.status} />}
                     meta={[
-                      { label: 'Time', value: row.time ? new Date(row.time).toLocaleTimeString() : '—' },
+                      { label: 'Time', value: activityTime(row.time) },
                       { label: 'Ward', value: row.ward ?? '—' },
                     ]}
                   />
@@ -178,7 +232,7 @@ export default function AmsDashboardPage(): React.ReactElement {
                 activity.map((row, idx) => (
                   <tr key={`${row.name}-${idx}`} className="border-b last:border-0">
                     <td className="py-2 pr-3">
-                      {row.time ? new Date(row.time).toLocaleTimeString() : '—'}
+                      {activityTime(row.time)}
                     </td>
                     <td className="py-2 pr-3 font-medium">
                       {row.name}

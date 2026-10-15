@@ -11,6 +11,8 @@ import {
 } from '@/lib/services/attendantPassService';
 import { AmsPageShell, AmsQrPassCard } from '@/features/attendant-management/ui';
 import { AttendantPhotoPicker } from '@/features/attendant-passes/AttendantPhotoPicker';
+import { DepartmentService } from '@/lib/services/departmentService';
+import type { Department } from '@/lib/schema/schema';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -59,9 +61,8 @@ export default function AmsRegisterPage(): React.ReactElement {
   const [mrn, setMrn] = React.useState('');
   const [firstName, setFirstName] = React.useState('');
   const [lastName, setLastName] = React.useState('');
-  const [wardName, setWardName] = React.useState('');
-  const [bedNumber, setBedNumber] = React.useState('');
   const [department, setDepartment] = React.useState('');
+  const [departments, setDepartments] = React.useState<Department[]>([]);
   const [name, setName] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [email, setEmail] = React.useState('');
@@ -80,6 +81,9 @@ export default function AmsRegisterPage(): React.ReactElement {
   React.useEffect(() => {
     if (!branchId) return;
     AttendantPassService.listAdmissions(branchId).then(setAdmissions).catch(() => undefined);
+    DepartmentService.list({ branchId })
+      .then(setDepartments)
+      .catch(() => toast.error('Could not load departments'));
   }, [branchId]);
 
   const togglePermission = (p: string) => {
@@ -102,6 +106,10 @@ export default function AmsRegisterPage(): React.ReactElement {
           toast.error('MRN and patient name are required');
           return;
         }
+        if (!department) {
+          toast.error('Select the department');
+          return;
+        }
         const patient = await AttendantPassService.createPatient({
           branchId,
           mrn: mrn.trim(),
@@ -111,9 +119,7 @@ export default function AmsRegisterPage(): React.ReactElement {
         const admission = await AttendantPassService.createAdmission({
           patientId: patient.id,
           branchId,
-          wardName: wardName.trim() || undefined,
-          bedNumber: bedNumber.trim() || undefined,
-          department: department.trim() || undefined,
+          department,
         });
         admId = admission.id;
       }
@@ -206,8 +212,9 @@ export default function AmsRegisterPage(): React.ReactElement {
                   <SelectContent>
                     {admissions.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
-                        {a.patient?.name} · {a.patient?.mrn} · {a.wardName ?? 'Ward'}{' '}
-                        {a.bedNumber ? `Bed ${a.bedNumber}` : ''}
+                        {[a.patient?.name, a.patient?.mrn, a.department || a.wardName]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -221,7 +228,20 @@ export default function AmsRegisterPage(): React.ReactElement {
                 </div>
                 <div>
                   <Label>Department</Label>
-                  <Input value={department} onChange={(e) => setDepartment(e.target.value)} />
+                  <Select value={department} onValueChange={setDepartment}>
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={departments.length ? 'Select department' : 'No departments found'}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((d) => (
+                        <SelectItem key={d.id} value={d.name}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>First name</Label>
@@ -230,14 +250,6 @@ export default function AmsRegisterPage(): React.ReactElement {
                 <div>
                   <Label>Last name</Label>
                   <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Ward</Label>
-                  <Input value={wardName} onChange={(e) => setWardName(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Bed</Label>
-                  <Input value={bedNumber} onChange={(e) => setBedNumber(e.target.value)} />
                 </div>
               </div>
             )}
