@@ -262,10 +262,10 @@ class VisitorPassService:
             q = q.with_for_update(skip_locked=True)
         row = q.first()
         if not row:
-            allotted, _unused, _assigned = self._counts(visit.branchId, day)
-            if allotted == 0:
+            if not self._hospital_issued_pool(visit.branchId, day):
                 row = self._mint_pass(visit.branchId, day, created_by_id=assigned_by_id)
             if not row:
+                allotted, _unused, _assigned = self._counts(visit.branchId, day)
                 if allotted == 0:
                     raise HTTPException(
                         status_code=409,
@@ -277,6 +277,26 @@ class VisitorPassService:
                 )
         self._bind_pass(row, visit, assigned_by_id)
         return row
+
+    def _hospital_issued_pool(self, branch_id: str, day: date) -> bool:
+        """True when management issued passes for the day; that pool is then the limit.
+
+        Passes minted on approval before ON_APPROVAL existed are HOSPITAL_POOL rows
+        created by a doctor, so only rows created by a manager count.
+        """
+        row = (
+            self.db.query(VisitorPass.id)
+            .join(User, VisitorPass.createdById == User.id)
+            .filter(
+                VisitorPass.branchId == branch_id,
+                VisitorPass.passDate == day,
+                VisitorPass.status != VisitorPassStatus.VOID.value,
+                VisitorPass.source == VisitorPassSource.HOSPITAL_POOL.value,
+                User.role.in_(MANAGE_ROLES),
+            )
+            .first()
+        )
+        return row is not None
 
     def _mint_pass(self, branch_id: str, day: date, *, created_by_id: str | None) -> VisitorPass | None:
         """Create one pass from the daily quota so doctor approval can finish."""
@@ -294,7 +314,7 @@ class VisitorPassService:
             passDate=day,
             sequence=seq,
             status=VisitorPassStatus.UNASSIGNED.value,
-            source=VisitorPassSource.HOSPITAL_POOL.value,
+            source=VisitorPassSource.ON_APPROVAL.value,
             createdById=created_by_id,
         )
         self.db.add(row)

@@ -80,6 +80,7 @@ class VisitorPassStatus(str, enum.Enum):
 
 class VisitorPassSource(str, enum.Enum):
     HOSPITAL_POOL = "HOSPITAL_POOL"
+    ON_APPROVAL = "ON_APPROVAL"
 
 
 class VisitSlotAllotmentSource(str, enum.Enum):

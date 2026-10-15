@@ -17,7 +17,7 @@ import app.models.delivery_entities  # noqa: F401
 import app.models.permission_entities  # noqa: F401
 from app.database import Base
 from app.models import Branch, Department, HospitalChain, SubDepartment, User, Visit, Visitor, VisitorPass
-from app.models.enums import AppointmentMode, Role, VisitStatus, VisitorPassStatus
+from app.models.enums import AppointmentMode, Role, VisitStatus, VisitorPassSource, VisitorPassStatus
 from app.services.appointments_service import AppointmentsService
 from app.services.staff_service import StaffService
 from app.services.visitor_pass_service import VisitorPassService
@@ -217,6 +217,32 @@ def test_approve_with_empty_pool_mints_a_pass(db):
     assert result["visitorPassId"] == visit.visitorPassId
     row = db.query(VisitorPass).filter(VisitorPass.passId == visit.visitorPassId).one()
     assert row.status == VisitorPassStatus.ASSIGNED.value
+
+
+def test_approvals_without_issued_pool_keep_minting(db):
+    first = _book(db, phone="9876500013")
+    second = _book(db, phone="9876500014")
+    _approve(db, first)
+    _approve(db, second)
+    db.refresh(first)
+    db.refresh(second)
+    assert first.visitorPassId and second.visitorPassId
+    assert first.visitorPassId != second.visitorPassId
+    sources = {row.source for row in db.query(VisitorPass).all()}
+    assert sources == {VisitorPassSource.ON_APPROVAL.value}
+
+
+def test_legacy_doctor_minted_pass_does_not_block_next_approval(db):
+    first = _book(db, phone="9876500015")
+    second = _book(db, phone="9876500016")
+    _approve(db, first)
+    legacy = db.query(VisitorPass).one()
+    legacy.source = VisitorPassSource.HOSPITAL_POOL.value
+    db.commit()
+    _approve(db, second)
+    db.refresh(second)
+    assert second.status == VisitStatus.APPROVED.value
+    assert second.visitorPassId is not None
 
 
 def test_approve_exhausted_pool_returns_409(db):
