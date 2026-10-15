@@ -377,15 +377,10 @@ class DoctorUrgentPasscodeService:
         )
 
     def _parse_visit_time(self, visit_time: datetime | str | None) -> datetime | None:
-        if visit_time is None or visit_time == "":
-            return None
-        if isinstance(visit_time, datetime):
-            return visit_time
-        raw = str(visit_time).strip()
-        if not raw:
-            return None
+        from app.utils.timezone import to_ist_naive
+
         try:
-            return datetime.fromisoformat(raw.replace("Z", "+00:00")).replace(tzinfo=None)
+            return to_ist_naive(visit_time)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid visit time") from exc
 

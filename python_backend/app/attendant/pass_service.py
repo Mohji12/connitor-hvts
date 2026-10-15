@@ -516,13 +516,9 @@ class AttendantPassService:
         hours = int(getattr(policy, "qrValidityHours", None) or PASS_VALIDITY_HOURS)
 
         def _parse_dt(value: datetime | str | None) -> datetime | None:
-            if value is None or value == "":
-                return None
-            if isinstance(value, datetime):
-                return value
-            from app.utils.timezone import parse_to_ist_naive
+            from app.utils.timezone import to_ist_naive
 
-            return parse_to_ist_naive(str(value))
+            return to_ist_naive(value)
 
         start = _parse_dt(valid_from) or now
         end = _parse_dt(valid_to) or (start + timedelta(hours=hours))
@@ -1276,9 +1272,11 @@ class AttendantPassService:
             raise not_found("Pass")
         if pass_row.status not in ("ACTIVE", "EXPIRED"):
             raise bad_request("Pass cannot be extended")
-        from app.utils.timezone import parse_to_ist_naive
+        from app.utils.timezone import to_ist_naive
 
-        end = parse_to_ist_naive(valid_to) if isinstance(valid_to, str) else valid_to
+        end = to_ist_naive(valid_to)
+        if end is None:
+            raise bad_request("validTo is required")
         pass_row.validTo = end
         pass_row.expiresAt = end
         if pass_row.status == "EXPIRED":

@@ -42,6 +42,23 @@ def parse_to_ist_naive(value: str) -> datetime:
     return dt.astimezone(IST).replace(tzinfo=None)
 
 
+def to_ist_naive(value: datetime | str | None) -> datetime | None:
+    """Naive IST wall time from a datetime or ISO string.
+
+    Aware values (e.g. a browser's UTC ``...Z``) are converted; naive values are already IST.
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value
+        return value.astimezone(IST).replace(tzinfo=None)
+    text = str(value).strip()
+    if not text:
+        return None
+    return parse_to_ist_naive(text)
+
+
 def naive_ist_to_utc(dt: datetime) -> datetime:
     """Convert naive IST (or aware) datetime to UTC aware."""
     if dt.tzinfo is None:
