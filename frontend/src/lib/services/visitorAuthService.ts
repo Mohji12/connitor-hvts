@@ -23,6 +23,20 @@ export const VisitorAuthService = {
     return response.data;
   },
 
+  async requestLoginOtp(phone: string): Promise<{ message: string; testOtp?: string }> {
+    const response = await apiClient.post('/api/public/visitor-auth/login-otp/request', { phone });
+    return response.data;
+  },
+
+  async loginWithOtp(phone: string, otp: string): Promise<VisitorAuthLoginResponse> {
+    const response = await apiClient.post<VisitorAuthLoginResponse>(
+      '/api/public/visitor-auth/login-otp/verify',
+      { phone, otp },
+    );
+    setVisitorToken(response.data.access_token);
+    return response.data;
+  },
+
   async forgotPassword(phone: string): Promise<{ message: string; testOtp?: string }> {
     const response = await apiClient.post('/api/public/visitor-auth/forgot-password', { phone });
     return response.data;

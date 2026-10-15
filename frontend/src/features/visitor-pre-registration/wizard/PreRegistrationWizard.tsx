@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import {
   Select,
   SelectContent,
@@ -476,7 +477,7 @@ export function PreRegistrationWizard() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} />
+                        <PasswordInput {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -489,7 +490,7 @@ export function PreRegistrationWizard() {
                     <FormItem>
                       <FormLabel>Confirm password</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} />
+                        <PasswordInput {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { CameraOrUploadPicker } from '@/components/visitors/shared/CameraOrUploadPicker';
 import { VisitorAccountApi } from '@/features/visitor-pre-registration/api/visitorAccountService';
@@ -508,7 +509,7 @@ export function BookingProfileStep({ onVerified }: BookingProfileStepProps): Rea
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" autoComplete="new-password" />
+                        <PasswordInput {...field} autoComplete="new-password" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -521,7 +522,7 @@ export function BookingProfileStep({ onVerified }: BookingProfileStepProps): Rea
                     <FormItem>
                       <FormLabel>Confirm password</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" autoComplete="new-password" />
+                        <PasswordInput {...field} autoComplete="new-password" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

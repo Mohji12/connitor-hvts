@@ -35,6 +35,7 @@ import {
 // UI Components
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import {
   Table,
   TableHeader,
@@ -364,8 +365,7 @@ const AddEditUserDialog = ({
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
+                        <PasswordInput
                           autoComplete="new-password"
                           placeholder="Min. 8 characters — sent to their email"
                           {...field}

@@ -107,6 +107,43 @@ class VisitorAuthService:
         account = self._account_by_phone(phone)
         if not account:
             raise HTTPException(status_code=404, detail="No account found with this mobile number.")
+        return self._send_phone_code(account, "Failed to send the reset code. Please try again later.")
+
+    def request_login_otp(self, phone: str) -> dict[str, Any]:
+        """Send a sign-in code on WhatsApp (SMS fallback) to the registered mobile."""
+        account = self._account_by_phone(phone)
+        if not account:
+            raise HTTPException(
+                status_code=404,
+                detail="No profile found with this mobile number. Create your Conninter profile first.",
+            )
+        return self._send_phone_code(account, "Failed to send the sign-in code. Please try again later.")
+
+    def login_with_otp(self, phone: str, otp: str) -> dict[str, Any]:
+        account = self._account_by_phone(phone)
+        self._consume_phone_code(account, otp)
+        account.phoneVerified = True
+        self.db.commit()
+        if account.profileStatus != ProfileStatus.ACTIVE.value:
+            self.accounts._activate_if_ready(account.id)
+            self.db.refresh(account)
+            if account.profileStatus != ProfileStatus.ACTIVE.value:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Your profile is not complete yet. Finish registration to sign in.",
+                )
+
+        token = self._issue_jwt(account)
+        self.accounts._audit(account.id, "LOGIN_PHONE_OTP", actor_type="VISITOR", actor_id=account.id)
+        self.db.commit()
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "accountId": account.id,
+            "name": f"{account.firstName} {account.lastName}".strip(),
+        }
+
+    def _send_phone_code(self, account: VisitorAccount, failure_detail: str) -> dict[str, Any]:
         now = now_ist()
         if (
             account.phoneVerificationAttempts >= 3
@@ -134,12 +171,12 @@ class VisitorAuthService:
         try:
             self.accounts.sms.send_profile_phone_otp(account.phone, otp, valid_minutes=10)
         except Exception as exc:
-            logger.error("Password reset OTP failed: %s", exc)
-            raise HTTPException(status_code=503, detail="Failed to send the reset code. Please try again later.") from exc
+            logger.error("Visitor phone code failed: %s", exc)
+            raise HTTPException(status_code=503, detail=failure_detail) from exc
         return result
 
-    def reset_password(self, phone: str, otp: str, new_password: str) -> dict[str, str]:
-        account = self._account_by_phone(phone)
+    def _consume_phone_code(self, account: VisitorAccount | None, otp: str) -> VisitorAccount:
+        """Check the 6-digit code sent by ``_send_phone_code`` and clear it (one use)."""
         invalid = HTTPException(status_code=400, detail="Invalid or expired code.")
         if not account or not account.phoneVerificationOtpHash or not account.phoneVerificationExpiry:
             raise invalid
@@ -158,6 +195,10 @@ class VisitorAuthService:
         account.phoneVerificationOtpHash = None
         account.phoneVerificationExpiry = None
         account.phoneVerificationAttempts = 0
+        return account
+
+    def reset_password(self, phone: str, otp: str, new_password: str) -> dict[str, str]:
+        account = self._consume_phone_code(self._account_by_phone(phone), otp)
         account.phoneVerified = True
 
         password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()

@@ -7,7 +7,13 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.dependencies.auth import public_route
-from app.schemas.visitor_account import ForgotPasswordBody, ResetPasswordBody, VisitorLoginBody
+from app.schemas.visitor_account import (
+    ForgotPasswordBody,
+    PhoneOtpLoginBody,
+    PhoneOtpRequestBody,
+    ResetPasswordBody,
+    VisitorLoginBody,
+)
 from app.services.rate_limit_service import RateLimitService
 from app.services.visitor_auth_service import VisitorAuthService
 
@@ -20,6 +26,20 @@ rate_limits = RateLimitService()
 def login(body: VisitorLoginBody, request: Request, db: Annotated[Session, Depends(get_db)]):
     rate_limits.check_action_rate_limit(request, "visitor_login", limit=20, window_seconds=3600)
     return VisitorAuthService(db).login_with_password(body.identifier, body.password)
+
+
+@router.post("/login-otp/request")
+@public_route
+def request_login_otp(body: PhoneOtpRequestBody, request: Request, db: Annotated[Session, Depends(get_db)]):
+    rate_limits.check_action_rate_limit(request, "visitor_login_otp_request", limit=5, window_seconds=3600)
+    return VisitorAuthService(db).request_login_otp(body.phone)
+
+
+@router.post("/login-otp/verify")
+@public_route
+def verify_login_otp(body: PhoneOtpLoginBody, request: Request, db: Annotated[Session, Depends(get_db)]):
+    rate_limits.check_action_rate_limit(request, "visitor_login_otp_verify", limit=20, window_seconds=3600)
+    return VisitorAuthService(db).login_with_otp(body.phone, body.otp)
 
 
 @router.post("/forgot-password")

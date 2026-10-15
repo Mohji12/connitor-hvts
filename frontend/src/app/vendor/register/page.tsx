@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -499,16 +500,14 @@ export default function VendorRegisterPage(): React.ReactElement {
                 </div>
                 <div className="space-y-2">
                   <Label>Password</Label>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     value={form.password}
                     onChange={(e) => setField('password', e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Confirm password</Label>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     value={form.confirmPassword}
                     onChange={(e) => setField('confirmPassword', e.target.value)}
                   />

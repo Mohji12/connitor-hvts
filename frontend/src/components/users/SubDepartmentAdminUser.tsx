@@ -10,6 +10,7 @@ import { UserService } from '@/lib/services/userService';
 import { User, UserFormSchema, Departments, UserTypes, asDepartment, asUserType } from '@/lib/schema/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import {
   Table, TableHeader, TableRow, TableHead, TableBody, TableCell,
 } from '@/components/ui/table';
@@ -165,7 +166,7 @@ function AddEditStaffDialog({
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" autoComplete="new-password" placeholder="Min. 8 characters" {...field} />
+                      <PasswordInput autoComplete="new-password" placeholder="Min. 8 characters" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

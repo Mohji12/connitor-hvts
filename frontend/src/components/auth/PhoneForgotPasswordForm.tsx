@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/api-errors';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
@@ -142,9 +143,8 @@ export function PhoneForgotPasswordForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="forgot-password">New password</Label>
-              <Input
+              <PasswordInput
                 id="forgot-password"
-                type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -154,9 +154,8 @@ export function PhoneForgotPasswordForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="forgot-confirm">Confirm new password</Label>
-              <Input
+              <PasswordInput
                 id="forgot-confirm"
-                type="password"
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}

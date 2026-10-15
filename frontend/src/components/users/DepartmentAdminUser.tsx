@@ -11,6 +11,7 @@ import { SubDepartmentService } from '@/lib/services/departmentService';
 import { User, UserFormSchema, SubDepartment, Departments, UserTypes, asDepartment, asUserType } from '@/lib/schema/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import {
   Table, TableHeader, TableRow, TableHead, TableBody, TableCell,
 } from '@/components/ui/table';
@@ -162,7 +163,7 @@ function AddEditUserDialog({
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" autoComplete="new-password" placeholder="Min. 8 characters" {...field} />
+                      <PasswordInput autoComplete="new-password" placeholder="Min. 8 characters" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

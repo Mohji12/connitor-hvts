@@ -70,6 +70,15 @@ class ForgotPasswordBody(BaseModel):
     phone: str = Field(min_length=10, max_length=20)
 
 
+class PhoneOtpRequestBody(BaseModel):
+    phone: str = Field(min_length=10, max_length=20)
+
+
+class PhoneOtpLoginBody(BaseModel):
+    phone: str = Field(min_length=10, max_length=20)
+    otp: str = Field(min_length=6, max_length=6)
+
+
 class ResetPasswordBody(BaseModel):
     phone: str = Field(min_length=10, max_length=20)
     otp: str = Field(min_length=6, max_length=6)

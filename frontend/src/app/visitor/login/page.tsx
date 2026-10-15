@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import {
   InputOTP,
   InputOTPGroup,
@@ -23,16 +24,9 @@ import {
   getBackendUnreachableMessage,
   isBackendUnreachable,
 } from '@/lib/api-errors';
-import {
-  VisitorPortalService,
-  getVisitorToken,
-  setVisitorToken,
-} from '@/lib/services/visitorPortalService';
+import { getVisitorToken } from '@/lib/services/visitorPortalService';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VisitorAuthService } from '@/lib/services/visitorAuthService';
-
-const EmailSchema = z.object({
-  email: z.string().email('Enter a valid email address.'),
-});
 
 const PasswordLoginSchema = z.object({
   identifier: z.string().min(3, 'Enter email or phone'),
@@ -61,11 +55,10 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function maskEmail(email: string): string {
-  const [local, domain] = email.split('@');
-  if (!domain) return email;
-  if (local.length <= 2) return `${local[0] ?? ''}***@${domain}`;
-  return `${local.slice(0, 2)}***@${domain}`;
+const RESEND_SECONDS = 30;
+
+function maskPhone(phone: string): string {
+  return phone.length === 10 ? `+91 ${phone.slice(0, 2)}******${phone.slice(-2)}` : phone;
 }
 
 export default function VisitorLoginPage() {
@@ -80,12 +73,19 @@ function VisitorLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo');
-  const [mode, setMode] = useState<'password' | 'legacy-otp'>('password');
-  const [step, setStep] = useState<'email' | 'otp'>('email');
-  const [legacyEmail, setLegacyEmail] = useState('');
-  const [email, setEmail] = useState('');
+  const [mode, setMode] = useState<'password' | 'phone-otp'>('password');
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+  const [resendIn, setResendIn] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const handle = window.setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => window.clearTimeout(handle);
+  }, [resendIn]);
 
   const postLoginPath =
     returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
@@ -108,9 +108,9 @@ function VisitorLoginContent() {
     defaultValues: { identifier: '', password: '' },
   });
 
-  const switchToPassword = () => {
-    setMode('password');
-    setStep('email');
+  const switchMode = (next: string) => {
+    setMode(next === 'phone-otp' ? 'phone-otp' : 'password');
+    setStep('phone');
     setOtp('');
   };
 
@@ -118,6 +118,10 @@ function VisitorLoginContent() {
     const identifier = searchParams.get('identifier')?.trim();
     if (identifier) {
       passwordForm.setValue('identifier', identifier);
+      const digits = identifier.replace(/\D/g, '');
+      if (!identifier.includes('@') && digits.length >= 10) {
+        setPhoneInput(digits.slice(-10));
+      }
     }
   }, [searchParams, passwordForm]);
 
@@ -135,18 +139,19 @@ function VisitorLoginContent() {
   };
 
   const sendOtp = async () => {
-    const parsed = EmailSchema.safeParse({ email: legacyEmail.trim() });
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? 'Enter a valid email address.');
+    const digits = phoneInput.replace(/\D/g, '').slice(-10);
+    if (!/^[6-9]\d{9}$/.test(digits)) {
+      toast.error('Enter your 10-digit mobile number.');
       return;
     }
     setLoading(true);
     try {
-      const normalized = parsed.data.email.trim().toLowerCase();
-      const result = await VisitorPortalService.requestOtp(normalized);
-      setEmail(normalized);
-      setLegacyEmail(normalized);
+      const result = await VisitorAuthService.requestLoginOtp(digits);
+      setPhone(digits);
+      setPhoneInput(digits);
+      setOtp('');
       setStep('otp');
+      setResendIn(RESEND_SECONDS);
       if (result.testOtp) {
         toast.message(`Dev OTP: ${result.testOtp}`);
       }
@@ -165,9 +170,8 @@ function VisitorLoginContent() {
     }
     setLoading(true);
     try {
-      const result = await VisitorPortalService.verifyOtp(email, otp);
-      setVisitorToken(result.access_token);
-      toast.success('Welcome back!');
+      const result = await VisitorAuthService.loginWithOtp(phone, otp);
+      toast.success(`Welcome back, ${result.name}!`);
       router.push(postLoginPath);
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Invalid OTP.'));
@@ -185,10 +189,16 @@ function VisitorLoginContent() {
             <CardDescription>
               {mode === 'password'
                 ? 'Sign in with your Conninter profile (email or phone + password).'
-                : 'Legacy sign-in: email OTP after booking an appointment without a profile.'}
+                : 'Get a 6-digit code on WhatsApp at your registered mobile number.'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <Tabs value={mode} onValueChange={switchMode}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="password">Password</TabsTrigger>
+                <TabsTrigger value="phone-otp">Mobile OTP</TabsTrigger>
+              </TabsList>
+            </Tabs>
             {mode === 'password' ? (
               <Form {...passwordForm}>
                 <form onSubmit={passwordForm.handleSubmit(loginWithPassword)} className="space-y-4">
@@ -212,7 +222,7 @@ function VisitorLoginContent() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input {...field} type="password" autoComplete="current-password" />
+                          <PasswordInput {...field} autoComplete="current-password" />
                         </FormControl>
                         <FormMessage />
                         <p className="text-right text-sm">
@@ -235,45 +245,51 @@ function VisitorLoginContent() {
                   </Button>
                 </form>
               </Form>
-            ) : step === 'email' ? (
-              <div className="space-y-4">
+            ) : step === 'phone' ? (
+              <form
+                className="space-y-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void sendOtp();
+                }}
+              >
                 <div className="grid gap-2">
-                  <label htmlFor="visitor-legacy-email" className="text-sm font-medium">
-                    Email address
+                  <label htmlFor="visitor-login-phone" className="text-sm font-medium">
+                    Mobile number
                   </label>
-                  <Input
-                    id="visitor-legacy-email"
-                    name="visitor-legacy-email"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    placeholder="you@example.com"
-                    value={legacyEmail}
-                    onChange={(e) => setLegacyEmail(e.target.value)}
-                  />
+                  <div className="flex items-center rounded-md border border-input pl-3 focus-within:ring-[3px] focus-within:ring-ring/50">
+                    <span className="text-sm text-muted-foreground">+91</span>
+                    <Input
+                      id="visitor-login-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      maxLength={10}
+                      placeholder="9876543210"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      className="border-0 shadow-none focus-visible:ring-0"
+                    />
+                  </div>
                 </div>
-                <Button
-                  type="button"
-                  className="w-full"
-                  disabled={loading || !legacyEmail.trim()}
-                  onClick={sendOtp}
-                >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send email OTP'}
+                <Button type="submit" className="w-full" disabled={loading || phoneInput.length !== 10}>
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send OTP on WhatsApp'}
                 </Button>
-                <Button type="button" variant="link" className="w-full px-0" onClick={switchToPassword}>
-                  Back to password sign in
-                </Button>
-              </div>
+              </form>
             ) : (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Enter the 6-digit code sent to <strong>{maskEmail(email)}</strong>
+                  Enter the 6-digit code sent on WhatsApp to <strong>{maskPhone(phone)}</strong>
                 </p>
                 <div className="flex justify-center">
-                  <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                  <InputOTP
+                    maxLength={6}
+                    value={otp}
+                    onChange={setOtp}
+                    autoFocus
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                  >
                     <InputOTPGroup>
                       <InputOTPSlot index={0} />
                       <InputOTPSlot index={1} />
@@ -287,19 +303,28 @@ function VisitorLoginContent() {
                 <Button className="w-full" onClick={verifyOtp} disabled={loading || otp.length < 6}>
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify & open dashboard'}
                 </Button>
-                <Button
-                  variant="ghost"
-                  className="w-full"
-                  onClick={() => {
-                    setStep('email');
-                    setOtp('');
-                  }}
-                >
-                  Use a different email
-                </Button>
-                <Button variant="link" className="w-full" onClick={switchToPassword}>
-                  Back to password sign in
-                </Button>
+                <div className="flex items-center justify-between text-sm">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="px-0"
+                    onClick={() => {
+                      setStep('phone');
+                      setOtp('');
+                    }}
+                  >
+                    Change number
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="px-0"
+                    disabled={loading || resendIn > 0}
+                    onClick={() => void sendOtp()}
+                  >
+                    {resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend OTP'}
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
