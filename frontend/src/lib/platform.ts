@@ -26,6 +26,23 @@ function markNativeShellFromUrl(): void {
   }
 }
 
+function looksLikeEmbeddedWebView(): boolean {
+  try {
+    const ua = navigator.userAgent || '';
+    // Android System WebView (Capacitor) — not Chrome Custom Tabs / browser.
+    if (/; wv\)/i.test(ua)) {
+      return true;
+    }
+    // Capacitor / Ionic often expose these globals even on remote URLs.
+    if (/Capacitor/i.test(ua)) {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
+
 /** True when the page runs inside the Conninter Android/iOS shell (Capacitor or Expo WebView). */
 export function isNativeApp(): boolean {
   if (typeof window === 'undefined') {
@@ -46,9 +63,31 @@ export function isNativeApp(): boolean {
   }
   const cap = win.Capacitor;
   if (cap?.isNativePlatform) {
-    return cap.isNativePlatform();
+    if (cap.isNativePlatform()) {
+      try {
+        localStorage.setItem(NATIVE_SHELL_STORAGE_KEY, '1');
+      } catch {
+        // ignore
+      }
+      return true;
+    }
+  } else if (cap) {
+    try {
+      localStorage.setItem(NATIVE_SHELL_STORAGE_KEY, '1');
+    } catch {
+      // ignore
+    }
+    return true;
   }
-  return Boolean(cap);
+  if (looksLikeEmbeddedWebView()) {
+    try {
+      localStorage.setItem(NATIVE_SHELL_STORAGE_KEY, '1');
+    } catch {
+      // ignore
+    }
+    return true;
+  }
+  return false;
 }
 
 /** Append `?native=1` so the live site remembers Welcome `/app/` is home. */
