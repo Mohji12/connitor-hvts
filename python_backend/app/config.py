@@ -321,6 +321,19 @@ class Settings(BaseSettings):
         validation_alias="WHATSAPP_TEMPLATE_ATTENDANT_PASS_LANGUAGE",
         description="conninter_patient_attendant_pass language.",
     )
+    whatsapp_template_attendant_approval: str = Field(
+        default="conninter_attendant_approval_request",
+        validation_alias="WHATSAPP_TEMPLATE_ATTENDANT_APPROVAL",
+        description=(
+            "Sent to the FIXED primary attendant when a secondary visitor applies. "
+            "Body {{1}}..{{8}}; Confirm/Reject quick replies attok_/attno_."
+        ),
+    )
+    whatsapp_template_attendant_approval_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_ATTENDANT_APPROVAL_LANGUAGE",
+        description="conninter_attendant_approval_request language.",
+    )
     whatsapp_template_visit_slot_request: str = Field(
         default="conninter_visit_slot_request",
         validation_alias="WHATSAPP_TEMPLATE_VISIT_SLOT_REQUEST",

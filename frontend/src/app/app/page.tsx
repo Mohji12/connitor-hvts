@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { jwtDecode } from 'jwt-decode';
-import { ChevronRight, HeartHandshake, Stethoscope, Truck, UserRound, type LucideIcon } from 'lucide-react';
+import { ChevronRight, Stethoscope, Truck, UserRound, type LucideIcon } from 'lucide-react';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { getStoredAuthToken } from '@/lib/auth-storage';
@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 
 const PERSONA_KEY = 'conninterPersona';
 
-type PersonaId = 'visitor' | 'family' | 'staff' | 'distributor';
+type PersonaId = 'visitor' | 'staff' | 'distributor';
 
 const PERSONAS: {
   id: PersonaId;
@@ -31,14 +31,6 @@ const PERSONAS: {
     href: '/visitor-pass',
     icon: UserRound,
     tint: 'bg-[#4A90E2]/12 text-[#1d5fae]',
-  },
-  {
-    id: 'family',
-    title: 'Family / attendant',
-    description: 'Get a visit pass for an admitted patient',
-    href: '/attendant-pass',
-    icon: HeartHandshake,
-    tint: 'bg-emerald-100 text-emerald-700',
   },
   {
     id: 'staff',

@@ -301,6 +301,51 @@ class VisitSlotAllotmentService:
                 ),
             )
 
+    def _overlapping_allotment(
+        self,
+        staff_id: str,
+        allotment_date: date,
+        window_start: str,
+        window_end: str,
+        *,
+        exclude_allotment_id: str | None = None,
+    ) -> VisitSlotAllotment | None:
+        """Another window for the same staff and day that overlaps (``HH:MM`` strings compare in order)."""
+        q = self.db.query(VisitSlotAllotment).filter(
+            VisitSlotAllotment.staffId == staff_id,
+            VisitSlotAllotment.allotmentDate == allotment_date,
+            VisitSlotAllotment.windowStart < window_end,
+            VisitSlotAllotment.windowEnd > window_start,
+        )
+        if exclude_allotment_id:
+            q = q.filter(VisitSlotAllotment.id != exclude_allotment_id)
+        return q.first()
+
+    def _assert_no_overlap(
+        self,
+        staff_id: str,
+        allotment_date: date,
+        window_start: str,
+        window_end: str,
+        *,
+        exclude_allotment_id: str | None = None,
+    ) -> None:
+        clash = self._overlapping_allotment(
+            staff_id,
+            allotment_date,
+            window_start,
+            window_end,
+            exclude_allotment_id=exclude_allotment_id,
+        )
+        if clash:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"This staff member already has slots {clash.windowStart}–{clash.windowEnd} "
+                    f"on {allotment_date.isoformat()}. Edit that allotment or pick a time outside it."
+                ),
+            )
+
     def _window_bounds(self, day: date, window_start: str, window_end: str) -> tuple[datetime, datetime]:
         sh, sm = _parse_hhmm(window_start)
         eh, em = _parse_hhmm(window_end)
@@ -484,6 +529,7 @@ class VisitSlotAllotmentService:
                 window_end=end_n,
                 slot_count=slot_count,
             )
+        self._assert_no_overlap(staff_id, day, start_n, end_n)
         self._assert_quota(branch_id, day, slot_count)
         row = VisitSlotAllotment(
             branchId=branch_id,
@@ -531,6 +577,9 @@ class VisitSlotAllotmentService:
         if new_count < 1 or new_count > 500:
             raise HTTPException(status_code=400, detail="slotCount must be between 1 and 500.")
 
+        self._assert_no_overlap(
+            row.staffId, row.allotmentDate, start_n, end_n, exclude_allotment_id=row.id
+        )
         self._assert_quota(branch_id, row.allotmentDate, new_count, exclude_allotment_id=row.id)
 
         # Clear unbooked slots from previous window if window moves
@@ -776,6 +825,15 @@ class VisitSlotAllotmentService:
                 if existing and existing.source in (
                     VisitSlotAllotmentSource.MANUAL.value,
                     VisitSlotAllotmentSource.OVERRIDE.value,
+                ):
+                    skipped += 1
+                    continue
+                if self._overlapping_allotment(
+                    routine.staffId,
+                    cursor,
+                    routine.windowStart,
+                    routine.windowEnd,
+                    exclude_allotment_id=existing.id if existing else None,
                 ):
                     skipped += 1
                     continue

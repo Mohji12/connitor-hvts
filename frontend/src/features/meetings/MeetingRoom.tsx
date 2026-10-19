@@ -6,6 +6,7 @@ import './meetingRoom.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CarouselLayout,
+  Chat,
   ConnectionStateToast,
   ControlBar,
   FocusLayout,
@@ -18,17 +19,21 @@ import {
   RoomAudioRenderer,
   isTrackReference,
   useCreateLayoutContext,
+  useLocalParticipant,
   usePinnedTracks,
   useRoomContext,
   useTracks,
   type LocalUserChoices,
   type TrackReferenceOrPlaceholder,
 } from '@livekit/components-react';
-import { DisconnectReason, Track, type Room } from 'livekit-client';
+import { DisconnectReason, Track, type LocalVideoTrack, type Room } from 'livekit-client';
+import type { WidgetState } from '@livekit/components-core';
 import { AlertTriangle, CalendarClock, Clock, LinkIcon, PhoneOff, RefreshCw, Video } from 'lucide-react';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { Button } from '@/components/ui/button';
+import { MeetingBackgroundControls } from '@/features/meetings/MeetingBackgroundControls';
+import { MeetingChatEntry } from '@/features/meetings/MeetingChatEntry';
 import { datetimeLocalToIstIso, formatIstDateTime } from '@/lib/datetime';
 import {
   MeetingApi,
@@ -88,7 +93,24 @@ function E2EHook() {
   return null;
 }
 
-/** VideoConference without chat: grid by default, auto-focus on screenshare. */
+/** Local camera track for virtual background processors (in-call only). */
+function useLocalCameraTrack(): LocalVideoTrack | null {
+  const { cameraTrack } = useLocalParticipant();
+  const pub = cameraTrack;
+  if (!pub?.track || pub.track.kind !== 'video') return null;
+  return pub.track as LocalVideoTrack;
+}
+
+function InCallBackgroundEffects() {
+  const videoTrack = useLocalCameraTrack();
+  return (
+    <div className="conninter-bg-effects" data-testid="meeting-in-call-effects">
+      <MeetingBackgroundControls videoTrack={videoTrack} compact />
+    </div>
+  );
+}
+
+/** VideoConference with ephemeral chat + background effects; auto-focus on screenshare. */
 function ConsultationStage() {
   const tracks = useTracks(
     [
@@ -98,6 +120,11 @@ function ConsultationStage() {
     { onlySubscribed: false },
   );
   const layoutContext = useCreateLayoutContext();
+  const [widgetState, setWidgetState] = useState<WidgetState>({
+    showChat: false,
+    unreadMessages: 0,
+    showSettings: false,
+  });
   const screenShareTracks = tracks
     .filter(isTrackReference)
     .filter((track) => track.publication.source === Track.Source.ScreenShare);
@@ -137,7 +164,7 @@ function ConsultationStage() {
   }, [screenShareKey, focusTrack?.publication?.trackSid, tracks]);
 
   return (
-    <LayoutContextProvider value={layoutContext}>
+    <LayoutContextProvider value={layoutContext} onWidgetChange={setWidgetState}>
       <div className="lk-video-conference" data-testid="meeting-stage">
         <div className="lk-video-conference-inner">
           {focusTrack ? (
@@ -156,8 +183,17 @@ function ConsultationStage() {
               </GridLayout>
             </div>
           )}
-          <ControlBar controls={{ chat: false, settings: false }} saveUserChoices={false} />
+          <div className="conninter-control-row">
+            <InCallBackgroundEffects />
+            <ControlBar controls={{ chat: true, settings: false }} saveUserChoices={false} />
+          </div>
         </div>
+        <Chat
+          style={{ display: widgetState.showChat ? 'grid' : 'none' }}
+          data-testid="meeting-chat"
+        >
+          <MeetingChatEntry />
+        </Chat>
       </div>
     </LayoutContextProvider>
   );
@@ -443,6 +479,12 @@ export function MeetingRoom({ joinToken }: { joinToken: string | null }) {
               onSubmit={onPreJoinSubmit}
               onError={(err) => setDeviceError(deviceErrorMessage(err))}
             />
+            <div className="conninter-prejoin-effects">
+              <p className="mb-2 text-xs text-white/70">
+                Optional: blur or replace your camera background before you join.
+              </p>
+              <MeetingBackgroundControls />
+            </div>
           </div>
           <p className="flex items-center gap-1.5 text-xs text-slate-500">
             <Clock className="h-3.5 w-3.5" /> Room open until {formatIstDateTime(datetimeLocalToIstIso(phase.access.closesAt))}

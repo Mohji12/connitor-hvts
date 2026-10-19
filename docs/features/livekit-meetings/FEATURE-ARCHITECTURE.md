@@ -67,10 +67,12 @@ sequenceDiagram
   - reconnecting (`ConnectionStateToast`)
   - left, with a rejoin button
 - **In call:**
-  - A chat-free copy of LiveKit's `VideoConference`: `GridLayout`, and `FocusLayout` that auto-pins screenshare.
-  - `ControlBar` with mic, camera, screenshare, device menus and leave.
+  - LiveKit `VideoConference`-style layout: `GridLayout`, and `FocusLayout` that auto-pins screenshare.
+  - `ControlBar` with mic, camera, screenshare, **chat**, device menus and leave (`settings` off).
+  - Ephemeral **data-channel chat** (`Chat` from `@livekit/components-react`): side panel toggled via ControlBar; not stored in MySQL (Google Meet–style for the call only). Backend already grants `can_publish_data`.
+  - **Background effects** via `@livekit/track-processors` (`BackgroundProcessor`): soft/strong blur, 4 presets under `public/meeting-backgrounds/`, and custom image upload. `MeetingBackgroundControls` on PreJoin (preference in `sessionStorage`) and in-call (applied to local camera track). Unsupported browsers get a toast; A/V and chat still work.
   - `RoomAudioRenderer`.
-  - Navy skin in `meetingRoom.css`.
+  - Navy skin in `meetingRoom.css` (chat panel + effects control row).
 - **Test hook:** `window.__lkRoom` is exposed when `NEXT_PUBLIC_E2E_HOOKS=true` or when the URL has `?e2e=1`.
 - **Callers:**
   - the booking status page (`meetingJoinUrl`)

@@ -9,6 +9,7 @@ import hmac
 import io
 import logging
 import re
+import secrets
 from datetime import date, datetime, timedelta
 
 from fastapi import UploadFile
@@ -31,7 +32,8 @@ from app.models.attendant_entities import (
 )
 from app.services.auth_service import AuthService
 from app.services.gcp_storage_service import GcpStorageService
-from app.services.messaging_service import EmailService
+from app.services.messaging_service import EmailService, WhatsAppService
+from app.utils.phone import phones_match
 from app.services.s3_storage_service import MAX_UPLOAD_BYTES, S3StorageService
 from app.utils.timezone import format_ist_datetime, now_ist, today_start_ist, today_end_ist
 
@@ -365,8 +367,102 @@ class AttendantPassService:
     def register_attendant(self, user: dict, data: dict) -> dict:
         return self._create_attendant(data, notify_ward=False)
 
+    def _fixed_primary_for_admission(self, admission_id: str) -> Attendant | None:
+        """FIXED attendant allotted by reception for this admission (needs a phone)."""
+        rows = (
+            self.db.query(Attendant)
+            .filter(
+                Attendant.admissionId == admission_id,
+                Attendant.attendantKind == "FIXED",
+                Attendant.status.in_(("APPROVED", "PENDING")),
+            )
+            .order_by(Attendant.createdAt.desc())
+            .all()
+        )
+        with_phone = [r for r in rows if (r.phone or "").strip()]
+        for row in with_phone:
+            if row.status == "APPROVED":
+                return row
+        return with_phone[0] if with_phone else None
+
+    def _ensure_sms_approval_code(self, attendant: Attendant) -> str:
+        existing = (getattr(attendant, "smsApprovalCode", None) or "").strip()
+        if existing:
+            return existing
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        attendant.smsApprovalCode = code
+        self.db.commit()
+        self.db.refresh(attendant)
+        return code
+
+    def visiting_window_datetimes(
+        self, admission_id: str, *, on_date: date | None = None
+    ) -> tuple[datetime, datetime]:
+        """Today's visiting window as IST naive datetimes (default + latest extra end)."""
+        hours = self.get_visiting_hours(admission_id, on_date=on_date)
+        day = on_date or now_ist().date()
+        start_hm = self._parse_hhmm(hours["defaultWindow"]["startTime"])
+        end_hm = self._parse_hhmm(hours["defaultWindow"]["endTime"])
+        for slot in hours.get("extraSlots") or []:
+            end_hm = max(end_hm, self._parse_hhmm(slot["endTime"]))
+            start_hm = min(start_hm, self._parse_hhmm(slot["startTime"]))
+        start_h, start_m = divmod(start_hm, 60)
+        end_h, end_m = divmod(end_hm, 60)
+        start_dt = datetime(day.year, day.month, day.day, start_h, start_m, 0)
+        end_dt = datetime(day.year, day.month, day.day, end_h, end_m, 0)
+        return start_dt, end_dt
+
+    def _send_primary_approval_whatsapp(
+        self, *, primary: Attendant, secondary: Attendant
+    ) -> bool:
+        admission = (
+            self.db.query(Admission)
+            .options(joinedload(Admission.patient))
+            .filter(Admission.id == secondary.admissionId)
+            .first()
+        )
+        patient = admission.patient if admission else None
+        patient_name = (
+            f"{patient.firstName} {patient.lastName}".strip() if patient else "Patient"
+        )
+        branch = self.db.get(Branch, secondary.branchId)
+        chain_name = "Hospital"
+        branch_name = branch.name if branch else "—"
+        if branch and getattr(branch, "hospitalChainId", None):
+            from app.models import HospitalChain
+
+            chain = self.db.get(HospitalChain, branch.hospitalChainId)
+            if chain and chain.name:
+                chain_name = chain.name
+        department = (admission.department if admission else None) or (
+            admission.wardName if admission else None
+        ) or "—"
+        code = self._ensure_sms_approval_code(secondary)
+        visit_date = now_ist().strftime("%d %b %Y")
+        purpose = (secondary.relationship or "").strip() or "—"
+        try:
+            return WhatsAppService().send_attendant_approval_request(
+                primary.phone,
+                primary_name=primary.name,
+                patient_name=patient_name,
+                hospital_name=chain_name,
+                branch_name=branch_name,
+                department=department,
+                requested_attendant=secondary.name,
+                visit_date=visit_date,
+                purpose=purpose,
+                approval_code=code,
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed primary approval WhatsApp for attendant %s: %s",
+                secondary.id,
+                exc,
+            )
+            return False
+
     def public_apply(self, data: dict) -> dict:
-        """Book a visitor pass during hospital hours and send it immediately."""
+        """Request a visitor pass; primary FIXED attendant must Confirm on WhatsApp."""
         admission_id = data["admissionId"]
         if self._inside_pass_for_admission(admission_id):
             raise bad_request(
@@ -374,6 +470,12 @@ class AttendantPassService:
                 "They must check out at security before another person can apply."
             )
         self.assert_within_visiting_hours(admission_id)
+        primary = self._fixed_primary_for_admission(admission_id)
+        if not primary:
+            raise bad_request(
+                "Primary attendant not registered yet. "
+                "Reception must allot the fixed attendant pass before visitors can apply."
+            )
         if data.get("addCompanion"):
             missing = [
                 label
@@ -390,8 +492,72 @@ class AttendantPassService:
             {**data, "attendantKind": "VISITOR"},
             notify_ward=False,
         )
-        self.approve_attendant({"id": None, "role": "PUBLIC"}, created["id"])
-        return self.issue_pass({"id": None, "role": "PUBLIC"}, created["id"])
+        secondary = self.db.get(Attendant, created["id"])
+        assert secondary is not None
+        self._ensure_sms_approval_code(secondary)
+        whatsapp_sent = self._send_primary_approval_whatsapp(
+            primary=primary, secondary=secondary
+        )
+        return {
+            "status": "PENDING_PRIMARY_APPROVAL",
+            "attendantId": secondary.id,
+            "attendant": self._serialize_attendant(secondary),
+            "whatsappSent": whatsapp_sent,
+            "message": (
+                "Request sent to the primary attendant on WhatsApp. "
+                "Your pass will arrive after they confirm."
+            ),
+        }
+
+    def approve_visitor_by_primary(
+        self, *, secondary_id: str, primary_phone: str
+    ) -> dict:
+        """FIXED primary Confirmed: approve and issue pass for today's visiting window."""
+        secondary = (
+            self.db.query(Attendant)
+            .options(joinedload(Attendant.admission).joinedload(Admission.patient))
+            .filter(Attendant.id == secondary_id)
+            .first()
+        )
+        if not secondary:
+            raise not_found("Attendant")
+        if (getattr(secondary, "attendantKind", None) or "").upper() != "VISITOR":
+            raise bad_request("Only visitor attendant requests can be approved this way")
+        if secondary.status == "REJECTED":
+            raise bad_request("This request was already rejected")
+        if secondary.status not in ("PENDING", "APPROVED"):
+            raise bad_request("This request cannot be approved from its current status")
+        primary = self._fixed_primary_for_admission(secondary.admissionId)
+        if not primary or not phones_match(primary.phone, primary_phone):
+            raise bad_request("Only the primary attendant can approve this request")
+        if secondary.status == "PENDING":
+            self.approve_attendant({"id": None, "role": "PUBLIC"}, secondary.id)
+        start_dt, end_dt = self.visiting_window_datetimes(secondary.admissionId)
+        return self.issue_pass(
+            {"id": None, "role": "PUBLIC"},
+            secondary.id,
+            valid_from=start_dt,
+            valid_to=end_dt,
+        )
+
+    def reject_visitor_by_primary(
+        self, *, secondary_id: str, primary_phone: str
+    ) -> dict:
+        secondary = self.db.get(Attendant, secondary_id)
+        if not secondary:
+            raise not_found("Attendant")
+        if (getattr(secondary, "attendantKind", None) or "").upper() != "VISITOR":
+            raise bad_request("Only visitor attendant requests can be rejected this way")
+        if secondary.status == "REJECTED":
+            return self._serialize_attendant(secondary)
+        if secondary.status != "PENDING":
+            raise bad_request("This request cannot be rejected from its current status")
+        primary = self._fixed_primary_for_admission(secondary.admissionId)
+        if not primary or not phones_match(primary.phone, primary_phone):
+            raise bad_request("Only the primary attendant can reject this request")
+        secondary.status = "REJECTED"
+        self.db.commit()
+        return self._serialize_attendant(secondary)
 
     def _create_attendant(self, data: dict, *, notify_ward: bool = True) -> dict:
         admission = self.db.get(Admission, data["admissionId"])

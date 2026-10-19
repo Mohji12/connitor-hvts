@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { CalendarClock, Upload } from 'lucide-react';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { todayIstDateIso } from '@/lib/datetime';
+import { getApiErrorMessage } from '@/lib/api-errors';
 import {
   VisitSlotAllotmentService,
   type VisitSlotAllotmentRow,
@@ -24,12 +25,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function apiErrorDetail(e: unknown): string {
-  if (typeof e === 'object' && e && 'response' in e) {
-    return String(
-      (e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? '',
-    );
+  return getApiErrorMessage(e, '');
+}
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+/** Mirrors the server's even split: each visit needs at least 1 minute plus the gap between visits. */
+function windowProblem(start: string, end: string, count: number, gapMinutes: number): string | null {
+  const total = toMinutes(end) - toMinutes(start);
+  if (total <= 0) {
+    return 'End time must be after start time. A window cannot run past midnight.';
   }
-  return '';
+  const fits = Math.floor((total + gapMinutes) / (1 + gapMinutes));
+  if (count > fits) {
+    return `${start}–${end} fits at most ${fits} visit${fits === 1 ? '' : 's'} with a ${gapMinutes}-minute gap. Use a longer window or fewer visits.`;
+  }
+  return null;
 }
 
 function addDaysIso(iso: string, days: number): string {
@@ -116,6 +130,11 @@ export default function VisitSlotsPage(): React.ReactElement {
       toast.error('Select at least one staff member');
       return;
     }
+    const problem = windowProblem(startTime, endTime, slotCount, gapMinutes);
+    if (problem) {
+      toast.error(problem);
+      return;
+    }
     setLoading(true);
     let ok = 0;
     const errors: string[] = [];
@@ -200,6 +219,11 @@ export default function VisitSlotsPage(): React.ReactElement {
 
   const createRoutine = async () => {
     if (!branchId || !routineStaffId) return;
+    const problem = windowProblem(routineStart, routineEnd, routineCount, gapMinutes);
+    if (problem) {
+      toast.error(problem);
+      return;
+    }
     setLoading(true);
     try {
       await VisitSlotAllotmentService.createRoutine(branchId, {

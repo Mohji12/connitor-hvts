@@ -36,7 +36,6 @@ const socialLinks = [
 const staffLinks = [
   { label: 'Staff', href: '/staff/login' },
   { label: 'Distributor', href: '/delivery/login' },
-  { label: 'Attendant pass', href: '/attendant-pass' },
   { label: 'Visitor pass', href: '/visitor-pass' },
 ];
 

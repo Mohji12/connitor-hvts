@@ -1,63 +1,38 @@
 'use client';
 
-import * as React from 'react';
-import { attendantApplyPath } from '@/lib/attendant-pass-url';
-import { AttendantPassService, type AttendantPassBranch } from '@/lib/services/attendantPassService';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
+import { QrCode } from 'lucide-react';
+import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { APP_HOME_PATH } from '@/lib/app-back';
+import { isNativeApp } from '@/lib/platform';
 
-function branchLabel(branch: AttendantPassBranch): string {
-  const location = [branch.city, branch.state].filter(Boolean).join(', ');
-  return location ? `${branch.name} — ${location}` : branch.name;
-}
-
+/**
+ * Public landing for /attendant-pass — no hospital picker.
+ * Secondary visitors reach apply by scanning the branch QR at reception or the security gate.
+ */
 export default function AttendantPassLandingPage(): React.ReactElement {
-  const [branches, setBranches] = React.useState<AttendantPassBranch[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    AttendantPassService.listPublicBranches()
-      .then(setBranches)
-      .catch(() => setError('Could not load hospitals. Is the backend running?'))
-      .finally(() => setLoading(false));
-  }, []);
-
   return (
     <main className="min-h-screen bg-[#F7F9FC] p-4 md:p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold">Family visit pass</h1>
-          <p className="text-sm text-muted-foreground">
-            Select your hospital to apply for an attendant visit pass for an admitted patient.
-            You will need the patient&apos;s MRN from the admission document.
-          </p>
-        </div>
-
-        {loading && <p className="text-sm text-muted-foreground">Loading hospitals…</p>}
-        {error && <p className="text-sm text-red-600">{error}</p>}
-
-        {!loading && !error && branches.length === 0 && (
-          <p className="text-sm text-muted-foreground">No hospitals are available yet.</p>
-        )}
-
-        <div className="space-y-3">
-          {branches.map((branch) => (
-            <Card key={branch.id}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{branchLabel(branch)}</CardTitle>
-                {branch.hospitalChainName && (
-                  <p className="text-xs text-muted-foreground">{branch.hospitalChainName}</p>
-                )}
-              </CardHeader>
-              <CardContent>
-                <Button asChild className="w-full sm:w-auto">
-                  <a href={attendantApplyPath(branch)}>Apply for visit pass</a>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="mx-auto max-w-xl space-y-6">
+        <ConninterWordmark size="md" />
+        <Card>
+          <CardContent className="space-y-4 pt-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#eef5ff] text-[#001b71]">
+              <QrCode className="h-7 w-7" />
+            </div>
+            <h1 className="text-2xl font-bold text-[#001b71]">Family visit pass</h1>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              To apply for a visit pass for an admitted patient, scan the QR code at the hospital
+              reception desk or the security gate. That opens the apply form for your hospital —
+              online booking from this site is not available.
+            </p>
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href={isNativeApp() ? APP_HOME_PATH : '/'}>Back to home</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

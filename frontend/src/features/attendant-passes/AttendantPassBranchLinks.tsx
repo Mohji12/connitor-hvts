@@ -26,8 +26,9 @@ function branchLabel(branch: AttendantPassBranch): string {
 
 export function AttendantPassBranchLinks({
   branchId,
-  title = 'Family visit pass links',
-  description = 'Share the direct link for your hospital with family members. They only need the patient MRN after opening the link.',
+  title = 'Family visit pass QR links',
+  description =
+    'Print or display this branch link as a QR code at reception and the security gate. Families scan it to open the apply form — there is no public booking button on the website.',
 }: AttendantPassBranchLinksProps): React.ReactElement {
   const [branches, setBranches] = React.useState<AttendantPassBranch[]>([]);
   const [loading, setLoading] = React.useState(true);

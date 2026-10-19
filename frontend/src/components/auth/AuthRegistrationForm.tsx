@@ -62,7 +62,7 @@ const REGISTRATION_TIMER_SECONDS = 10 * 60;
 type FormStep = 'profile' | 'role' | 'verify';
 
 const ROLE_LABELS: Record<(typeof SelfRegisterRoles)[number], string> = {
-  CHAIN_ADMIN: 'Chain Admin',
+  CHAIN_ADMIN: 'Hospital Super Admin',
   BRANCH_ADMIN: 'Branch Admin',
   SECURITY_SUPERVISOR: 'Security Supervisor',
   SECURITY: 'Security',
@@ -182,7 +182,7 @@ function RegistrationHeader({ step, email }: { step: FormStep; email?: string })
     <CardHeader className="text-center space-y-4 pb-4">
       <div className="flex justify-center">
         <Image
-          src="/ConnInter.png"
+          src="/images/conninter-logo.png"
           alt="Conninter Logo"
           width={220}
           height={80}

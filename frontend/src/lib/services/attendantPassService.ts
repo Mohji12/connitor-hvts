@@ -69,6 +69,17 @@ export interface AttendantRow {
   admission?: AttendantAdmission | null;
 }
 
+/** Response when secondary apply waits for FIXED primary WhatsApp Confirm. */
+export interface AttendantPublicApplyPending {
+  status: 'PENDING_PRIMARY_APPROVAL';
+  attendantId: string;
+  attendant?: AttendantRow;
+  whatsappSent?: boolean;
+  message?: string;
+}
+
+export type AttendantPublicApplyResult = AttendantPublicApplyPending | AttendantPassRow;
+
 export interface AttendantPassRow {
   id: string;
   passNumber: string;
@@ -309,7 +320,7 @@ export const AttendantPassService = {
     companionName?: string;
     companionPhone?: string;
     companionRelationship?: string;
-  }): Promise<AttendantPassRow> {
+  }): Promise<AttendantPublicApplyResult> {
     const res = await apiClient.post('/api/public/attendant-passes/apply', data);
     return res.data;
   },

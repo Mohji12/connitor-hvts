@@ -153,10 +153,25 @@ function BookAppointmentContent() {
   return <BookingWizardForBranch />;
 }
 
+function lockedModeFromSearch(
+  raw: string | null,
+): 'IN_PERSON' | 'ONLINE' | undefined {
+  if (raw === 'online') return 'ONLINE';
+  if (raw === 'offline' || raw === 'in_person' || raw === 'IN_PERSON') return 'IN_PERSON';
+  return undefined;
+}
+
 function BookingWizardForBranch() {
   const searchParams = useSearchParams();
   const branchId = searchParams.get('branchId') ?? undefined;
   const branchName = searchParams.get('branchName') ?? undefined;
+  const lockedAppointmentMode = lockedModeFromSearch(searchParams.get('mode'));
+  const wizardTitle =
+    lockedAppointmentMode === 'ONLINE'
+      ? 'Book Online Session'
+      : lockedAppointmentMode === 'IN_PERSON'
+        ? 'Book In-Person Visit'
+        : 'Book Doctor Appointment';
   const slug = branchId ? undefined : (searchParams.get('branch') ?? undefined);
   const resolved = useBranchFromSlug(slug);
 
@@ -184,17 +199,22 @@ function BookingWizardForBranch() {
   if (resolved?.status === 'found') {
     return (
       <BookAppointmentWizard
-        key={resolved.id}
+        key={`${resolved.id}-${lockedAppointmentMode ?? 'any'}`}
         initialBranchId={resolved.id}
         initialBranchName={resolved.name}
+        title={wizardTitle}
+        lockedAppointmentMode={lockedAppointmentMode}
       />
     );
   }
 
   return (
     <BookAppointmentWizard
+      key={lockedAppointmentMode ?? 'any'}
       initialBranchId={branchId}
       initialBranchName={branchName ?? undefined}
+      title={wizardTitle}
+      lockedAppointmentMode={lockedAppointmentMode}
     />
   );
 }

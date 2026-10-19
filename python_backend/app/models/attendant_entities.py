@@ -72,6 +72,7 @@ class Attendant(Base):
     companionPhone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     companionRelationship: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="PENDING")
+    smsApprovalCode: Mapped[str | None] = mapped_column(String(6), nullable=True, index=True)
     approvalLinkTokenHash: Mapped[str | None] = mapped_column(String(191), nullable=True, index=True)
     approvalLinkExpiresAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     approvalLinkUsedAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

@@ -55,6 +55,8 @@ export interface BookAppointmentWizardProps {
   showHeaderLinks?: boolean;
   title?: string;
   className?: string;
+  /** When set, visit type is fixed (Online session vs Visitor pass entry). */
+  lockedAppointmentMode?: 'IN_PERSON' | 'ONLINE';
 }
 
 function visitorDashboardHref(bookingId: string): string {
@@ -118,6 +120,7 @@ export function BookAppointmentWizard({
   showHeaderLinks = true,
   title = 'Book Doctor Appointment',
   className,
+  lockedAppointmentMode,
 }: BookAppointmentWizardProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -147,7 +150,9 @@ export function BookAppointmentWizard({
   const [appointmentDate, setAppointmentDate] = React.useState(todayIstDateIso());
   const [purpose, setPurpose] = React.useState('');
   const [itemsCarrying, setItemsCarrying] = React.useState('');
-  const [appointmentMode, setAppointmentMode] = React.useState<'IN_PERSON' | 'ONLINE'>('IN_PERSON');
+  const [appointmentMode, setAppointmentMode] = React.useState<'IN_PERSON' | 'ONLINE'>(
+    lockedAppointmentMode ?? 'IN_PERSON',
+  );
   const [visitorType, setVisitorType] = React.useState<VisitorKind>('GENERAL');
   const [companyName, setCompanyName] = React.useState('');
   const [companyEmail, setCompanyEmail] = React.useState('');
@@ -384,7 +389,7 @@ export function BookAppointmentWizard({
     setPreferredTime(draft.preferredTime);
     setPurpose(draft.purpose);
     setItemsCarrying(draft.itemsCarrying);
-    setAppointmentMode(draft.appointmentMode);
+    setAppointmentMode(lockedAppointmentMode ?? draft.appointmentMode);
     setVisitorType(draft.visitorType);
     setCompanyName(draft.companyName);
     setCompanyEmail(draft.companyEmail);
@@ -395,7 +400,13 @@ export function BookAppointmentWizard({
     setProfileCreatedHere(draft.profileCreatedHere);
     pendingSlotIdRef.current = draft.requestCustomSlot ? null : draft.slotId || null;
     setStep(draft.resumeStep ?? 6);
-  }, []);
+  }, [lockedAppointmentMode]);
+
+  React.useEffect(() => {
+    if (lockedAppointmentMode) {
+      setAppointmentMode(lockedAppointmentMode);
+    }
+  }, [lockedAppointmentMode]);
 
   React.useEffect(() => {
     const requestId = new URLSearchParams(window.location.search).get('slotRequest');
@@ -594,7 +605,7 @@ export function BookAppointmentWizard({
       preferredTime,
       purpose,
       itemsCarrying,
-      appointmentMode,
+      appointmentMode: lockedAppointmentMode ?? appointmentMode,
       visitorType,
       companyName,
       companyEmail,
@@ -635,7 +646,7 @@ export function BookAppointmentWizard({
         requestCustomSlot,
         purpose: purpose.trim(),
         itemsCarrying: itemsCarrying.trim(),
-        appointmentMode,
+        appointmentMode: lockedAppointmentMode ?? appointmentMode,
         visitorType,
         companyName: visitorType === 'SALES_REPRESENTATIVE' ? companyName.trim() : undefined,
         companyEmail: visitorType === 'SALES_REPRESENTATIVE' ? companyEmail.trim() : undefined,
@@ -1062,30 +1073,49 @@ export function BookAppointmentWizard({
               )}
               <div className="space-y-2">
                 <Label>Visit type</Label>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <Button
-                    type="button"
-                    variant={appointmentMode === 'IN_PERSON' ? 'default' : 'outline'}
-                    className="h-auto py-3 justify-start"
-                    onClick={() => setAppointmentMode('IN_PERSON')}
-                  >
-                    <span className="text-left">
-                      <span className="block font-medium">Offline (in-person)</span>
-                      <span className="block text-xs opacity-80">Visit the hospital with QR check-in</span>
-                    </span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={appointmentMode === 'ONLINE' ? 'default' : 'outline'}
-                    className="h-auto py-3 justify-start"
-                    onClick={() => setAppointmentMode('ONLINE')}
-                  >
-                    <span className="text-left">
-                      <span className="block font-medium">Online</span>
-                      <span className="block text-xs opacity-80">Video link after doctor approval</span>
-                    </span>
-                  </Button>
-                </div>
+                {lockedAppointmentMode ? (
+                  <div className="rounded-lg border border-[#001B71]/10 bg-[#4A90E2]/08 px-4 py-3 text-sm">
+                    <p className="font-medium text-primary">
+                      {lockedAppointmentMode === 'ONLINE'
+                        ? 'Online video consultation'
+                        : 'Offline (in-person) visit'}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {lockedAppointmentMode === 'ONLINE'
+                        ? 'You will get a video join link after the doctor approves.'
+                        : 'Visit the hospital and check in with your QR pass.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      variant={appointmentMode === 'IN_PERSON' ? 'default' : 'outline'}
+                      className="h-auto py-3 justify-start"
+                      onClick={() => setAppointmentMode('IN_PERSON')}
+                    >
+                      <span className="text-left">
+                        <span className="block font-medium">Offline (in-person)</span>
+                        <span className="block text-xs opacity-80">
+                          Visit the hospital with QR check-in
+                        </span>
+                      </span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={appointmentMode === 'ONLINE' ? 'default' : 'outline'}
+                      className="h-auto py-3 justify-start"
+                      onClick={() => setAppointmentMode('ONLINE')}
+                    >
+                      <span className="text-left">
+                        <span className="block font-medium">Online</span>
+                        <span className="block text-xs opacity-80">
+                          Video link after doctor approval
+                        </span>
+                      </span>
+                    </Button>
+                  </div>
+                )}
               </div>
               <StickyActionBar>
                 <Button

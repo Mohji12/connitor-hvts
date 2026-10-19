@@ -1,7 +1,8 @@
 """
 End-to-end attendant pass workflow test (live API + DB) — Module 3:
   Reception registers a fixed attendant → visitor books during visiting hours →
-  pass is issued immediately → security scans the same QR in and out.
+  primary Confirms on WhatsApp → pass issued for today's visiting window →
+  security scans the same QR in and out (checkout expires the visitor QR).
 
 Run from python_backend/:
   python scripts/e2e_attendant_workflow_test.py
@@ -291,12 +292,13 @@ def main() -> None:
                 fail(f"Fixed pass not ACTIVE: {issue_fixed.json()}")
             ok(f"Fixed pass issued to {fixed_phone} — WhatsApp {issue_fixed.json().get('whatsappSent')}")
 
-            step(8, "Visitor books a pass with one companion")
+            step(8, "Visitor applies; primary Confirms on WhatsApp")
             apply_res = client.post(
                 f"{API_BASE}/public/attendant-passes/apply",
                 json={
                     "admissionId": admission_id,
                     "name": "E2E Visitor Attendant",
+                    "email": f"e2e.visitor.{random.randint(1000, 9999)}@example.com",
                     "phone": visitor_phone,
                     "relationship": "Sister",
                     "addCompanion": True,
@@ -307,17 +309,43 @@ def main() -> None:
             )
             if apply_res.status_code not in (200, 201):
                 fail(f"Public apply failed ({apply_res.status_code}): {apply_res.text}")
-            issued = apply_res.json()
-            pass_id = issued.get("id")
-            attendant_id = issued.get("attendantId")
-            pass_number = issued.get("passNumber")
-            qr_payload = issued.get("qrPayload")
-            qr_signature = issued.get("qrSignature")
-            if not pass_id or not attendant_id or not qr_payload or not qr_signature:
-                fail(f"Missing pass/QR fields: {issued}")
-            if issued.get("status") != "ACTIVE":
-                fail(f"Expected ACTIVE pass on booking, got {issued.get('status')}")
-            ok(f"Visitor pass {pass_number} issued to {visitor_phone} — WhatsApp {issued.get('whatsappSent')}")
+            pending = apply_res.json()
+            attendant_id = pending.get("attendantId")
+            if pending.get("status") != "PENDING_PRIMARY_APPROVAL" or not attendant_id:
+                fail(f"Expected PENDING_PRIMARY_APPROVAL, got {pending}")
+            db = SessionLocal()
+            try:
+                visitor_row = db.get(Attendant, attendant_id)
+                code = getattr(visitor_row, "smsApprovalCode", None) if visitor_row else None
+            finally:
+                db.close()
+            if not code:
+                fail(f"Missing smsApprovalCode for pending visitor {attendant_id}")
+            confirm = client.post(
+                f"{API_BASE}/webhooks/wapblaster/inbound",
+                json={"from": fixed_phone, "button_id": f"attok_{code}", "body": "Confirm"},
+            )
+            if confirm.status_code != 200:
+                fail(f"Primary Confirm webhook failed ({confirm.status_code}): {confirm.text}")
+            db = SessionLocal()
+            try:
+                pass_row = (
+                    db.query(AttendantPass)
+                    .filter(AttendantPass.attendantId == attendant_id)
+                    .order_by(AttendantPass.createdAt.desc())
+                    .first()
+                )
+                if not pass_row or pass_row.status != "ACTIVE":
+                    fail(f"Expected ACTIVE pass after Confirm, got {pass_row}")
+                pass_id = pass_row.id
+                pass_number = pass_row.passNumber
+                qr_payload = pass_row.qrPayload
+                qr_signature = pass_row.qrSignature
+            finally:
+                db.close()
+            if not pass_id or not qr_payload or not qr_signature:
+                fail("Missing pass/QR fields after Confirm")
+            ok(f"Visitor pass {pass_number} issued to {visitor_phone} after primary Confirm")
 
             step(9, "Security checks the visitor in with the same QR")
             security_token = login(client, SECURITY_EMAIL, SECURITY_PASSWORD)

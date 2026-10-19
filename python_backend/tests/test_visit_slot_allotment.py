@@ -279,6 +279,59 @@ def test_cannot_reduce_below_booked(db):
     assert exc.value.status_code == 409
 
 
+def test_overlapping_window_same_staff_rejected_and_slots_kept(db):
+    session, branch, doctor, nurse, admin = db
+    svc = VisitSlotAllotmentService(session)
+    user = _admin_user(admin)
+    tomorrow = (now_ist() + timedelta(days=1)).date().isoformat()
+    svc.create_allotment(
+        user, branch.id, staff_id=doctor.id, allotment_date=tomorrow,
+        window_start="20:00", window_end="23:00", slot_count=9,
+    )
+    with pytest.raises(HTTPException) as exc:
+        svc.create_allotment(
+            user, branch.id, staff_id=doctor.id, allotment_date=tomorrow,
+            window_start="21:20", window_end="22:00", slot_count=1,
+        )
+    assert exc.value.status_code == 409
+    assert "20:00–23:00" in exc.value.detail
+    session.rollback()
+    assert session.query(DoctorAvailabilitySlot).filter(
+        DoctorAvailabilitySlot.doctorId == doctor.id
+    ).count() == 9
+
+    back_to_back = svc.create_allotment(
+        user, branch.id, staff_id=doctor.id, allotment_date=tomorrow,
+        window_start="23:00", window_end="23:30", slot_count=1,
+    )
+    assert back_to_back["windowStart"] == "23:00"
+    other_staff = svc.create_allotment(
+        user, branch.id, staff_id=nurse.id, allotment_date=tomorrow,
+        window_start="21:20", window_end="22:00", slot_count=1,
+    )
+    assert other_staff["staffId"] == nurse.id
+
+
+def test_update_into_another_window_rejected(db):
+    session, branch, doctor, _nurse, admin = db
+    svc = VisitSlotAllotmentService(session)
+    user = _admin_user(admin)
+    tomorrow = (now_ist() + timedelta(days=1)).date().isoformat()
+    svc.create_allotment(
+        user, branch.id, staff_id=doctor.id, allotment_date=tomorrow,
+        window_start="09:00", window_end="10:00", slot_count=2,
+    )
+    later = svc.create_allotment(
+        user, branch.id, staff_id=doctor.id, allotment_date=tomorrow,
+        window_start="11:00", window_end="12:00", slot_count=2,
+    )
+    with pytest.raises(HTTPException) as exc:
+        svc.update_allotment(user, branch.id, later["id"], window_start="09:30")
+    assert exc.value.status_code == 409
+    resized = svc.update_allotment(user, branch.id, later["id"], window_end="12:30")
+    assert resized["windowEnd"] == "12:30"
+
+
 def test_routine_apply_skips_override(db):
     session, branch, doctor, _nurse, admin = db
     svc = VisitSlotAllotmentService(session)

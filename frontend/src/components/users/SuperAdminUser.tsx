@@ -403,7 +403,7 @@ const AddEditUserDialog = ({
                           Sub Department Admin
                         </SelectItem>
                         <SelectItem value="CHAIN_ADMIN">
-                          Chain Admin (Legacy)
+                          Hospital Super Admin
                         </SelectItem>
                         <SelectItem value="STAFF">Staff</SelectItem>
                         <SelectItem value="SECURITY_SUPERVISOR">
@@ -973,7 +973,7 @@ export default function SuperAdminUser() {
     { value: 'deptAdmins', label: 'Department Admins' },
     { value: 'subDeptAdmins', label: 'Sub-Dept Admins' },
     { value: 'staff', label: 'Staff & Security' },
-    { value: 'legacy', label: 'Legacy Admins' },
+    { value: 'legacy', label: 'Hospital Super Admins' },
   ];
 
   return (
@@ -1051,7 +1051,7 @@ export default function SuperAdminUser() {
               <SelectItem value="HOSPITAL_ADMIN">Hospital Admin</SelectItem>
               <SelectItem value="DEPARTMENT_ADMIN">Department Admin</SelectItem>
               <SelectItem value="SUB_DEPARTMENT_ADMIN">Sub-Dept Admin</SelectItem>
-              <SelectItem value="CHAIN_ADMIN">Chain Admin</SelectItem>
+              <SelectItem value="CHAIN_ADMIN">Hospital Super Admin</SelectItem>
               <SelectItem value="BRANCH_ADMIN">Branch Admin</SelectItem>
               <SelectItem value="STAFF">Staff</SelectItem>
               <SelectItem value="SECURITY_SUPERVISOR">
@@ -1096,7 +1096,7 @@ export default function SuperAdminUser() {
               Staff & Security
             </TabsTrigger>
             <TabsTrigger value="legacy" className="cursor-pointer">
-              Legacy Admins
+              Hospital Super Admins
             </TabsTrigger>
           </TabsList>
           <TabsContent value="hospitalAdmins" className="mt-4">

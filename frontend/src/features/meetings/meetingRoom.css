@@ -49,3 +49,123 @@
   background-color: #4a90e2;
   font-weight: 600;
 }
+
+.conninter-prejoin .conninter-prejoin-effects {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+}
+
+/* Control bar row: effects button + LiveKit controls */
+.conninter-room .conninter-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+  background: var(--lk-bg2);
+  padding: 0.5rem 0.75rem;
+}
+
+.conninter-room .conninter-control-row .lk-control-bar {
+  border-top: none;
+  background: transparent;
+  flex: 1 1 auto;
+  min-width: min(100%, 280px);
+}
+
+.conninter-room .conninter-bg-effects {
+  position: relative;
+  z-index: 5;
+}
+
+/* Chat panel (Google Meet–style side drawer) */
+.conninter-room .lk-chat {
+  background: #111c4a;
+  border-left: 1px solid rgb(255 255 255 / 0.1);
+  color: #f8fafc;
+}
+
+.conninter-room .lk-chat-header {
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+  font-weight: 600;
+}
+
+.conninter-room .lk-chat-entry-metadata {
+  color: rgb(255 255 255 / 0.55);
+}
+
+/* Name + system time under each bubble */
+.conninter-room .conninter-chat-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0.35rem 0.5rem;
+}
+
+.conninter-room .conninter-chat-entry[data-lk-message-origin='local'] {
+  align-items: flex-end;
+}
+
+.conninter-room .conninter-chat-entry[data-lk-message-origin='remote'] {
+  align-items: flex-start;
+}
+
+.conninter-room .conninter-chat-entry .lk-message-body {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.conninter-room .conninter-chat-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem;
+  padding: 0 0.35rem;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  color: rgb(255 255 255 / 0.55);
+}
+
+.conninter-room .conninter-chat-entry[data-lk-message-origin='local'] .conninter-chat-meta {
+  justify-content: flex-end;
+}
+
+.conninter-room .conninter-chat-name {
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.7);
+}
+
+.conninter-room .conninter-chat-meta-sep {
+  opacity: 0.7;
+}
+
+.conninter-room .conninter-chat-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.conninter-room .lk-chat-form {
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.conninter-room .lk-chat-form-input {
+  background: #0b1437;
+  color: #f8fafc;
+  border: 1px solid rgb(255 255 255 / 0.15);
+}
+
+.conninter-room .lk-chat-form-button {
+  background: #4a90e2;
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .conninter-room .lk-chat {
+    position: absolute;
+    inset: 0 0 var(--lk-control-bar-height) 0;
+    z-index: 20;
+    width: 100%;
+    max-width: none;
+  }
+}

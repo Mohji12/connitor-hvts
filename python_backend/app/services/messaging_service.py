@@ -26,6 +26,7 @@ from app.config import (
 from app.services.wapblaster_client import (
     message_to_template_fields,
     send_wapblaster_appointment_approval,
+    send_wapblaster_attendant_approval_request,
     send_wapblaster_delivery_pass,
     send_wapblaster_meeting_pass,
     send_wapblaster_attendant_pass,
@@ -1971,6 +1972,67 @@ class WhatsAppService:
             delivery_reference=delivery_reference,
         )
         return True
+
+    def send_attendant_approval_request(
+        self,
+        phone: str,
+        *,
+        primary_name: str,
+        patient_name: str,
+        hospital_name: str,
+        branch_name: str,
+        department: str,
+        requested_attendant: str,
+        visit_date: str,
+        purpose: str,
+        approval_code: str,
+    ) -> bool:
+        """Ask the FIXED primary attendant to Confirm/Reject a secondary visitor pass."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_attendant_approval or "").strip()
+        if not template:
+            return False
+        if is_test_mode_enabled(settings):
+            logger.info(
+                "[HVTS_TEST_MODE] Attendant approval %s to %s: attok_%s for %s",
+                template,
+                phone,
+                approval_code,
+                requested_attendant,
+            )
+            return True
+        if is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster":
+            send_wapblaster_attendant_approval_request(
+                phone,
+                template_name=template,
+                template_language=settings.whatsapp_template_attendant_approval_language
+                or settings.whatsapp_template_language
+                or "en_US",
+                primary_name=primary_name,
+                patient_name=patient_name,
+                hospital_name=hospital_name,
+                branch_name=branch_name,
+                department=department,
+                requested_attendant=requested_attendant,
+                visit_date=visit_date,
+                purpose=purpose,
+                approval_code=approval_code,
+            )
+            return True
+        # Plain-text fallback when WapBlaster is not the provider.
+        code = (approval_code or "").strip()
+        text = (
+            f"Conninter: New attendant pass request\n"
+            f"Patient: {patient_name}\n"
+            f"Requested: {requested_attendant}\n"
+            f"Reply CONFIRM {code} to approve, or REJECT {code} to decline."
+        )
+        try:
+            self.send_message(phone, text)
+            return True
+        except Exception as exc:
+            logger.error("Attendant approval WhatsApp failed to %s: %s", phone, exc)
+            return False
 
     def send_attendant_pass(
         self,

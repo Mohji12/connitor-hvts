@@ -88,7 +88,7 @@ const STATUS_COLORS: Record<string, string> = {
 // Role display names
 const ROLE_DISPLAY_NAMES: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
-  CHAIN_ADMIN: 'Chain Admin',
+  CHAIN_ADMIN: 'Hospital Super Admin',
   BRANCH_ADMIN: 'Branch Admin',
   HOSPITAL_ADMIN: 'Hospital Admin',
   SECURITY_SUPERVISOR: 'Security Supervisor',

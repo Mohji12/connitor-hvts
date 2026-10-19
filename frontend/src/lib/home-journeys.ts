@@ -2,12 +2,11 @@ import type { LucideIcon } from 'lucide-react';
 import {
   CalendarCheck,
   DoorOpen,
-  IdCard,
   MapPin,
   UserCircle,
 } from 'lucide-react';
 
-export type VisitorJourneyId = 'pre-register' | 'book' | 'attendant' | 'gate' | 'track';
+export type VisitorJourneyId = 'pre-register' | 'book' | 'gate' | 'track';
 
 export interface JourneyCta {
   label: string;
@@ -56,22 +55,6 @@ export const VISITOR_JOURNEYS: VisitorJourney[] = [
     ],
     primaryCta: { label: 'Book appointment', href: '/book-appointment' },
     secondaryCta: { label: 'How booking works', href: '/book-appointment/how-it-works' },
-  },
-  {
-    id: 'attendant',
-    label: 'Attendant pass',
-    shortTitle: 'Visit an admitted patient',
-    description:
-      'Apply for a family visit pass when a patient is already admitted. Choose your hospital, find the patient by name or MRN, and submit your request for ward approval.',
-    icon: IdCard,
-    steps: [
-      'Select the hospital where the patient is admitted',
-      'Search by patient name or enter their MRN',
-      'Submit your details — ward reviews and emails your QR pass',
-    ],
-    primaryCta: { label: 'Apply for visit pass', href: '/attendant-pass' },
-    secondaryCta: { label: 'Go to apply form', href: '/attendant-pass/apply' },
-    note: 'Only one family member may hold an active pass at a time. Bring a government ID to security when you arrive.',
   },
   {
     id: 'gate',

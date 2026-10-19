@@ -7,7 +7,8 @@ import { VisitorPortalShell } from '@/components/auth/VisitorPortalShell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-const RETURN_TO = '/book-appointment';
+/** In-person visits only — video consults are under Online session. */
+const RETURN_TO = '/book-appointment/?mode=offline';
 
 export default function VisitorPassPage() {
   return (
@@ -17,7 +18,8 @@ export default function VisitorPassPage() {
         <CardHeader className="space-y-2 text-center">
           <CardTitle className="text-3xl font-bold">Visitor pass</CardTitle>
           <CardDescription className="text-base">
-            Sign in if you already have an account, or create one to book your visit.
+            Sign in or create a profile to book an in-person hospital visit. For a video consult,
+            use Online session on the home page.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">

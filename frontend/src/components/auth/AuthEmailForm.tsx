@@ -115,7 +115,7 @@ export function AuthEmailForm() {
       <CardHeader className="text-center space-y-6">
         <div className="flex justify-center">
           <Image
-            src="/ConnInter.png"
+            src="/images/conninter-logo.png"
             alt="Conninter Logo"
             width={220}
             height={80}

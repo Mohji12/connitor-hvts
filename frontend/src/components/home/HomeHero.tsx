@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { CalendarCheck, IdCard, UserPlus } from 'lucide-react';
+import { CalendarCheck, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { HOME_TRUST_BADGES } from '@/lib/home-journeys';
@@ -24,8 +24,9 @@ export function HomeHero() {
       </h1>
 
       <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600 lg:mx-0">
-        Create one Connitor profile, book appointments online, apply for a family visit pass,
-        check in faster at the gate, and track every visit from a single dashboard.
+        Create one Connitor profile, book appointments online, check in faster at the gate, and
+        track every visit from a single dashboard. Family visit passes start by scanning the QR at
+        reception or the security gate.
       </p>
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
@@ -48,17 +49,6 @@ export function HomeHero() {
           <Link href="/book-appointment">
             <CalendarCheck className="mr-2 h-5 w-5" />
             Book without profile
-          </Link>
-        </Button>
-        <Button
-          asChild
-          size="lg"
-          variant="outline"
-          className="h-12 border-teal-200 bg-white/80 px-8 text-base text-teal-800 hover:bg-teal-50"
-        >
-          <Link href="/attendant-pass">
-            <IdCard className="mr-2 h-5 w-5" />
-            Attendant visit pass
           </Link>
         </Button>
       </div>

@@ -456,6 +456,52 @@ def test_attendant_pass_template_field_order(mock_post: MagicMock) -> None:
 
 
 @patch("app.services.wapblaster_client.httpx.post")
+def test_attendant_approval_request_template_fields_and_buttons(mock_post: MagicMock) -> None:
+    from app.services.wapblaster_client import send_wapblaster_attendant_approval_request
+
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"result": "success"}
+    mock_post.return_value = response
+
+    with patch("app.services.wapblaster_client.get_settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            HVTS_TEST_MODE=False,
+            WHATSAPP_PROVIDER="wapblaster",
+            WAPBLASTER_API_BASE="https://www.wapblaster.com/api",
+            WAPBLASTER_VENDOR_UID="vendor-uid",
+            WAPBLASTER_ACCESS_TOKEN="test-token",
+        )
+        send_wapblaster_attendant_approval_request(
+            "9000111222",
+            template_name="conninter_attendant_approval_request",
+            template_language="en_US",
+            primary_name="Primary Carer",
+            patient_name="Ravi Kumar",
+            hospital_name="Test Chain",
+            branch_name="Test Hospital",
+            department="ICU",
+            requested_attendant="Anita",
+            visit_date="06 Oct 2026",
+            purpose="Sister",
+            approval_code="482901",
+        )
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["template_name"] == "conninter_attendant_approval_request"
+    assert payload["field_1"] == "Primary Carer"
+    assert payload["field_2"] == "Ravi Kumar"
+    assert payload["field_3"] == "Test Chain"
+    assert payload["field_4"] == "Test Hospital"
+    assert payload["field_5"] == "ICU"
+    assert payload["field_6"] == "Anita"
+    assert payload["field_7"] == "06 Oct 2026"
+    assert payload["field_8"] == "Sister"
+    assert payload["button_0"] == "attok_482901"
+    assert payload["button_1"] == "attno_482901"
+
+
+@patch("app.services.wapblaster_client.httpx.post")
 def test_phone_otp_template_sends_full_code_without_buttons(mock_post: MagicMock) -> None:
     from app.services.wapblaster_client import send_wapblaster_phone_otp
 

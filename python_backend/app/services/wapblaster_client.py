@@ -279,6 +279,65 @@ def send_wapblaster_appointment_approval(
         send_wapblaster_text(phone, fallback)
 
 
+def send_wapblaster_attendant_approval_request(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    primary_name: str,
+    patient_name: str,
+    hospital_name: str,
+    branch_name: str,
+    department: str,
+    requested_attendant: str,
+    visit_date: str,
+    purpose: str,
+    approval_code: str,
+    brand_name: str = "Conninter",
+) -> None:
+    """Primary attendant approval for a secondary visitor pass.
+
+    Body {{1}}..{{8}} match conninter_attendant_approval_request.
+    Confirm is button_0 (attok_{code}); Reject is button_1 (attno_{code}).
+    """
+    code = (approval_code or "").strip()
+    fields = [
+        primary_name or "Attendant",
+        patient_name or "Patient",
+        hospital_name or "Hospital",
+        branch_name or "—",
+        department or "—",
+        requested_attendant or "Visitor",
+        visit_date or "—",
+        purpose or "—",
+    ]
+    extra = {
+        "button_0": f"attok_{code}" if code else "attok",
+        "button_1": f"attno_{code}" if code else "attno",
+    }
+    try:
+        send_wapblaster_template(
+            phone,
+            template_name=template_name,
+            template_language=template_language,
+            fields=fields,
+            extra=extra,
+        )
+    except Exception as exc:
+        logger.warning(
+            "WapBlaster attendant approval template %s failed, using plain text: %s",
+            template_name,
+            exc,
+        )
+        fallback = (
+            f"{brand_name}: New attendant pass request\n"
+            f"Patient: {truncate_utility_param(patient_name, 40)}\n"
+            f"Requested: {truncate_utility_param(requested_attendant, 40)}\n"
+            f"Reply CONFIRM {code} to approve, or REJECT {code} to decline."
+        )
+        send_wapblaster_text(phone, fallback)
+
+
 def send_wapblaster_visit_rejected(
     phone: str,
     *,

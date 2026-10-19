@@ -83,7 +83,7 @@ function PatientSummary({
 
 const HOME_REDIRECT_SECONDS = 5;
 
-function PassSent(): React.ReactElement {
+function WaitingPrimaryApproval(): React.ReactElement {
   const router = useRouter();
   const [secondsLeft, setSecondsLeft] = React.useState(HOME_REDIRECT_SECONDS);
   const goHome = React.useCallback(() => {
@@ -102,10 +102,11 @@ function PassSent(): React.ReactElement {
   return (
     <Card className="mx-auto w-full max-w-xl">
       <CardContent className="space-y-3 pt-8 text-center">
-        <h2 className="text-xl font-semibold">Pass sent</h2>
+        <h2 className="text-xl font-semibold">Waiting for approval</h2>
         <p className="text-sm text-muted-foreground">
-          Your attendant pass and QR are on the way to your WhatsApp. Show that same QR at
-          security to check in, and scan it again when you leave.
+          We asked the primary attendant (the person already with the patient) to confirm on
+          WhatsApp. After they confirm, your attendant pass and QR will arrive on your WhatsApp.
+          Show that QR at security to check in, and scan it again when you leave.
         </p>
         <p className="text-xs text-muted-foreground">
           Taking you to the home page in {secondsLeft} second{secondsLeft === 1 ? '' : 's'}…
@@ -265,7 +266,7 @@ function ApplyForm(): React.ReactElement {
   };
 
   if (done) {
-    return <PassSent />;
+    return <WaitingPrimaryApproval />;
   }
 
   return (

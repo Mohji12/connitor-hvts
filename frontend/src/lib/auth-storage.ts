@@ -2,7 +2,8 @@ import { isNativeApp } from '@/lib/platform';
 
 /**
  * Staff/admin JWT. Browsers keep it per tab so multiple roles can stay signed in separately.
- * The native app keeps it in localStorage so staff stay signed in after the app is closed.
+ * Capacitor / Expo WebView shells keep it in localStorage so staff stay signed in after
+ * the WebView is closed (see `isNativeApp` + `__CONNINTER_NATIVE_SHELL__`).
  */
 export const AUTH_TOKEN_STORAGE_KEY = 'authToken';
 

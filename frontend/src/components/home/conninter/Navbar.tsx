@@ -16,8 +16,8 @@ const navLinks = [
 ];
 
 const accessLinks = [
-  { label: 'Attendant pass', href: '/attendant-pass' },
   { label: 'Visitor pass', href: '/visitor-pass' },
+  { label: 'Online session', href: '/online-session' },
 ];
 
 export default function Navbar() {

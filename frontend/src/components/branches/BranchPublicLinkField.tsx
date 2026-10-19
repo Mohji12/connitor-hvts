@@ -22,7 +22,7 @@ function toSlug(value: string): string {
     .slice(0, 60);
 }
 
-/** Edit the family visit pass link name, e.g. conninter.com/attendant-pass/ovum-kalyan-nagar. */
+/** Branch apply URL for reception/gate QR, e.g. conninter.com/attendant-pass/ovum-kalyan-nagar. */
 export function BranchPublicLinkField({
   branch,
   onSaved,

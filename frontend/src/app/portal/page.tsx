@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { CalendarCheck, IdCard } from 'lucide-react';
+import { CalendarCheck, Video } from 'lucide-react';
 
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { Button } from '@/components/ui/button';
 
 const PORTAL_ACTIONS = [
-  { label: 'Attendant pass', href: '/attendant-pass', icon: IdCard },
   { label: 'Visitor pass', href: '/visitor-pass', icon: CalendarCheck },
+  { label: 'Online session', href: '/online-session', icon: Video },
 ] as const;
 
 function PortalContent() {
@@ -34,11 +34,12 @@ function PortalContent() {
             Choose how to continue
           </h1>
           <p className="mt-3 text-muted-foreground leading-relaxed">
-            Families open an attendant pass. Visitors sign in or create a profile to book a visit.
+            Book an in-person visit, or start an online video session with a doctor. Family visit
+            passes for admitted patients start by scanning the hospital QR at reception or the gate.
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {PORTAL_ACTIONS.map(({ label, href, icon: Icon }) => (
             <Button key={href} asChild variant="brand" className="h-14 !rounded-full font-semibold">
               <Link href={href}>

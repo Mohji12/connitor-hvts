@@ -69,7 +69,12 @@ export function useAuthSession<T extends object = { role?: string }>(
       return;
     }
 
-    router.push(redirectTo);
+    // Full assign is more reliable inside in-app WebViews than client router.push.
+    if (typeof window !== 'undefined') {
+      window.location.assign(redirectTo.endsWith('/') ? redirectTo : `${redirectTo}/`);
+    } else {
+      router.push(redirectTo);
+    }
     setReady(true);
   }, [router, requiredRole, redirectTo, demoUser]);
 
