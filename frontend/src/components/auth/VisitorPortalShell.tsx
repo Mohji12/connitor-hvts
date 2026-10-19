@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowLeft, CalendarPlus, Home, LayoutGrid, UserRound, Wallet } from 'lucide-react';
@@ -7,6 +8,7 @@ import { ArrowLeft, CalendarPlus, Home, LayoutGrid, UserRound, Wallet } from 'lu
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { BottomTabBar, type MobileTab } from '@/components/mobile/BottomTabBar';
 import { Button } from '@/components/ui/button';
+import { appSafeHomeHref } from '@/lib/native-home-guard';
 import { cn } from '@/lib/utils';
 
 type VisitorPortalShellProps = {
@@ -35,6 +37,11 @@ export function VisitorPortalShell({
   appTabs = false,
 }: VisitorPortalShellProps) {
   const pathname = normalize(usePathname() ?? '');
+  const [homeHref, setHomeHref] = useState('/');
+
+  useEffect(() => {
+    setHomeHref(appSafeHomeHref());
+  }, []);
 
   return (
     <div className="relative min-h-screen w-full max-w-[100vw] overflow-x-clip bg-[#F7F9FC]">
@@ -71,7 +78,7 @@ export function VisitorPortalShell({
                 appTabs && 'max-lg:hidden',
               )}
             >
-              <Link href="/" aria-label="Home">
+              <Link href={homeHref} aria-label="Home">
                 <ArrowLeft className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Home</span>
               </Link>

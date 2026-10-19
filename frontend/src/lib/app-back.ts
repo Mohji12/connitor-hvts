@@ -17,7 +17,8 @@ export function goBackInApp(router: Router): void {
 
 export function isAppHome(pathname: string | null | undefined): boolean {
   const path = (pathname ?? '').replace(/\/+$/, '');
-  return path === '' || path === '/app';
+  // Welcome / role chooser only — not the marketing homepage `/`.
+  return path === '/app';
 }
 
 // Pages that render AppTopBar already have a back arrow; the global bar stays hidden there.

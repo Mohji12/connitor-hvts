@@ -111,6 +111,13 @@ def test_validate_apply_allows_pharma_without_drug_license(db):
     svc._validate_apply(_valid_payload(branch.id, vendorType="PHARMA", documents=[]))
 
 
+def test_validate_apply_allows_empty_branch_ids(db):
+    """Hospital is chosen later in delivery booking, not during onboarding."""
+    branch = db.query(Branch).first()
+    svc = DistributorOnboardingService(db)
+    svc._validate_apply(_valid_payload(branch.id, branchIds=[]))
+
+
 @pytest.mark.asyncio
 async def test_apply_creates_pending_distributor_user_wallet_mapping(db):
     branch = db.query(Branch).first()

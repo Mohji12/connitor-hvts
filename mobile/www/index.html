@@ -2,27 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#FFFFFF" />
     <title>Conninter</title>
-    <style>
-      body {
-        font-family: system-ui, sans-serif;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        margin: 0;
-        background: #f7f9fc;
-        color: #001b71;
-        text-align: center;
-        padding: 1.5rem;
-      }
-    </style>
+    <link rel="stylesheet" href="css/shell.css" />
   </head>
   <body>
-    <div>
-      <p><strong>Conninter</strong></p>
-      <p>Set <code>server.url</code> in capacitor.config.ts to load the live site.</p>
-    </div>
+    <main class="splash" aria-label="Conninter splash">
+      <div id="splash-stage" class="splash-stage">
+        <div id="particle-layer" aria-hidden="true"></div>
+        <img
+          id="splash-logo"
+          class="splash-logo"
+          src="assets/conninter-logo.png"
+          alt="Conninter"
+          width="240"
+          height="72"
+        />
+      </div>
+    </main>
+    <script src="js/config.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/splash.js"></script>
   </body>
 </html>

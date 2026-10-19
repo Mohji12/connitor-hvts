@@ -1,5 +1,6 @@
 export { AppTopBar } from './AppTopBar';
 export { NativeBackBar } from './NativeBackBar';
+export { NativeMarketingHomeBlock } from './NativeMarketingHomeBlock';
 export { BottomTabBar, type MobileTab } from './BottomTabBar';
 export { MoreSheet, type MoreGroup, type MoreItem } from './MoreSheet';
 export { StickyActionBar } from './StickyActionBar';

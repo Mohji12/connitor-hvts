@@ -1,12 +1,20 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { Button } from '@/components/ui/button';
+import { appSafeHomeHref } from '@/lib/native-home-guard';
 
 export function AuthPageShell({ children }: { children: React.ReactNode }) {
+  const [homeHref, setHomeHref] = useState('/');
+
+  useEffect(() => {
+    setHomeHref(appSafeHomeHref());
+  }, []);
+
   return (
     <div className="relative min-h-screen bg-[#F7F9FC]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -17,17 +25,17 @@ export function AuthPageShell({ children }: { children: React.ReactNode }) {
       <header className="pt-safe relative z-10 border-b border-slate-100 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6">
           <div className="sm:hidden">
-            <ConninterWordmark size="sm" />
+            <ConninterWordmark size="sm" href={homeHref} />
           </div>
           <div className="max-sm:hidden">
-            <ConninterWordmark size="md" />
+            <ConninterWordmark size="md" href={homeHref} />
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Button asChild variant="ghost" size="sm" className="text-primary">
               <Link href="/portal">All portals</Link>
             </Button>
             <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-              <Link href="/" aria-label="Home">
+              <Link href={homeHref} aria-label="Home">
                 <ArrowLeft className="h-4 w-4 sm:mr-2" />
                 <span className="max-sm:hidden">Home</span>
               </Link>

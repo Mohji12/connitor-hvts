@@ -11,6 +11,7 @@ export const NATIVE_SHELL_BRIDGE_JS = `
 (function () {
   try {
     window.__CONNINTER_NATIVE_SHELL__ = 'expo';
+    try { localStorage.setItem('conninterNativeShell', '1'); } catch (e) {}
     var AUTH = 'authToken';
     var ss = window.sessionStorage;
     var ls = window.localStorage;

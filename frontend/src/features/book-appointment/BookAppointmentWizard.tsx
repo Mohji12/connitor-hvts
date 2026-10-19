@@ -38,6 +38,10 @@ import {
 } from '@/features/book-appointment/HospitalChainPicker';
 import { ChainBranchPicker } from '@/features/book-appointment/ChainBranchPicker';
 import {
+  BookingListSearch,
+  filterBySearchName,
+} from '@/features/book-appointment/BookingListSearch';
+import {
   bookingResumeHref,
   clearBookingDraft,
   loadBookingDraft,
@@ -187,6 +191,8 @@ export function BookAppointmentWizard({
   /** True once the visitor created their profile inside this booking (step 5). */
   const [profileCreatedHere, setProfileCreatedHere] = React.useState(false);
   const [hasAccount, setHasAccount] = React.useState(false);
+  /** Filters department / section / doctor lists (active from 3 characters). */
+  const [listSearch, setListSearch] = React.useState('');
 
   React.useEffect(() => {
     let cancelled = false;
@@ -201,6 +207,16 @@ export function BookAppointmentWizard({
   React.useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [step]);
+
+  React.useEffect(() => {
+    setListSearch('');
+  }, [step]);
+
+  const filteredDepartments = filterBySearchName(departments, listSearch, (d) => d.name);
+  const filteredSubDepartments = filterBySearchName(subDepartments, listSearch, (s) => s.name);
+  const filteredDoctors = filterBySearchName(doctors, listSearch, (d) =>
+    [d.name, d.departmentName, d.qualification].filter(Boolean).join(' '),
+  );
 
   const stepOffset = initialBranchId ? 1 : 0;
   const displayStep = (step === '5A' ? 5 : step) - stepOffset;
@@ -839,6 +855,14 @@ export function BookAppointmentWizard({
           {step === 2 && (
             <div className="space-y-2">
               <Label>Select Department</Label>
+              {!loadingDepartments && departments.length > 0 && (
+                <BookingListSearch
+                  value={listSearch}
+                  onChange={setListSearch}
+                  placeholder="Search department (min. 3 letters)"
+                  disabled={Boolean(fetchingNext)}
+                />
+              )}
               {loadingDepartments && (
                 <ConnitorLoader variant="section" message="Loading departments…" className="min-h-[50vh]" />
               )}
@@ -847,7 +871,12 @@ export function BookAppointmentWizard({
                   No departments available for this hospital location.
                 </p>
               )}
-              {departments.map((d) => (
+              {!loadingDepartments &&
+                departments.length > 0 &&
+                filteredDepartments.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No departments match your search.</p>
+                )}
+              {filteredDepartments.map((d) => (
                 <Button
                   key={d.id}
                   variant="outline"
@@ -864,12 +893,23 @@ export function BookAppointmentWizard({
           {step === 3 && (
             <div className="space-y-2">
               <Label>Select Section</Label>
+              {subDepartments.length > 0 && (
+                <BookingListSearch
+                  value={listSearch}
+                  onChange={setListSearch}
+                  placeholder="Search section (min. 3 letters)"
+                  disabled={Boolean(fetchingNext)}
+                />
+              )}
               {subDepartments.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                   No sections available in this department.
                 </p>
               )}
-              {subDepartments.map((s) => (
+              {subDepartments.length > 0 && filteredSubDepartments.length === 0 && (
+                <p className="text-sm text-muted-foreground">No sections match your search.</p>
+              )}
+              {filteredSubDepartments.map((s) => (
                 <Button
                   key={s.id}
                   variant="outline"
@@ -886,10 +926,21 @@ export function BookAppointmentWizard({
           {step === 4 && (
             <div className="space-y-3">
               <Label>Select Doctor</Label>
+              {doctors.length > 0 && (
+                <BookingListSearch
+                  value={listSearch}
+                  onChange={setListSearch}
+                  placeholder="Search doctor (min. 3 letters)"
+                  disabled={Boolean(fetchingNext)}
+                />
+              )}
               {doctors.length === 0 && (
                 <p className="text-sm text-muted-foreground">No doctors available in this section.</p>
               )}
-              {doctors.map((d) => (
+              {doctors.length > 0 && filteredDoctors.length === 0 && (
+                <p className="text-sm text-muted-foreground">No doctors match your search.</p>
+              )}
+              {filteredDoctors.map((d) => (
                 <button
                   key={d.id}
                   type="button"

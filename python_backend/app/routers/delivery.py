@@ -180,6 +180,15 @@ def my_approved_branches(
     return AgentVehicleService(db).list_approved_branches(user)
 
 
+@router.post("/distributors/me/branches/{branch_id}/request")
+def request_branch_access(
+    branch_id: str,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return AgentVehicleService(db).request_branch_access(user, branch_id)
+
+
 @router.get("/agents")
 def list_agents(
     user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],

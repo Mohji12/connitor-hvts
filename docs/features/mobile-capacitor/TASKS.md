@@ -2,12 +2,13 @@
 
 ## What it is
 
-The `mobile/` folder is a **Capacitor shell** that loads the live Conninter website in a full-screen WebView. UI and API behavior match production web; no duplicate Next.js build inside the app.
+The `mobile/` folder is a **Capacitor shell**: local particle splash + 3-slide onboarding (`www/`), then the live Conninter site in a full-screen WebView.
 
-- **Default URL:** `https://www.conninter.com/`
+- **Launch:** `www/index.html` (splash) → `www/onboarding.html` (first run) → `https://www.conninter.com/app/`
 - **API:** `https://api.conninter.com` (same as browser)
 - **App ID:** `com.conninter.hvts`
 - **Display name:** Conninter
+- **Phone Back:** WebView `goBack()` through slides and site history; on the root page the app is sent to the background (not killed). Hardware Forward (when present) calls `goForward()`.
 
 ## Prerequisites
 
@@ -27,12 +28,13 @@ npx cap sync
 
 | Variable | Purpose |
 |----------|---------|
-| `CAPACITOR_SERVER_URL` | Override WebView start URL (e.g. Vercel preview). Default: `https://www.conninter.com` |
+| `CAPACITOR_SERVER_URL` | Origin for the live app after onboarding (writes `www/js/config.js`). Default: `https://www.conninter.com` |
 
 Example (PowerShell):
 
 ```powershell
 $env:CAPACITOR_SERVER_URL = "https://your-preview.vercel.app"
+npm run write-config
 npx cap sync
 ```
 
@@ -40,7 +42,8 @@ npx cap sync
 
 | Script | Action |
 |--------|--------|
-| `npm run cap:sync` | Copy `www/` and config into `android/` and `ios/` |
+| `npm run write-config` | Write `www/js/config.js` from `CAPACITOR_SERVER_URL` |
+| `npm run cap:sync` | Write config, then copy `www/` into `android/` and `ios/` |
 | `npm run open:android` | Open Android Studio |
 | `npm run open:ios` | Open Xcode (macOS only) |
 | `npm run assets` | Regenerate icons/splash from `mobile/assets/icon.png` and `splash.png` |
@@ -57,12 +60,13 @@ Users still approve camera/mic when the web app prompts (same as mobile browser)
 ## Automated smoke (CI / dev machine)
 
 - `https://www.conninter.com/` and `https://api.conninter.com/` return HTTP 200 (remote WebView + API reachable).
-- After `npx cap sync`, `android/app/src/main/assets/capacitor.config.json` includes `server.url` pointing at production (or your `CAPACITOR_SERVER_URL`).
+- After `npx cap sync`, `android/app/src/main/assets/capacitor.config.json` has **no** `server.url` (local `www/` splash first). `www/js/config.js` `appHome` points at production (or your `CAPACITOR_SERVER_URL`) `/app/`.
 - **Android `assembleDebug`** requires `ANDROID_HOME` or `android/local.properties` with `sdk.dir` (install Android Studio SDK). **iOS** requires macOS, Xcode, and `pod install` in `ios/App`.
 
 ## QA checklist (device)
 
-- [ ] App opens and shows Conninter home (production site)
+- [ ] App opens splash → onboarding (first launch) → `/app/` persona chooser
+- [ ] Phone Back walks onboarding slides / site history; root backgrounds the app
 - [ ] Staff login at `/staff/login/` → dashboard; session survives app restart
 - [ ] Security login at `/security/login/` → QR scanner requests camera
 - [ ] Visitor pass at `/visitor-pass/` loads sign-in / create account

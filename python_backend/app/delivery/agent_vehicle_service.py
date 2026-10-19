@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
-from app.delivery.utils import bad_request
+from app.delivery.utils import bad_request, not_found
 from app.models import Branch
 from app.models.delivery_entities import (
     DeliveryAgent,
@@ -67,14 +67,18 @@ class AgentVehicleService:
         )
 
     def list_approved_branches(self, user: dict) -> dict:
+        """All hospitals for booking, with this distributor's approval status per branch."""
         dist_id = self._distributor_id(user)
-        rows = (
-            self.db.query(VendorBranchMapping, Branch)
-            .join(Branch, Branch.id == VendorBranchMapping.branchId)
-            .filter(
-                VendorBranchMapping.vendorId == dist_id,
-                VendorBranchMapping.approvalStatus == "APPROVED",
-            )
+        mappings = {
+            m.branchId: m.approvalStatus
+            for m in self.db.query(VendorBranchMapping)
+            .filter(VendorBranchMapping.vendorId == dist_id)
+            .all()
+        }
+        branches = (
+            self.db.query(Branch)
+            .options(joinedload(Branch.hospitalChain))
+            .order_by(Branch.name.asc())
             .all()
         )
         return {
@@ -88,9 +92,45 @@ class AgentVehicleService:
                     "city": branch.city,
                     "state": branch.state,
                     "pinCode": branch.pinCode,
+                    "hospitalChainName": branch.hospitalChain.name if branch.hospitalChain else None,
+                    "approvalStatus": mappings.get(branch.id),
                 }
-                for _, branch in rows
+                for branch in branches
             ]
+        }
+
+    def request_branch_access(self, user: dict, branch_id: str) -> dict:
+        """Create a PENDING vendor–branch mapping so the hospital can approve booking access."""
+        dist_id = self._distributor_id(user)
+        branch = self.db.get(Branch, branch_id)
+        if not branch:
+            raise not_found("Hospital branch")
+        existing = (
+            self.db.query(VendorBranchMapping)
+            .filter(
+                VendorBranchMapping.vendorId == dist_id,
+                VendorBranchMapping.branchId == branch_id,
+            )
+            .first()
+        )
+        if existing:
+            return {
+                "mappingId": existing.id,
+                "branchId": branch_id,
+                "approvalStatus": existing.approvalStatus,
+            }
+        mapping = VendorBranchMapping(
+            vendorId=dist_id,
+            branchId=branch_id,
+            approvalStatus="PENDING",
+        )
+        self.db.add(mapping)
+        self.db.commit()
+        self.db.refresh(mapping)
+        return {
+            "mappingId": mapping.id,
+            "branchId": branch_id,
+            "approvalStatus": mapping.approvalStatus,
         }
 
     def list_agents(self, user: dict) -> dict:

@@ -1,5 +1,7 @@
 import apiClient from '@/lib/api';
 
+export type BranchApprovalStatus = 'APPROVED' | 'PENDING' | 'REJECTED' | null;
+
 export interface ApprovedBranch {
   id: string;
   name: string;
@@ -9,6 +11,9 @@ export interface ApprovedBranch {
   city: string;
   state: string;
   pinCode: string;
+  hospitalChainName?: string | null;
+  /** null = not requested yet; choose hospital in booking to request access */
+  approvalStatus?: BranchApprovalStatus;
 }
 
 export interface DeliverySlot {
@@ -133,6 +138,19 @@ export const DistributorDeliveryService = {
       '/api/delivery/distributors/me/branches',
     );
     return res.data.branches;
+  },
+
+  async requestBranchAccess(branchId: string): Promise<{
+    mappingId: string;
+    branchId: string;
+    approvalStatus: string;
+  }> {
+    const res = await apiClient.post<{
+      mappingId: string;
+      branchId: string;
+      approvalStatus: string;
+    }>(`/api/delivery/distributors/me/branches/${branchId}/request`);
+    return res.data;
   },
 
   async listSlots(

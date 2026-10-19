@@ -4,17 +4,25 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { jwtDecode } from 'jwt-decode';
-import { ChevronRight, Stethoscope, Truck, UserRound, type LucideIcon } from 'lucide-react';
+import {
+  ChevronRight,
+  HeartHandshake,
+  Stethoscope,
+  Truck,
+  UserRound,
+  type LucideIcon,
+} from 'lucide-react';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { getStoredAuthToken } from '@/lib/auth-storage';
 import { getVisitorToken } from '@/lib/visitor-auth-storage';
 import { getDashboardPathForRole } from '@/lib/auth-routing';
+import { isNativeApp } from '@/lib/platform';
 import { cn } from '@/lib/utils';
 
 const PERSONA_KEY = 'conninterPersona';
 
-type PersonaId = 'visitor' | 'staff' | 'distributor';
+type PersonaId = 'visitor' | 'staff' | 'distributor' | 'attendant';
 
 const PERSONAS: {
   id: PersonaId;
@@ -48,14 +56,25 @@ const PERSONAS: {
     icon: Truck,
     tint: 'bg-amber-100 text-amber-800',
   },
+  {
+    id: 'attendant',
+    title: 'Attendant',
+    description: 'Scan the hospital QR for a family visit pass',
+    href: '/attendant/scan',
+    icon: HeartHandshake,
+    tint: 'bg-emerald-100 text-emerald-800',
+  },
 ];
 
+/** Mobile app home: role chooser. Marketing site stays at `/`. */
 export default function AppLaunchPage(): React.ReactElement {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [lastPersona, setLastPersona] = useState<PersonaId | null>(null);
+  const [nativeShell, setNativeShell] = useState(false);
 
   useEffect(() => {
+    setNativeShell(isNativeApp());
     const staffToken = getStoredAuthToken();
     if (staffToken) {
       try {
@@ -134,9 +153,12 @@ export default function AppLaunchPage(): React.ReactElement {
         <Link href="/security/login" className="block text-sm font-medium text-primary">
           Security guard? Sign in at the gate
         </Link>
-        <Link href="/" className="m-meta block">
-          About Conninter
-        </Link>
+        {/* Marketing site only — in the app shell, home is this Welcome screen. */}
+        {!nativeShell ? (
+          <Link href="/" className="m-meta block">
+            About Conninter
+          </Link>
+        ) : null}
       </div>
     </div>
   );

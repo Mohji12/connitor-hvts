@@ -15,6 +15,8 @@ type Props = {
   hint?: string;
   buttonLabel?: string;
   permissionErrorHint?: string;
+  /** Open the camera as soon as the component mounts (no tap required). */
+  autoStart?: boolean;
 };
 
 type Html5Scanner = {
@@ -210,13 +212,14 @@ export function QrCheckInScanner({
   hint = 'Ask the visitor to show the QR code from their approval email or visitor portal.',
   buttonLabel = 'Scan QR Code',
   permissionErrorHint = 'Could not access camera. Allow camera permission or paste the QR manually.',
+  autoStart = false,
 }: Props) {
   const reactId = React.useId().replace(/:/g, '');
   const elementId = readerId ?? `qr-reader-${reactId}`;
   const [error, setError] = React.useState<string | null>(null);
   const [starting, setStarting] = React.useState(false);
   const [active, setActive] = React.useState(false);
-  const [shouldStart, setShouldStart] = React.useState(false);
+  const [shouldStart, setShouldStart] = React.useState(autoStart && !disabled);
   const [torchSupported, setTorchSupported] = React.useState(false);
   const [torchOn, setTorchOn] = React.useState(false);
   const scannerRef = React.useRef<Html5Scanner | null>(null);

@@ -6,10 +6,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ArrowLeft, ArrowRight, CheckCircle2, Truck } from 'lucide-react';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
-import {
-  DistributorOnboardingService,
-  type OnboardingBranch,
-} from '@/lib/services/distributorOnboardingService';
+import { DistributorOnboardingService } from '@/lib/services/distributorOnboardingService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { appSafeHomeHref } from '@/lib/native-home-guard';
 
 const VENDOR_TYPES = [
   { value: 'PHARMA', label: 'Pharma / medicines' },
@@ -111,7 +109,6 @@ type FormState = {
   operatingCity: string;
   operatingState: string;
   operatingPinCode: string;
-  branchIds: string[];
   supplyCategories: string[];
   deliveryMode: 'OWN_FLEET' | 'THIRD_PARTY';
   goodsDescription: string;
@@ -153,7 +150,6 @@ const initialForm: FormState = {
   operatingCity: '',
   operatingState: '',
   operatingPinCode: '',
-  branchIds: [],
   supplyCategories: [],
   deliveryMode: 'OWN_FLEET',
   goodsDescription: '',
@@ -166,9 +162,13 @@ const initialForm: FormState = {
 
 export default function VendorRegisterPage(): React.ReactElement {
   const router = useRouter();
+  const [homeHref, setHomeHref] = React.useState('/');
   const [step, setStep] = React.useState(1);
+
+  React.useEffect(() => {
+    setHomeHref(appSafeHomeHref());
+  }, []);
   const [form, setForm] = React.useState<FormState>(initialForm);
-  const [branches, setBranches] = React.useState<OnboardingBranch[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [done, setDone] = React.useState<{
     vendorCode: string;
@@ -185,23 +185,8 @@ export default function VendorRegisterPage(): React.ReactElement {
     drugLicense: null,
   });
 
-  React.useEffect(() => {
-    DistributorOnboardingService.listBranches()
-      .then(setBranches)
-      .catch(() => toast.error('Could not load hospitals'));
-  }, []);
-
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const toggleBranch = (id: string) => {
-    setForm((prev) => ({
-      ...prev,
-      branchIds: prev.branchIds.includes(id)
-        ? prev.branchIds.filter((b) => b !== id)
-        : [...prev.branchIds, id],
-    }));
   };
 
   const toggleSupply = (value: string) => {
@@ -260,7 +245,6 @@ export default function VendorRegisterPage(): React.ReactElement {
       }
     }
     if (s === 5) {
-      if (form.branchIds.length < 1) return 'Select at least one hospital';
       if (form.supplyCategories.length < 1) return 'Select supply categories';
       if (!form.goodsDescription.trim()) return 'Describe the goods you supply';
       if (!form.acceptTerms || !form.declarationTrue) {
@@ -335,7 +319,7 @@ export default function VendorRegisterPage(): React.ReactElement {
           operatingCity: form.operatingCity.trim() || undefined,
           operatingState: form.operatingState || undefined,
           operatingPinCode: form.operatingPinCode.trim() || undefined,
-          branchIds: form.branchIds,
+          branchIds: [],
           supplyCategories: form.supplyCategories,
           deliveryMode: form.deliveryMode,
           goodsDescription: form.goodsDescription.trim(),
@@ -422,7 +406,7 @@ export default function VendorRegisterPage(): React.ReactElement {
                   <Link href="/delivery/login">Sign in</Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link href="/">Home</Link>
+                  <Link href={homeHref}>Home</Link>
                 </Button>
               </div>
             ) : (
@@ -481,7 +465,7 @@ export default function VendorRegisterPage(): React.ReactElement {
               {step === 2 && 'Business identity'}
               {step === 3 && 'Registered address'}
               {step === 4 && 'Compliance documents'}
-              {step === 5 && 'Hospitals & operations'}
+              {step === 5 && 'Operations & terms'}
             </CardTitle>
             <CardDescription>
               Fields marked required must be completed before continuing.
@@ -802,28 +786,10 @@ export default function VendorRegisterPage(): React.ReactElement {
 
             {step === 5 && (
               <div className="space-y-5">
-                <div className="space-y-2">
-                  <Label>Hospitals to serve</Label>
-                  <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3">
-                    {branches.length === 0 && (
-                      <p className="text-sm text-muted-foreground">No hospitals listed yet.</p>
-                    )}
-                    {branches.map((b) => (
-                      <label key={b.id} className="flex cursor-pointer items-start gap-2 text-sm">
-                        <Checkbox
-                          checked={form.branchIds.includes(b.id)}
-                          onCheckedChange={() => toggleBranch(b.id)}
-                        />
-                        <span>
-                          <span className="font-medium">{b.name}</span>
-                          <span className="block text-xs text-muted-foreground">
-                            {[b.hospitalChainName, b.city, b.state].filter(Boolean).join(' · ')}
-                          </span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                <p className="rounded-lg border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                  Choose which hospital to deliver to when you book a delivery — after your
+                  account is approved, request access from the booking screen.
+                </p>
                 <div className="space-y-2">
                   <Label>Supply categories</Label>
                   <div className="flex flex-wrap gap-2">

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const KEY = 'hasCompletedOnboarding';
 /** Bump when slide content/images change so users see the new onboarding once. */
 const VERSION_KEY = 'onboardingVersion';
-const ONBOARDING_VERSION = '2';
+const ONBOARDING_VERSION = '3';
 
 export async function getHasCompletedOnboarding(): Promise<boolean> {
   try {

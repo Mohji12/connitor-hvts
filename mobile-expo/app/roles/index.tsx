@@ -24,7 +24,7 @@ type Persona = {
 const PERSONA_LABELS: Record<PersonaId, string> = {
   staff: 'Hospital staff',
   visitor: 'Visitor',
-  attendant: 'Family / attendant',
+  attendant: 'Attendant',
   distributor: 'Distributor',
 };
 
@@ -49,9 +49,9 @@ const PERSONAS: Persona[] = [
   },
   {
     id: 'attendant',
-    title: 'Family / attendant',
-    description: 'Get a visit pass for an admitted patient',
-    iconLabel: 'FA',
+    title: 'Attendant',
+    description: 'Scan the hospital QR for a family visit pass',
+    iconLabel: 'A',
     tintBg: 'rgba(16, 185, 129, 0.12)',
     tintIcon: '#047857',
     onSelect: () => {

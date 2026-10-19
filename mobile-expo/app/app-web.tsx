@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { pathFromWebUrl, webUrl } from '@/src/config/webApp';
+import { pathFromWebUrl, WEB_APP_ORIGIN, webUrl } from '@/src/config/webApp';
 import {
   NATIVE_SHELL_BRIDGE_JS,
   NATIVE_SHELL_SYNC_JS,
@@ -18,6 +18,25 @@ import {
 import type { PersonaId } from '@/src/storage/persona';
 import { setLastWebPath } from '@/src/storage/personaWebPath';
 import { colors } from '@/src/theme/colors';
+
+/** Marketing homepage must never load inside the Expo WebView — force Welcome. */
+function isMarketingHomeUrl(url?: string | null): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    const origin = new URL(WEB_APP_ORIGIN);
+    if (parsed.origin !== origin.origin) return false;
+    const path = parsed.pathname.replace(/\/+$/, '') || '/';
+    return path === '/';
+  } catch {
+    return false;
+  }
+}
+
+function welcomeWebUrl(): string {
+  // `native=1` persists on the live origin so Welcome stays the in-app home.
+  return webUrl('/app/?native=1');
+}
 
 type WebViewLike = {
   goBack: () => void;
@@ -246,7 +265,7 @@ function NativeWebView({
       ref={(instance: WebViewLike | null) => {
         webRef.current = instance;
       }}
-      source={{ uri }}
+      source={{ uri: isMarketingHomeUrl(uri) ? welcomeWebUrl() : uri }}
       injectedJavaScriptBeforeContentLoaded={NATIVE_SHELL_BRIDGE_JS}
       injectedJavaScript={NATIVE_SHELL_SYNC_JS}
       onLoadStart={() => onLoadingChange(true)}
@@ -264,11 +283,26 @@ function NativeWebView({
           onError(`The site returned an error (${code}).`);
         }
       }}
+      onShouldStartLoadWithRequest={(request: { url?: string }) => {
+        if (isMarketingHomeUrl(request?.url)) {
+          webRef.current?.injectJavaScript(
+            `window.location.replace(${JSON.stringify(welcomeWebUrl())}); true;`,
+          );
+          return false;
+        }
+        return true;
+      }}
       onNavigationStateChange={(nav: {
         canGoBack?: boolean;
         url?: string;
         loading?: boolean;
       }) => {
+        if (isMarketingHomeUrl(nav.url)) {
+          webRef.current?.injectJavaScript(
+            `window.location.replace(${JSON.stringify(welcomeWebUrl())}); true;`,
+          );
+          return;
+        }
         onCanGoBack(Boolean(nav.canGoBack));
         remember(nav.url);
         if (typeof nav.loading === 'boolean') {

@@ -123,8 +123,9 @@ class DistributorOnboardingService:
             raise bad_request("Valid PAN is required")
         if entity_type in ("Pvt Ltd", "Public Ltd") and not (data.get("cin") or "").strip():
             raise bad_request("CIN is required for companies")
-        if not isinstance(branch_ids, list) or len(branch_ids) < 1:
-            raise bad_request("Select at least one hospital branch")
+        # Hospital branches are chosen later in delivery booking (optional at apply).
+        if branch_ids is not None and not isinstance(branch_ids, list):
+            raise bad_request("branchIds must be a list")
         if not isinstance(supply, list) or len(supply) < 1:
             raise bad_request("Select at least one supply category")
         if delivery_mode not in ("OWN_FLEET", "THIRD_PARTY"):
@@ -491,7 +492,8 @@ class DistributorOnboardingService:
             body = (
                 f"Hello {dist.contactPerson or dist.vendorName},\n\n"
                 f"Your distributor profile {dist.vendorName} has been verified. "
-                "Once a hospital branch also approves your mapping, you can book deliveries.\n\n"
+                "In delivery booking, choose a hospital to request access; "
+                "once that branch approves you, you can book deliveries.\n\n"
                 "— Connitor"
             )
         else:

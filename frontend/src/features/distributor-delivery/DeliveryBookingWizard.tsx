@@ -327,6 +327,7 @@ export function DeliveryBookingWizard(): React.ReactElement {
 
   const canReview = (): boolean => {
     if (!branchId || !vehicleCategory) return false;
+    if (selectedBranch?.approvalStatus !== 'APPROVED') return false;
     if (useUnscheduled) {
       if (!expectedArrivalTime) return false;
     } else if (!slotId) {
@@ -576,18 +577,60 @@ export function DeliveryBookingWizard(): React.ReactElement {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <Label>Hospital</Label>
-                  <Select value={branchId} onValueChange={setBranchId}>
+                  <Select
+                    value={branchId || undefined}
+                    onValueChange={(id) => {
+                      void (async () => {
+                        const branch = branches.find((b) => b.id === id);
+                        if (!branch) return;
+                        if (branch.approvalStatus === 'APPROVED') {
+                          setBranchId(id);
+                          return;
+                        }
+                        if (branch.approvalStatus === 'PENDING') {
+                          toast.message('Waiting for this hospital to approve your access');
+                          setBranchId('');
+                          return;
+                        }
+                        try {
+                          await DistributorDeliveryService.requestBranchAccess(id);
+                          const refreshed = await DistributorDeliveryService.listBranches();
+                          setBranches(refreshed);
+                          toast.success(
+                            'Access requested. You can book here after the hospital approves.',
+                          );
+                          setBranchId('');
+                        } catch {
+                          toast.error('Could not request access to this hospital');
+                        }
+                      })();
+                    }}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Choose approved hospital" />
+                      <SelectValue placeholder="Choose hospital" />
                     </SelectTrigger>
                     <SelectContent>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name} — {b.city}
-                        </SelectItem>
-                      ))}
+                      {branches.map((b) => {
+                        const status =
+                          b.approvalStatus === 'APPROVED'
+                            ? 'Approved'
+                            : b.approvalStatus === 'PENDING'
+                              ? 'Pending approval'
+                              : 'Tap to request access';
+                        return (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.name} — {b.city}
+                            <span className="ml-1 text-xs text-muted-foreground">({status})</span>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
+                  {selectedBranch?.approvalStatus === 'APPROVED' && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Approved for deliveries at this hospital.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label>PO Number</Label>
