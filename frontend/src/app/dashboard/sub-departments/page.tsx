@@ -164,61 +164,71 @@ export default function SubDepartmentsPage() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <GitBranch className="h-6 w-6" /> Sub-Departments
+    <div className="w-full max-w-full min-w-0 space-y-6 p-4 md:p-6">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
+            <GitBranch className="h-6 w-6 shrink-0" /> Sub-Departments
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground sm:text-base">
             Sections within a department (e.g. ICU Cardiology)
           </p>
         </div>
         {canCreate && (
-          <Button onClick={() => setOpen(true)} disabled={isDepartmentAdmin && !lockedDepartmentId}>
+          <Button
+            className="w-full shrink-0 sm:w-auto"
+            onClick={() => setOpen(true)}
+            disabled={isDepartmentAdmin && !lockedDepartmentId}
+          >
             <Plus className="mr-2 h-4 w-4" /> Add Section
           </Button>
         )}
       </div>
 
       {isDepartmentAdmin && !lockedDepartmentId && (
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           Your department could not be loaded. Sign out and sign in again, then retry.
         </p>
       )}
 
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>Sections</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0 overflow-x-hidden">
           {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
           {!isLoading && !subDepartments?.length && (
             <p className="text-sm text-muted-foreground">No sub-departments yet.</p>
           )}
-          <ul className="space-y-2">
-            {subDepartments?.map((s) => (
-              <li
-                key={s.id}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b pb-3 gap-2"
-              >
-                <div>
-                  <p className="font-medium">{s.name}</p>
-                  <p className="text-xs text-muted-foreground">{s.code}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-sm text-muted-foreground">
-                    {departments?.find((d) => d.id === s.departmentId)?.name ?? '—'}
+          <ul className="space-y-3">
+            {subDepartments?.map((s) => {
+              const parentName = departments?.find((d) => d.id === s.departmentId)?.name;
+              const showCode = Boolean(s.code && s.code.trim().toLowerCase() !== s.name.trim().toLowerCase());
+              return (
+                <li
+                  key={s.id}
+                  className="flex min-w-0 items-start gap-3 border-b pb-3 last:border-b-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{s.name}</p>
+                    {showCode ? (
+                      <p className="truncate text-xs text-muted-foreground">{s.code}</p>
+                    ) : null}
+                    {parentName ? (
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{parentName}</p>
+                    ) : null}
                   </div>
-                  <SubDepartmentRowActions
-                    subDepartment={s}
-                    canEdit={canEdit}
-                    canDelete={canDelete}
-                    onChanged={() => mutate()}
-                  />
-                </div>
-              </li>
-            ))}
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <SubDepartmentRowActions
+                      subDepartment={s}
+                      canEdit={canEdit}
+                      canDelete={canDelete}
+                      onChanged={() => mutate()}
+                    />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </CardContent>
       </Card>

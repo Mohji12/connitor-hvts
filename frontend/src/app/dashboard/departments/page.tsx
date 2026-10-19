@@ -77,18 +77,19 @@ export default function DepartmentsPage() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Layers className="h-6 w-6" /> Departments
+    <div className="w-full max-w-full min-w-0 space-y-6 p-4 md:p-6">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
+            <Layers className="h-6 w-6 shrink-0" /> Departments
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground sm:text-base">
             Hospital departments (e.g. Cardiology, Orthopedics)
           </p>
         </div>
         {canManageDepartments && (
           <Button
+            className="w-full shrink-0 sm:w-auto"
             onClick={() => {
               if (isHospitalAdmin && user?.hospitalChainId && user?.branchId) {
                 form.reset({
@@ -107,38 +108,43 @@ export default function DepartmentsPage() {
         )}
       </div>
 
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>All Departments</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0 overflow-x-hidden">
           {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
           {!isLoading && !departments?.length && (
             <p className="text-sm text-muted-foreground">No departments yet.</p>
           )}
-          <ul className="space-y-2">
-            {departments?.map((d) => (
-              <li
-                key={d.id}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b pb-3 gap-2"
-              >
-                <div>
-                  <p className="font-medium">{d.name}</p>
-                  <p className="text-xs text-muted-foreground">{d.description ?? d.code}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-sm text-muted-foreground">
-                    {branches?.find((b) => b.id === d.branchId)?.name ?? d.branchId}
+          <ul className="space-y-3">
+            {departments?.map((d) => {
+              const branchName = branches?.find((b) => b.id === d.branchId)?.name;
+              return (
+                <li
+                  key={d.id}
+                  className="flex min-w-0 flex-col gap-2 border-b pb-3 last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{d.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {d.description ?? d.code}
+                    </p>
+                    {branchName ? (
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{branchName}</p>
+                    ) : null}
                   </div>
-                  <DepartmentRowActions
-                    department={d}
-                    canEdit={isSuperAdmin || isHospitalAdmin || isDeptAdmin}
-                    canDelete={canManageDepartments}
-                    onChanged={() => mutate()}
-                  />
-                </div>
-              </li>
-            ))}
+                  <div className="flex shrink-0 items-center justify-end gap-2">
+                    <DepartmentRowActions
+                      department={d}
+                      canEdit={isSuperAdmin || isHospitalAdmin || isDeptAdmin}
+                      canDelete={canManageDepartments}
+                      onChanged={() => mutate()}
+                    />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </CardContent>
       </Card>

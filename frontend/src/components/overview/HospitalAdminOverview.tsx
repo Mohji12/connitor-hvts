@@ -95,41 +95,41 @@ export default function HospitalAdminOverview() {
   });
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Building2 className="h-7 w-7 text-teal-700" />
-          {overview?.branchName ?? 'Hospital'} Overview
+    <div className="w-full max-w-full min-w-0 space-y-6 p-4 md:p-6">
+      <div className="min-w-0">
+        <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
+          <Building2 className="h-6 w-6 shrink-0 text-teal-700 sm:h-7 sm:w-7" />
+          <span className="min-w-0 truncate">{overview?.branchName ?? 'Hospital'} Overview</span>
         </h1>
         <p className="text-muted-foreground">{today}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Staff</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-2xl font-bold">
-            <Users className="h-5 w-5 text-teal-600" />
+            <Users className="h-5 w-5 shrink-0 text-teal-600" />
             {overview?.totalStaff ?? 0}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Visitors</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-2xl font-bold">
-            <Activity className="h-5 w-5 text-teal-600" />
+            <Activity className="h-5 w-5 shrink-0 text-teal-600" />
             {overview?.totalVisitors ?? 0}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Active now</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-bold">{overview?.activeVisits ?? 0}</CardContent>
         </Card>
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Today&apos;s visits</CardTitle>
           </CardHeader>
@@ -137,16 +137,17 @@ export default function HospitalAdminOverview() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Visitor trends</CardTitle>
-            <div className="flex gap-1">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <Card className="min-w-0 overflow-hidden">
+          <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="shrink-0">Visitor trends</CardTitle>
+            <div className="flex shrink-0 flex-wrap gap-1">
               {(['weekly', 'monthly'] as TrendPeriod[]).map((p) => (
                 <Button
                   key={p}
                   size="sm"
                   variant={trendPeriod === p ? 'default' : 'outline'}
+                  className="h-8 px-2.5 capitalize"
                   onClick={() => setTrendPeriod(p)}
                 >
                   {p}
@@ -154,48 +155,64 @@ export default function HospitalAdminOverview() {
               ))}
             </div>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="min-w-0 overflow-hidden">
             {trendsLoading ? (
               <ConnitorLoader variant="inline" message="Loading trends…" />
             ) : (
-              <Line
-                data={lineChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                }}
-              />
+              <div className="relative h-56 w-full min-w-0 sm:h-64">
+                <Line
+                  data={lineChartData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    layout: { padding: { right: 4 } },
+                    scales: {
+                      x: {
+                        ticks: {
+                          maxRotation: 0,
+                          autoSkip: true,
+                          maxTicksLimit: 4,
+                          font: { size: 10 },
+                        },
+                      },
+                      y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                    },
+                  }}
+                />
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Layers className="h-5 w-5" />
-              Departments ({departmentStats?.length ?? 0})
+            <CardTitle className="flex min-w-0 items-center gap-2">
+              <Layers className="h-5 w-5 shrink-0" />
+              <span className="truncate">Departments ({departmentStats?.length ?? 0})</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 max-h-64 overflow-y-auto">
+          <CardContent className="max-h-64 space-y-3 overflow-y-auto overflow-x-hidden">
             {!departmentsLoading && !departmentStats?.length && (
               <p className="text-sm text-muted-foreground">No departments yet.</p>
             )}
             {departmentStats?.map((dept) => (
               <div
                 key={dept.departmentId}
-                className="flex items-center justify-between border-b pb-2 text-sm"
+                className="flex min-w-0 items-start gap-2 border-b pb-2 text-sm"
               >
-                <div>
-                  <p className="font-medium">{dept.departmentName}</p>
-                  <p className="text-muted-foreground">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{dept.departmentName}</p>
+                  <p className="truncate text-muted-foreground">
                     {dept.staffCount} staff · {dept.todayAppointments} today
                   </p>
                 </div>
-                <span className="text-muted-foreground">{dept.pendingAppointments} pending</span>
+                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {dept.pendingAppointments} pending
+                </span>
               </div>
             ))}
-            <p className="text-xs text-muted-foreground pt-2">
+            <p className="pt-2 text-xs text-muted-foreground">
               {deptAdminCount} department admin{deptAdminCount === 1 ? '' : 's'} in this hospital
             </p>
           </CardContent>

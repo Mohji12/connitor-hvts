@@ -128,17 +128,18 @@ export function HierarchyOverviewCharts({
   const duration = overview?.visitDuration;
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Appointment Trends</CardTitle>
-            <div className="flex flex-wrap gap-1">
+    <div className="w-full min-w-0 max-w-full space-y-6">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+        <Card className="min-w-0 overflow-hidden lg:col-span-2">
+          <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="shrink-0">Appointment Trends</CardTitle>
+            <div className="flex shrink-0 flex-wrap gap-1">
               {(['daily', 'weekly', 'monthly'] as TrendPeriod[]).map((period) => (
                 <Button
                   key={period}
                   size="sm"
                   variant={trendPeriod === period ? 'default' : 'outline'}
+                  className="h-8 px-2.5"
                   onClick={() => setTrendPeriod(period)}
                 >
                   {period.charAt(0).toUpperCase() + period.slice(1)}
@@ -146,18 +147,28 @@ export function HierarchyOverviewCharts({
               ))}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0 overflow-hidden">
             {trendsLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : (
-              <div className="h-64">
+              <div className="relative h-56 w-full min-w-0 sm:h-64">
                 <Line
                   data={trendChart}
                   options={{
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' } },
-                    scales: { y: { beginAtZero: true } },
+                    scales: {
+                      y: { beginAtZero: true },
+                      x: {
+                        ticks: {
+                          maxRotation: 0,
+                          autoSkip: true,
+                          maxTicksLimit: 5,
+                          font: { size: 10 },
+                        },
+                      },
+                    },
                   }}
                 />
               </div>
