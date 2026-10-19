@@ -165,6 +165,7 @@ function BookingWizardForBranch() {
   const searchParams = useSearchParams();
   const branchId = searchParams.get('branchId') ?? undefined;
   const branchName = searchParams.get('branchName') ?? undefined;
+  const chainParam = searchParams.get('chain') ?? undefined;
   const lockedAppointmentMode = lockedModeFromSearch(searchParams.get('mode'));
   const wizardTitle =
     lockedAppointmentMode === 'ONLINE'
@@ -210,9 +211,10 @@ function BookingWizardForBranch() {
 
   return (
     <BookAppointmentWizard
-      key={lockedAppointmentMode ?? 'any'}
+      key={`${chainParam ?? 'any'}-${lockedAppointmentMode ?? 'any'}`}
       initialBranchId={branchId}
       initialBranchName={branchName ?? undefined}
+      initialChainId={chainParam}
       title={wizardTitle}
       lockedAppointmentMode={lockedAppointmentMode}
     />

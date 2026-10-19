@@ -9,6 +9,7 @@ import {
   AppointmentService,
   type DoctorSlot,
   type PublicDoctor,
+  type PublicHospital,
 } from '@/lib/services/appointmentService';
 import { todayIstDateIso } from '@/lib/datetime';
 import { fetchVisitorBookingIdentity } from '@/lib/visitor-booking-profile';
@@ -32,6 +33,11 @@ import {
 } from '@/features/book-appointment/BookingProfileStep';
 import { SlotCalendar } from '@/features/book-appointment/SlotCalendar';
 import {
+  HospitalChainPicker,
+  type HospitalChainOption,
+} from '@/features/book-appointment/HospitalChainPicker';
+import { ChainBranchPicker } from '@/features/book-appointment/ChainBranchPicker';
+import {
   bookingResumeHref,
   clearBookingDraft,
   loadBookingDraft,
@@ -39,6 +45,11 @@ import {
 } from '@/features/book-appointment/booking-draft';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
 import { VisitorAuthService } from '@/lib/services/visitorAuthService';
+import {
+  fallbackChainDisplayName,
+  partnerHospitalByChainId,
+  partnerHospitalBySlug,
+} from '@/lib/constants/partner-hospitals';
 
 /** 5 = create profile (visitors without one), 5A = visit details. */
 type Step = 1 | 2 | 3 | 4 | 5 | '5A' | 6 | 7;
@@ -52,6 +63,8 @@ function stepIndex(step: Step): number {
 export interface BookAppointmentWizardProps {
   initialBranchId?: string;
   initialBranchName?: string;
+  /** When set (and no branch), start on that hospital's centre list. Slug or chain UUID. */
+  initialChainId?: string;
   showHeaderLinks?: boolean;
   title?: string;
   className?: string;
@@ -117,6 +130,7 @@ function DoctorDetailCard({ doctor }: { doctor: PublicDoctor }) {
 export function BookAppointmentWizard({
   initialBranchId,
   initialBranchName,
+  initialChainId,
   showHeaderLinks = true,
   title = 'Book Doctor Appointment',
   className,
@@ -127,8 +141,13 @@ export function BookAppointmentWizard({
   const minStep: Step = initialBranchId ? 2 : 1;
   const totalSteps = initialBranchId ? 6 : 7;
 
+  const resolvedInitialChain = initialChainId
+    ? (partnerHospitalBySlug(initialChainId)?.chainId ?? initialChainId)
+    : undefined;
+
   const [step, setStep] = React.useState<Step>(minStep);
-  const [hospitals, setHospitals] = React.useState<{ id: string; name: string; city: string }[]>([]);
+  const [hospitals, setHospitals] = React.useState<PublicHospital[]>([]);
+  const [selectedChain, setSelectedChain] = React.useState<HospitalChainOption | null>(null);
   const [departments, setDepartments] = React.useState<{ id: string; name: string }[]>([]);
   const [subDepartments, setSubDepartments] = React.useState<{ id: string; name: string }[]>([]);
   const [doctors, setDoctors] = React.useState<PublicDoctor[]>([]);
@@ -238,6 +257,21 @@ export function BookAppointmentWizard({
           setError(
             'No hospitals are available for online booking yet. Ensure the backend is running and booking data is seeded.',
           );
+          return;
+        }
+        if (resolvedInitialChain) {
+          const forChain = list.filter((h) => h.hospitalChainId === resolvedInitialChain);
+          if (forChain.length) {
+            const partner = partnerHospitalByChainId(resolvedInitialChain);
+            setSelectedChain({
+              chainId: resolvedInitialChain,
+              name: partner?.name ?? fallbackChainDisplayName(forChain.map((b) => b.name)),
+              city: partner?.city ?? forChain[0]?.city ?? '',
+              logoSrc: partner?.logoSrc,
+              branchCount: forChain.length,
+              partner,
+            });
+          }
         }
       })
       .catch(() =>
@@ -246,7 +280,7 @@ export function BookAppointmentWizard({
         ),
       )
       .finally(() => setLoadingHospitals(false));
-  }, [initialBranchId]);
+  }, [initialBranchId, resolvedInitialChain]);
 
   React.useEffect(() => {
     if (!initialBranchId) return;
@@ -262,10 +296,38 @@ export function BookAppointmentWizard({
       .finally(() => setLoadingDepartments(false));
   }, [initialBranchId]);
 
-  const selectHospital = async (id: string) => {
-    const hospital = hospitals.find((h) => h.id === id);
+  const selectChain = (option: HospitalChainOption) => {
+    setSelectedChain(option);
+    setBranchId('');
+    setBranchName('');
+    setError('');
+  };
+
+  const clearSelectedChain = () => {
+    setSelectedChain(null);
+    setBranchId('');
+    setBranchName('');
+    setError('');
+  };
+
+  const selectHospital = async (branch: PublicHospital | string) => {
+    const id = typeof branch === 'string' ? branch : branch.id;
+    const hospital =
+      typeof branch === 'string' ? hospitals.find((h) => h.id === id) : branch;
     setBranchId(id);
     setBranchName(hospital?.name ?? '');
+    if (hospital && !selectedChain) {
+      const partner = partnerHospitalByChainId(hospital.hospitalChainId);
+      const siblings = hospitals.filter((h) => h.hospitalChainId === hospital.hospitalChainId);
+      setSelectedChain({
+        chainId: hospital.hospitalChainId,
+        name: partner?.name ?? fallbackChainDisplayName(siblings.map((b) => b.name)),
+        city: partner?.city ?? hospital.city,
+        logoSrc: partner?.logoSrc,
+        branchCount: siblings.length || 1,
+        partner,
+      });
+    }
     setDepartmentId('');
     setSubDepartmentId('');
     setDoctorId('');
@@ -351,10 +413,16 @@ export function BookAppointmentWizard({
     setStep('5A');
   };
 
-  const canGoBack = stepIndex(step) > stepIndex(minStep) && step !== 7;
+  const canClearChain = step === 1 && Boolean(selectedChain) && !initialBranchId;
+  const canGoBack =
+    step !== 7 && (stepIndex(step) > stepIndex(minStep) || canClearChain);
 
   const goBack = () => {
-    if (!canGoBack) return;
+    if (canClearChain) {
+      clearSelectedChain();
+      return;
+    }
+    if (!(stepIndex(step) > stepIndex(minStep))) return;
     let prev = STEP_ORDER[stepIndex(step) - 1];
     // The profile step is only for visitors who are not signed in yet.
     if (prev === 5 && getVisitorToken()) prev = 4;
@@ -718,6 +786,8 @@ export function BookAppointmentWizard({
             <>
               <p className="text-sm text-muted-foreground">
                 Step {stepLabel} of {totalSteps}
+                {step === 1 && !selectedChain && ' · Choose hospital'}
+                {step === 1 && selectedChain && ' · Choose centre'}
                 {step === 5 && ' · Create your profile'}
                 {isVisitDetailsStep && ' · Visit details'}
               </p>
@@ -735,8 +805,11 @@ export function BookAppointmentWizard({
               </div>
             </>
           )}
-          {initialBranchId && branchName && step !== 7 && (
-            <p className="text-sm text-primary font-medium">{branchName}</p>
+          {(initialBranchId || branchName) && step !== 7 && step !== 1 && (
+            <p className="text-sm text-primary font-medium">
+              {selectedChain ? `${selectedChain.name} · ` : ''}
+              {branchName}
+            </p>
           )}
         </CardHeader>
         <CardContent className="space-y-4">
@@ -744,24 +817,22 @@ export function BookAppointmentWizard({
 
           {step === 1 && (
             <div className="space-y-2">
-              <Label>Select Hospital Location</Label>
               {loadingHospitals && (
                 <ConnitorLoader variant="section" message="Loading hospitals…" className="min-h-[50vh]" />
               )}
-              {!loadingHospitals && hospitals.length === 0 && !error && (
-                <p className="text-sm text-muted-foreground">No hospitals available for booking.</p>
+              {!loadingHospitals && !selectedChain && (
+                <HospitalChainPicker hospitals={hospitals} onSelectChain={selectChain} />
               )}
-              {hospitals.map((h) => (
-                <Button
-                  key={h.id}
-                  variant="outline"
-                  className="h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug max-lg:min-h-12 max-lg:rounded-xl"
-                  disabled={Boolean(fetchingNext)}
-                  onClick={() => void selectHospital(h.id)}
-                >
-                  {h.name} — {h.city}
-                </Button>
-              ))}
+              {!loadingHospitals && selectedChain && (
+                <ChainBranchPicker
+                  chainId={selectedChain.chainId}
+                  displayName={selectedChain.name}
+                  logoSrc={selectedChain.logoSrc}
+                  bookButtonClassName={selectedChain.partner?.accentClassName}
+                  onBack={clearSelectedChain}
+                  onSelectBranch={(branch) => void selectHospital(branch)}
+                />
+              )}
             </div>
           )}
 

@@ -43,7 +43,24 @@ const hospitals: Hospital[] = [
     initial: 'O',
     image: '/images/ovum-hospital-logo.png',
     logoImage: '/images/ovum-hospital-logo.png',
-    bookHref: '/book-appointment/ovum/',
+    bookHref: '/book-appointment/?chain=ovum',
+  },
+  {
+    name: 'Kauvery Hospital',
+    city: 'Bengaluru',
+    beds: '2 Centres',
+    years: 25,
+    specialties: ['Cardiology', 'Orthopaedics', 'Multi-specialty'],
+    accreditations: ['NABH ACCREDITED', 'MULTI-SPECIALITY'],
+    rating: 4.8,
+    tier: 'PARTNER',
+    slotsLabel: 'Book at your centre',
+    slotsAvailable: ['9:00 AM', '10:30 AM', '12:00 PM', '3:00 PM', '5:00 PM'],
+    bookedSlots: ['11:00 AM', '4:00 PM'],
+    initial: 'K',
+    image: '/images/kauvery-hospital-logo.png',
+    logoImage: '/images/kauvery-hospital-logo.png',
+    bookHref: '/book-appointment/?chain=kauvery',
   },
   {
     name: 'Apollo Hospitals',
@@ -196,20 +213,25 @@ export default function HospitalsSection() {
                   }
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 to-transparent" />
+                {!h.logoImage && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 to-transparent" />
+                )}
 
                 <div className="absolute right-3 top-3 flex flex-col gap-1.5">
                   <span className="inline-flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-xs font-medium backdrop-blur-sm">
-                    <Bed className="h-3 w-3" /> {h.beds} Beds
+                    <Bed className="h-3 w-3" /> {h.beds}
+                    {h.logoImage ? '' : ' Beds'}
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-xs font-medium backdrop-blur-sm">
                     <Calendar className="h-3 w-3" /> {h.years} Years
                   </span>
                 </div>
 
-                <div className="absolute bottom-3 left-3 flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-lg font-bold text-secondary-foreground">
-                  {h.initial}
-                </div>
+                {!h.logoImage && (
+                  <div className="absolute bottom-3 left-3 flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-lg font-bold text-secondary-foreground">
+                    {h.initial}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3 p-5">

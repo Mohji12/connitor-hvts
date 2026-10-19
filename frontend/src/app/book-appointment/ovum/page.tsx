@@ -1,13 +1,15 @@
 'use client';
 
-import { OvumBranchPicker } from '@/features/book-appointment/OvumBranchPicker';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { ConnitorLoader } from '@/components/ConnitorLoader';
 
+/** Legacy deep link — shared booking flow with Ovum pre-selected. */
 export default function OvumBookAppointmentPage() {
-  return (
-    <div className="min-h-screen bg-[#F7F9FC] p-4 md:p-8">
-      <div className="mx-auto max-w-lg">
-        <OvumBranchPicker />
-      </div>
-    </div>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/book-appointment/?chain=ovum');
+  }, [router]);
+
+  return <ConnitorLoader variant="section" message="Opening Ovum booking…" className="min-h-[70vh]" />;
 }

@@ -3,7 +3,7 @@ export const OVUM_CHAIN_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa01';
 
 export const OVUM_CHAIN_DISPLAY_NAME = 'Ovum Hospitals';
 
-export const OVUM_BOOK_PATH = '/book-appointment/ovum/';
+export const OVUM_BOOK_PATH = '/book-appointment/?chain=ovum';
 
 export const OVUM_ADMIN_EMAIL_DOMAIN = 'ovum.conninter.com';
 
