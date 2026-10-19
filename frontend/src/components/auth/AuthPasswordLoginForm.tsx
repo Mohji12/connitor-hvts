@@ -21,7 +21,6 @@ import {
 } from '@/lib/auth-routing';
 import { findDeliveryPortal, findRolePortal, isPortalRole } from '@/lib/role-portals';
 import { Badge } from '@/components/ui/badge';
-
 import {
   Card,
   CardContent,
@@ -39,6 +38,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { appSafeHomeHref } from '@/lib/native-home-guard';
+import { isNativeApp } from '@/lib/platform';
+import { cn } from '@/lib/utils';
 
 const LoginFormSchema = z.object({
   email: z.string().email('Enter a valid email address.'),
@@ -47,18 +49,18 @@ const LoginFormSchema = z.object({
 
 function LoginFormSkeleton() {
   return (
-    <Card className="w-full max-w-lg h-auto min-h-[500px] shadow-xl flex flex-col justify-between border-[#001B71]/08">
-      <CardHeader className="text-center space-y-6">
+    <Card className="flex w-full max-w-lg flex-col border-[#001B71]/08 shadow-xl">
+      <CardHeader className="space-y-3 text-center sm:space-y-6">
         <div className="flex justify-center">
-          <div className="h-20 w-[220px] rounded-md bg-muted animate-pulse" />
+          <div className="h-12 w-[180px] animate-pulse rounded-md bg-muted sm:h-20 sm:w-[220px]" />
         </div>
-        <div className="h-9 w-48 mx-auto rounded bg-muted animate-pulse" />
-        <div className="h-5 w-full max-w-sm mx-auto rounded bg-muted animate-pulse" />
+        <div className="mx-auto h-7 w-40 animate-pulse rounded bg-muted sm:h-9 sm:w-48" />
+        <div className="mx-auto h-4 w-full max-w-sm animate-pulse rounded bg-muted" />
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
-        <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
-        <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
+      <CardContent className="space-y-3 sm:space-y-6">
+        <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
+        <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
+        <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
       </CardContent>
     </Card>
   );
@@ -72,6 +74,8 @@ type AuthPasswordLoginFormProps = {
 export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps = {}) {
   const [mounted, setMounted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [homeHref, setHomeHref] = useState('/');
+  const [nativeShell, setNativeShell] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -86,6 +90,8 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
 
   useEffect(() => {
     setMounted(true);
+    setHomeHref(appSafeHomeHref());
+    setNativeShell(isNativeApp());
   }, []);
 
   useEffect(() => {
@@ -138,23 +144,28 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
   };
 
   return (
-    <Card className="w-full max-w-lg h-auto min-h-[500px] shadow-xl flex flex-col justify-between border-[#001B71]/08">
-      <CardHeader className="text-center space-y-6">
+    <Card
+      className={cn(
+        'flex w-full max-w-lg flex-col border-[#001B71]/08 shadow-xl',
+        'max-sm:shadow-md',
+      )}
+    >
+      <CardHeader className="space-y-2 px-4 pb-2 pt-4 text-center sm:space-y-4 sm:p-6">
         <div className="flex justify-center">
           <Image
             src="/images/conninter-logo.png"
             alt="Conninter Logo"
             width={220}
             height={80}
-            className="h-auto w-[220px]"
+            className="h-auto w-[160px] sm:w-[200px]"
             priority
           />
         </div>
 
-        <CardTitle className="text-3xl font-bold">
+        <CardTitle className="text-xl font-bold sm:text-3xl">
           {portalLabel ? `Sign in — ${portalLabel}` : 'Sign in'}
         </CardTitle>
-        <CardDescription className="text-lg">
+        <CardDescription className="text-sm sm:text-base">
           {rolePortal
             ? `Use your work email and password to open the ${rolePortal.label.toLowerCase()} dashboard.`
             : deliveryPortal
@@ -162,26 +173,26 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
               : 'Use your hospital login ID (work email) and password to access your dashboard.'}
         </CardDescription>
         {rolePortal ? (
-          <Badge variant="secondary" className="mx-auto w-fit">
+          <Badge variant="secondary" className="mx-auto w-fit max-sm:hidden">
             After login → {rolePortal.dashboardPath.split('?')[0]}
           </Badge>
         ) : deliveryPortal ? (
-          <Badge variant="secondary" className="mx-auto w-fit">
+          <Badge variant="secondary" className="mx-auto w-fit max-sm:hidden">
             After login → {deliveryPortal.dashboardPath}
           </Badge>
         ) : null}
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4 pb-4 pt-0 sm:p-6 sm:pt-0">
         {error && (
           <div
             data-testid="login-error"
-            className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md mb-4"
+            className="mb-3 rounded-md border border-red-200 bg-red-50 p-2.5 text-sm text-red-600"
           >
             {error}
           </div>
         )}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 sm:space-y-5">
             <FormField
               control={form.control}
               name="email"
@@ -196,6 +207,7 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
                         rolePortal?.demoEmail ?? deliveryPortal?.demoEmail ?? 'you@hospital.com'
                       }
                       autoComplete="username"
+                      className="h-11"
                       {...field}
                       disabled={isSubmitting}
                     />
@@ -217,6 +229,7 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Enter your password"
                         autoComplete="current-password"
+                        className="h-11 pr-11"
                         {...field}
                         disabled={isSubmitting}
                       />
@@ -251,7 +264,7 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
             <Button
               type="submit"
               data-testid="login-submit"
-              className="w-full cursor-pointer"
+              className="h-11 w-full cursor-pointer"
               disabled={isSubmitting}
               variant="default"
             >
@@ -317,29 +330,31 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
                 </div>
               </div>
             ) : null}
-            <p className="text-center text-sm text-muted-foreground pt-2">
-              <Link href="/" className="text-primary hover:underline font-medium">
-                ← Back to home
+            <p className="pt-0.5 text-center text-xs text-muted-foreground sm:text-sm">
+              {!nativeShell ? (
+                <>
+                  <Link href={homeHref} className="font-medium text-primary hover:underline">
+                    ← Back to home
+                  </Link>
+                  {' · '}
+                </>
+              ) : null}
+              <Link href="/portal" className="font-medium text-primary hover:underline">
+                Visitor sign in
               </Link>
               {' · '}
-              <Link href="/portal" className="text-primary hover:underline font-medium">
-                Visitor sign in
+              <Link href="/auth/login-otp" className="font-medium text-primary hover:underline">
+                Email OTP
               </Link>
             </p>
             {deliveryPortal?.id === 'DISTRIBUTOR' ? (
-              <p className="text-center text-sm text-muted-foreground">
+              <p className="text-center text-xs text-muted-foreground sm:text-sm">
                 New distributor?{' '}
-                <Link href="/vendor/register" className="text-amber-700 hover:underline font-medium">
+                <Link href="/vendor/register" className="font-medium text-amber-700 hover:underline">
                   Apply to onboard
                 </Link>
               </p>
             ) : null}
-            <p className="text-center text-sm text-muted-foreground">
-              Prefer OTP?{' '}
-              <Link href="/auth/login-otp" className="text-primary hover:underline font-medium">
-                Sign in with email OTP
-              </Link>
-            </p>
           </form>
         </Form>
       </CardContent>
