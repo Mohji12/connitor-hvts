@@ -16,6 +16,9 @@ interface MobileListCardProps {
   meta?: MobileListMeta[];
   actions?: React.ReactNode;
   href?: string;
+  prefetch?: boolean;
+  /** Full page load — needed for static-export dynamic routes rewritten on Vercel. */
+  hardNavigation?: boolean;
   onClick?: () => void;
   selected?: boolean;
   disabled?: boolean;
@@ -31,6 +34,8 @@ export function MobileListCard({
   meta,
   actions,
   href,
+  prefetch,
+  hardNavigation,
   onClick,
   selected,
   disabled,
@@ -75,8 +80,15 @@ export function MobileListCard({
   );
 
   if (href) {
+    if (hardNavigation) {
+      return (
+        <a href={href} className={classes}>
+          {body}
+        </a>
+      );
+    }
     return (
-      <Link href={href} className={classes}>
+      <Link href={href} prefetch={prefetch} className={classes}>
         {body}
       </Link>
     );

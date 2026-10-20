@@ -9,11 +9,21 @@ import { formatIstDateTime } from '@/lib/datetime';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeliveryPageShell, DeliveryStatusBadge } from '@/features/delivery-management/ui';
+import { hospitalDeliveryIdFromLocation } from '@/lib/static-export-route';
 
 export default function HospitalDeliveryDetailPage(): React.ReactElement {
   const params = useParams();
-  const id = String(params.id ?? '');
+  const [id, setId] = React.useState(() =>
+    hospitalDeliveryIdFromLocation(
+      typeof window === 'undefined' ? '' : window.location.pathname,
+      params.id,
+    ),
+  );
   const [delivery, setDelivery] = React.useState<Record<string, unknown> | null>(null);
+
+  React.useEffect(() => {
+    setId(hospitalDeliveryIdFromLocation(window.location.pathname, params.id));
+  }, [params.id]);
 
   React.useEffect(() => {
     if (!id) return;

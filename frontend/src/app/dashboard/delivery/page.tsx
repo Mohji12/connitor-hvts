@@ -141,7 +141,8 @@ export default function DeliveryDashboardPage(): React.ReactElement {
               {filtered.map((d) => (
                 <li key={d.id}>
                   <MobileListCard
-                    href={`/dashboard/delivery/${d.id}`}
+                    href={`/dashboard/delivery/${d.id}/`}
+                    hardNavigation
                     title={d.deliveryNumber}
                     subtitle={d.vendorName ?? '—'}
                     status={<DeliveryStatusBadge status={d.status} />}
@@ -177,12 +178,12 @@ export default function DeliveryDashboardPage(): React.ReactElement {
                   {filtered.map((d) => (
                     <tr key={d.id} className="hover:bg-amber-50/40">
                       <td className="py-3 pr-3">
-                        <Link
-                          href={`/dashboard/delivery/${d.id}`}
+                        <a
+                          href={`/dashboard/delivery/${d.id}/`}
                           className="font-medium text-teal-800 underline-offset-2 hover:underline"
                         >
                           {d.deliveryNumber}
-                        </Link>
+                        </a>
                       </td>
                       <td className="py-3 pr-3">{d.vendorName ?? '—'}</td>
                       <td className="py-3 pr-3">

@@ -35,6 +35,22 @@
       "destination": "/attendant-pass/apply/index.html"
     },
     {
+      "source": "/vendor/deliveries/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/",
+      "destination": "/vendor/deliveries/_/index.html"
+    },
+    {
+      "source": "/vendor/deliveries/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+      "destination": "/vendor/deliveries/_/index.html"
+    },
+    {
+      "source": "/dashboard/delivery/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/",
+      "destination": "/dashboard/delivery/_/index.html"
+    },
+    {
+      "source": "/dashboard/delivery/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+      "destination": "/dashboard/delivery/_/index.html"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

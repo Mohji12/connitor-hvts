@@ -91,7 +91,8 @@ export default function VendorDeliveriesPage(): React.ReactElement {
         {items.map((d) => (
           <li key={d.id}>
             <MobileListCard
-              href={`/vendor/deliveries/${d.id}`}
+              href={`/vendor/deliveries/${d.id}/`}
+              hardNavigation
               title={d.deliveryNumber}
               subtitle={
                 <>
@@ -153,8 +154,8 @@ export default function VendorDeliveriesPage(): React.ReactElement {
             <ul className="divide-y divide-slate-100">
               {items.map((d) => (
                 <li key={d.id}>
-                  <Link
-                    href={`/vendor/deliveries/${d.id}`}
+                  <a
+                    href={`/vendor/deliveries/${d.id}/`}
                     className="flex flex-wrap items-center justify-between gap-3 py-3 transition-colors hover:bg-[#4A90E2]/08"
                   >
                     <div>
@@ -172,7 +173,7 @@ export default function VendorDeliveriesPage(): React.ReactElement {
                       ) : null}
                     </div>
                     <DeliveryStatusBadge status={d.status} />
-                  </Link>
+                  </a>
                 </li>
               ))}
             </ul>

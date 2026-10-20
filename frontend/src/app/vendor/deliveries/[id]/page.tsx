@@ -15,12 +15,22 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeliveryPageShell, DeliveryStatusBadge } from '@/features/delivery-management/ui';
+import { vendorDeliveryIdFromLocation } from '@/lib/static-export-route';
 
 export default function VendorDeliveryDetailPage(): React.ReactElement {
   const params = useParams();
-  const id = String(params.id ?? '');
+  const [id, setId] = React.useState(() =>
+    vendorDeliveryIdFromLocation(
+      typeof window === 'undefined' ? '' : window.location.pathname,
+      params.id,
+    ),
+  );
   const [delivery, setDelivery] = React.useState<Record<string, unknown> | null>(null);
   const cached = id ? getCachedDeliveryPass(id) : null;
+
+  React.useEffect(() => {
+    setId(vendorDeliveryIdFromLocation(window.location.pathname, params.id));
+  }, [params.id]);
 
   React.useEffect(() => {
     if (!id) return;
