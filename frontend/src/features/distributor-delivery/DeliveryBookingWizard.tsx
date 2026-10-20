@@ -328,7 +328,6 @@ export function DeliveryBookingWizard(): React.ReactElement {
 
   const canReview = (): boolean => {
     if (!branchId || !vehicleCategory) return false;
-    if (selectedBranch?.approvalStatus !== 'APPROVED') return false;
     if (useUnscheduled) {
       if (!expectedArrivalTime) return false;
     } else if (!slotId) {
@@ -584,37 +583,29 @@ export function DeliveryBookingWizard(): React.ReactElement {
           </CardHeader>
           <CardContent className="space-y-6">
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-800">Hospital & trip</h3>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <h3 className="text-sm font-semibold text-slate-800">Hospital & slot</h3>
+              <p className="text-xs text-muted-foreground">
+                Pick the hospital for this trip, then a delivery window that hospital has allotted.
+                Your company profile does not lock you to one hospital.
+              </p>
+              <div className="grid gap-3 lg:grid-cols-2">
                 <div>
                   <Label>Hospital</Label>
                   <Select
                     value={branchId || undefined}
                     onValueChange={(id) => {
-                      void (async () => {
-                        const branch = branches.find((b) => b.id === id);
-                        if (!branch) return;
-                        if (branch.approvalStatus === 'APPROVED') {
-                          setBranchId(id);
-                          return;
-                        }
-                        if (branch.approvalStatus === 'PENDING') {
-                          toast.message('Waiting for this hospital to approve your access');
-                          setBranchId('');
-                          return;
-                        }
-                        try {
-                          await DistributorDeliveryService.requestBranchAccess(id);
-                          const refreshed = await DistributorDeliveryService.listBranches();
-                          setBranches(refreshed);
-                          toast.success(
-                            'Access requested. You can book here after the hospital approves.',
-                          );
-                          setBranchId('');
-                        } catch {
-                          toast.error('Could not request access to this hospital');
-                        }
-                      })();
+                      const branch = branches.find((b) => b.id === id);
+                      if (!branch) return;
+                      if (branch.approvalStatus === 'REJECTED') {
+                        toast.error('This hospital declined deliveries from your company');
+                        return;
+                      }
+                      setBranchId(id);
+                      setSlotId('');
+                      void DistributorDeliveryService.requestBranchAccess(id)
+                        .then(() => DistributorDeliveryService.listBranches())
+                        .then(setBranches)
+                        .catch(() => undefined);
                     }}
                   >
                     <SelectTrigger>
@@ -622,26 +613,24 @@ export function DeliveryBookingWizard(): React.ReactElement {
                     </SelectTrigger>
                     <SelectContent>
                       {branches.map((b) => {
-                        const status =
-                          b.approvalStatus === 'APPROVED'
-                            ? 'Approved'
-                            : b.approvalStatus === 'PENDING'
-                              ? 'Pending approval'
-                              : 'Tap to request access';
+                        const chain = b.hospitalChainName ? `${b.hospitalChainName} · ` : '';
+                        const declined = b.approvalStatus === 'REJECTED';
                         return (
-                          <SelectItem key={b.id} value={b.id}>
-                            {b.name} — {b.city}
-                            <span className="ml-1 text-xs text-muted-foreground">({status})</span>
+                          <SelectItem key={b.id} value={b.id} disabled={declined}>
+                            {chain}
+                            {b.name}
+                            {b.city ? ` (${b.city})` : ''}
+                            {declined ? ' — declined' : ''}
                           </SelectItem>
                         );
                       })}
                     </SelectContent>
                   </Select>
-                  {selectedBranch?.approvalStatus === 'APPROVED' && (
+                  {selectedBranch ? (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Approved for deliveries at this hospital.
+                      Slots below are only those allotted by {selectedBranch.name}.
                     </p>
-                  )}
+                  ) : null}
                 </div>
                 <div>
                   <Label>PO Number</Label>
@@ -704,18 +693,24 @@ export function DeliveryBookingWizard(): React.ReactElement {
                 </div>
               ) : (
                 <div>
-                  <Label>Delivery window</Label>
+                  <Label>Slot allotted by this hospital</Label>
                   <p className="mb-1.5 text-xs text-muted-foreground">
                     Your unload needs ~{feePreview?.slotMinutes ?? 10} min. Remaining time stays
                     open for other distributors.
                   </p>
-                  <Select value={slotId} onValueChange={setSlotId} disabled={slots.length === 0}>
+                  <Select
+                    value={slotId}
+                    onValueChange={setSlotId}
+                    disabled={!branchId || slots.length === 0}
+                  >
                     <SelectTrigger>
                       <SelectValue
                         placeholder={
-                          slots.length === 0
-                            ? 'No open windows for this date'
-                            : 'Select hospital window'
+                          !branchId
+                            ? 'Choose a hospital first'
+                            : slots.length === 0
+                              ? 'No allotted windows for this date'
+                              : 'Select allotted slot'
                         }
                       />
                     </SelectTrigger>
@@ -730,11 +725,11 @@ export function DeliveryBookingWizard(): React.ReactElement {
                       ))}
                     </SelectContent>
                   </Select>
-                  {slots.length === 0 && (
+                  {Boolean(branchId) && slots.length === 0 && (
                     <div className="mt-2 space-y-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                       <p>
-                        No delivery windows left for this date (they may have ended, or hospital has
-                        not published any).
+                        No delivery windows left for this date (they may have ended, or this
+                        hospital has not allotted any slots).
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <Button

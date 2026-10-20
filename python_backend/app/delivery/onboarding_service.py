@@ -584,9 +584,12 @@ class DistributorOnboardingService:
         }
 
     def can_book(self, dist: Distributor) -> bool:
-        if dist.verificationStatus != "APPROVED":
+        if not dist.isActive:
             return False
-        return any(m.approvalStatus == "APPROVED" for m in (dist.branchMappings or []))
+        if dist.verificationStatus == "REJECTED":
+            return False
+        # Hospital is chosen at booking from that hospital's allotted slots.
+        return True
 
     def get_me(self, user: dict) -> dict:
         dist_id = user.get("distributorId")

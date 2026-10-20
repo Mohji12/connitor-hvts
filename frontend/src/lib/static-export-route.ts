@@ -56,3 +56,14 @@ export function hospitalDeliveryIdFromLocation(
     'vendors',
   ]);
 }
+
+export function visitorVisitIdFromLocation(
+  pathname: string,
+  param?: string | string[] | null,
+): string {
+  return resolveStaticExportParam(pathname, '/visitor/visits', param, [STATIC_EXPORT_PLACEHOLDER]);
+}
+
+export function visitorVisitPath(bookingId: string): string {
+  return `/visitor/visits/${encodeURIComponent(bookingId)}/`;
+}

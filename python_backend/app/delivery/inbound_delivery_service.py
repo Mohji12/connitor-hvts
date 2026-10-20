@@ -227,18 +227,24 @@ class InboundDeliveryService:
             raise bad_request("Distributor not found")
         if vendor.verificationStatus == "REJECTED":
             raise bad_request("This distributor profile was rejected")
+        if not vendor.isActive:
+            raise bad_request("This distributor profile is inactive")
 
-        mapping = (
-            self.db.query(VendorBranchMapping)
-            .filter(
-                VendorBranchMapping.vendorId == vendor_id,
-                VendorBranchMapping.branchId == branch_id,
-                VendorBranchMapping.approvalStatus == "APPROVED",
+        agent_svc = AgentVehicleService(self.db)
+        if user.get("role") == "DISTRIBUTOR":
+            agent_svc.ensure_booking_mapping(user, branch_id, commit=False)
+        else:
+            mapping = (
+                self.db.query(VendorBranchMapping)
+                .filter(
+                    VendorBranchMapping.vendorId == vendor_id,
+                    VendorBranchMapping.branchId == branch_id,
+                    VendorBranchMapping.approvalStatus == "APPROVED",
+                )
+                .first()
             )
-            .first()
-        )
-        if not mapping:
-            raise bad_request("Distributor is not approved for this hospital branch")
+            if not mapping:
+                raise bad_request("Distributor is not approved for this hospital branch")
 
         packages = data.get("packages") or []
         vehicle_payload = data.get("vehicle") if isinstance(data.get("vehicle"), dict) else {}
@@ -271,7 +277,6 @@ class InboundDeliveryService:
             if total_boxes < 1:
                 raise bad_request("totalBoxes must be at least 1")
 
-        agent_svc = AgentVehicleService(self.db)
         vehicle_input = data.get("vehicle") or data.get("vehicleId")
         if isinstance(vehicle_input, dict) and vehicle_category and not vehicle_input.get("vehicleType"):
             vehicle_input = {**vehicle_input, "vehicleType": vehicle_category}

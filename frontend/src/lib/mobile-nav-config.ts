@@ -327,6 +327,7 @@ export function getMobilePageTitle(
   const exact = all.find((item) => normalizePath(item.href.split('?')[0]) === path);
   if (exact) return exact.label;
   if (/^\/(dashboard|vendor)\/deliver(y|ies)\/[^/]+$/.test(path)) return 'Delivery details';
+  if (/^\/visitor\/visits\/[^/]+$/.test(path)) return 'Visit details';
   const owner = findActiveHref(all, pathname, search);
   const ownerItem = all.find((item) => item.href === owner);
   return ownerItem?.label ?? 'Conninter';

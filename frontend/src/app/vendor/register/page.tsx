@@ -787,8 +787,8 @@ export default function VendorRegisterPage(): React.ReactElement {
             {step === 5 && (
               <div className="space-y-5">
                 <p className="rounded-lg border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                  Choose which hospital to deliver to when you book a delivery — after your
-                  account is approved, request access from the booking screen.
+                  Do not pick a hospital here. After you sign in, choose the hospital and a
+                  delivery slot that hospital has allotted when you book a trip.
                 </p>
                 <div className="space-y-2">
                   <Label>Supply categories</Label>

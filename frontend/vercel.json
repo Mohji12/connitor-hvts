@@ -51,6 +51,14 @@
       "destination": "/dashboard/delivery/_/index.html"
     },
     {
+      "source": "/visitor/visits/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/",
+      "destination": "/visitor/visits/_/index.html"
+    },
+    {
+      "source": "/visitor/visits/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+      "destination": "/visitor/visits/_/index.html"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

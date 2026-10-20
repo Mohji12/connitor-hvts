@@ -409,7 +409,8 @@ export default function VendorProfilePage(): React.ReactElement {
           <CardContent>
             {!profile.branchMappings?.length ? (
               <p className="text-sm text-muted-foreground">
-                Request hospital access from Book delivery. Approvals show here.
+                Hospitals are not selected on this profile. Choose the hospital and its allotted
+                slot when you book a delivery.
               </p>
             ) : (
               <ul className="space-y-2">

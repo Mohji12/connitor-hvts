@@ -11,6 +11,10 @@ export interface VisitorAppointment {
   bookingId: string;
   status: string;
   purpose: string | null;
+  itemsCarrying?: string | null;
+  visitorType?: string | null;
+  companyName?: string | null;
+  appointmentMode?: string | null;
   appointmentDate: string | null;
   doctorName: string | null;
   doctorFeedback: string | null;
@@ -19,10 +23,12 @@ export interface VisitorAppointment {
   checkInTime: string | null;
   checkOutTime: string | null;
   totalDurationMinutes: number | null;
+  hospitalChainName?: string | null;
   branchName: string | null;
   departmentName: string | null;
   subDepartmentName: string | null;
   createdAt: string | null;
+  meetingJoinUrl?: string | null;
   checkInQrCode?: string | null;
   checkInOtp?: string | null;
   checkInOtpExpiry?: string | null;
@@ -61,5 +67,10 @@ export const VisitorPortalService = {
   async getAppointments(): Promise<VisitorDashboardData> {
     const response = await apiClient.get('/api/public/visitor-portal/appointments');
     return response.data;
+  },
+
+  async getAppointment(bookingId: string): Promise<VisitorAppointment | null> {
+    const data = await this.getAppointments();
+    return data.appointments.find((item) => item.bookingId === bookingId) ?? null;
   },
 };

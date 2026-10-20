@@ -4,7 +4,7 @@
 
 ## Goal
 
-A distributor applies with legal, tax, address, compliance, and hospital-branch details. Connitor creates a pending vendor + login. Hospital staff reviews documents and approves branch mappings before delivery booking is allowed.
+A distributor applies with legal, tax, address, and compliance details — not a hospital. Conninter creates a vendor + login. The distributor chooses the hospital (and a slot that hospital allotted) when booking a delivery.
 
 ## Wizard (5 steps)
 
@@ -57,11 +57,11 @@ A distributor applies with legal, tax, address, compliance, and hospital-branch 
 | CDSCO / device cert | MEDICAL_DEVICES |
 | FSSAI | CATERING_FSSAI |
 
-### Step 5 — Hospitals & operations
+### Step 5 — Operations (no hospital)
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| Hospital branches to serve | R | Multi-select → PENDING mappings |
+| Hospital | — | **Not collected here.** Chosen at `/vendor/deliveries/book` |
 | Supply categories | R | Checklist |
 | Delivery mode | R | Own fleet / third-party |
 | Primary goods description | R | |
@@ -72,8 +72,8 @@ A distributor applies with legal, tax, address, compliance, and hospital-branch 
 
 - `onboardingStatus`: SUBMITTED → UNDER_REVIEW → APPROVED / REJECTED
 - `verificationStatus`: PENDING → APPROVED / REJECTED (platform)
-- `VendorBranchMapping.approvalStatus`: PENDING → APPROVED (per branch)
-- Booking allowed only when platform **and** at least one branch are APPROVED
+- `VendorBranchMapping.approvalStatus`: created/approved when the distributor picks that hospital at booking
+- Booking allowed unless the profile is **REJECTED** or inactive; slot must belong to the chosen hospital
 
 ## Screens
 

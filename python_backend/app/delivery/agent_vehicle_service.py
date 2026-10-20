@@ -99,13 +99,18 @@ class AgentVehicleService:
             ]
         }
 
-    def request_branch_access(self, user: dict, branch_id: str) -> dict:
-        """Create a PENDING vendor–branch mapping so the hospital can approve booking access."""
+    def ensure_booking_mapping(self, user: dict, branch_id: str, *, commit: bool = True) -> VendorBranchMapping:
+        """Link the distributor to a hospital when they pick it at booking.
+
+        Hospital access is not chosen on the profile. Selecting a hospital (and a
+        slot that hospital allotted) creates or reactivates the mapping so booking
+        can proceed. A hospital that already rejected this vendor stays blocked.
+        """
         dist_id = self._distributor_id(user)
         branch = self.db.get(Branch, branch_id)
         if not branch:
             raise not_found("Hospital branch")
-        existing = (
+        mapping = (
             self.db.query(VendorBranchMapping)
             .filter(
                 VendorBranchMapping.vendorId == dist_id,
@@ -113,20 +118,27 @@ class AgentVehicleService:
             )
             .first()
         )
-        if existing:
-            return {
-                "mappingId": existing.id,
-                "branchId": branch_id,
-                "approvalStatus": existing.approvalStatus,
-            }
-        mapping = VendorBranchMapping(
-            vendorId=dist_id,
-            branchId=branch_id,
-            approvalStatus="PENDING",
-        )
-        self.db.add(mapping)
-        self.db.commit()
-        self.db.refresh(mapping)
+        if mapping:
+            if mapping.approvalStatus == "REJECTED":
+                raise bad_request("This hospital declined deliveries from your company")
+            if mapping.approvalStatus != "APPROVED":
+                mapping.approvalStatus = "APPROVED"
+        else:
+            mapping = VendorBranchMapping(
+                vendorId=dist_id,
+                branchId=branch_id,
+                approvalStatus="APPROVED",
+            )
+            self.db.add(mapping)
+            self.db.flush()
+        if commit:
+            self.db.commit()
+            self.db.refresh(mapping)
+        return mapping
+
+    def request_branch_access(self, user: dict, branch_id: str) -> dict:
+        """Select a hospital at booking time — mapping is created/approved immediately."""
+        mapping = self.ensure_booking_mapping(user, branch_id, commit=True)
         return {
             "mappingId": mapping.id,
             "branchId": branch_id,

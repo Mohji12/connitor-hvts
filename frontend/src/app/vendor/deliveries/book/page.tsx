@@ -9,7 +9,7 @@ export default function BookDeliveryPage(): React.ReactElement {
   return (
     <DeliveryPageShell
       title="Book delivery"
-      subtitle="Choose hospital, slot, goods, vehicle, and driver. The driver receives full instructions and QR by email."
+      subtitle="Choose the hospital, then a slot that hospital allotted. Add goods, vehicle, and driver — the driver gets the gate QR on WhatsApp."
       actions={
         <Button asChild variant="outline">
           <Link href="/vendor/deliveries">Back to deliveries</Link>

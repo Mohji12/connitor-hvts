@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.cache import _store
 from app.config import get_fixed_otp, get_settings, is_test_mode_enabled
-from app.models import Department, SubDepartment, Visit, Visitor, VisitorAccount
+from app.models import Branch, Department, SubDepartment, Visit, Visitor, VisitorAccount
 from app.models.enums import VisitStatus
 from app.services.messaging_service import EmailService
 from app.services.visitor_account_service import VisitorAccountService
@@ -120,6 +120,59 @@ class VisitorPortalService:
         token = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
         return {"access_token": token, "email": normalized, "name": payload["name"]}
 
+    @staticmethod
+    def _gate_pass_visible(status: str | None) -> bool:
+        return status in (VisitStatus.APPROVED.value, VisitStatus.CHECKED_IN.value)
+
+    def _serialize_visit(
+        self,
+        visit: Visit,
+        dept_names: dict[str, str | None],
+        sub_names: dict[str, str | None],
+    ) -> dict:
+        chain = visit.branch.hospitalChain if visit.branch else None
+        show_pass = self._gate_pass_visible(visit.status)
+        return {
+            "bookingId": visit.id,
+            "status": visit.status,
+            "purpose": visit.purpose,
+            "itemsCarrying": visit.itemsCarrying,
+            "visitorType": visit.visitorType,
+            "companyName": visit.companyName,
+            "appointmentMode": visit.appointmentMode,
+            "appointmentDate": visit.appointmentDate.isoformat() if visit.appointmentDate else None,
+            "doctorName": visit.staffName,
+            "doctorFeedback": visit.doctorFeedback,
+            "doctorFeedbackAt": visit.doctorFeedbackAt.isoformat() if visit.doctorFeedbackAt else None,
+            "rejectionReason": visit.rejectionReason,
+            "checkInTime": visit.checkInTime.isoformat() if visit.checkInTime else None,
+            "checkOutTime": visit.checkOutTime.isoformat() if visit.checkOutTime else None,
+            "totalDurationMinutes": visit.totalDurationMinutes,
+            "hospitalChainName": chain.name if chain else None,
+            "branchName": visit.branch.name if visit.branch else None,
+            "departmentName": dept_names.get(visit.departmentId),
+            "subDepartmentName": sub_names.get(visit.subDepartmentId),
+            "createdAt": visit.createdAt.isoformat() if visit.createdAt else None,
+            "meetingJoinUrl": visit.meetingJoinUrl if show_pass else None,
+            "checkInQrCode": visit.visitQRCode if show_pass and visit.visitQRCode else None,
+            "checkInOtp": visit.checkInOtp if show_pass else None,
+            "checkInOtpExpiry": visit.checkInOtpExpiry.isoformat()
+            if show_pass and visit.checkInOtpExpiry
+            else None,
+        }
+
+    def _dept_labels(self, visits: list[Visit]) -> tuple[dict[str, str | None], dict[str, str | None]]:
+        dept_names: dict[str, str | None] = {}
+        sub_names: dict[str, str | None] = {}
+        for visit in visits:
+            if visit.departmentId and visit.departmentId not in dept_names:
+                dept = self.db.get(Department, visit.departmentId)
+                dept_names[visit.departmentId] = dept.name if dept else None
+            if visit.subDepartmentId and visit.subDepartmentId not in sub_names:
+                sub = self.db.get(SubDepartment, visit.subDepartmentId)
+                sub_names[visit.subDepartmentId] = sub.name if sub else None
+        return dept_names, sub_names
+
     def list_appointments(self, email: str) -> dict:
         normalized = self._normalize_email(email)
         visits = (
@@ -127,7 +180,7 @@ class VisitorPortalService:
             .join(Visitor, Visit.visitorId == Visitor.id)
             .options(
                 joinedload(Visit.visitor),
-                joinedload(Visit.branch),
+                joinedload(Visit.branch).joinedload(Branch.hospitalChain),
                 joinedload(Visit.staff),
             )
             .filter(
@@ -138,46 +191,8 @@ class VisitorPortalService:
             .all()
         )
 
-        dept_names = {}
-        sub_names = {}
-        for visit in visits:
-            if visit.departmentId and visit.departmentId not in dept_names:
-                dept = self.db.get(Department, visit.departmentId)
-                dept_names[visit.departmentId] = dept.name if dept else None
-            if visit.subDepartmentId and visit.subDepartmentId not in sub_names:
-                sub = self.db.get(SubDepartment, visit.subDepartmentId)
-                sub_names[visit.subDepartmentId] = sub.name if sub else None
-
-        items = []
-        for visit in visits:
-            items.append(
-                {
-                    "bookingId": visit.id,
-                    "status": visit.status,
-                    "purpose": visit.purpose,
-                    "appointmentDate": visit.appointmentDate.isoformat() if visit.appointmentDate else None,
-                    "doctorName": visit.staffName,
-                    "doctorFeedback": visit.doctorFeedback,
-                    "doctorFeedbackAt": visit.doctorFeedbackAt.isoformat() if visit.doctorFeedbackAt else None,
-                    "rejectionReason": visit.rejectionReason,
-                    "checkInTime": visit.checkInTime.isoformat() if visit.checkInTime else None,
-                    "checkOutTime": visit.checkOutTime.isoformat() if visit.checkOutTime else None,
-                    "totalDurationMinutes": visit.totalDurationMinutes,
-                    "branchName": visit.branch.name if visit.branch else None,
-                    "departmentName": dept_names.get(visit.departmentId),
-                    "subDepartmentName": sub_names.get(visit.subDepartmentId),
-                    "createdAt": visit.createdAt.isoformat() if visit.createdAt else None,
-                    "checkInQrCode": visit.visitQRCode
-                    if visit.status == VisitStatus.APPROVED.value and visit.visitQRCode
-                    else None,
-                    "checkInOtp": visit.checkInOtp
-                    if visit.status == VisitStatus.APPROVED.value
-                    else None,
-                    "checkInOtpExpiry": visit.checkInOtpExpiry.isoformat()
-                    if visit.status == VisitStatus.APPROVED.value and visit.checkInOtpExpiry
-                    else None,
-                }
-            )
+        dept_names, sub_names = self._dept_labels(visits)
+        items = [self._serialize_visit(visit, dept_names, sub_names) for visit in visits]
 
         if visits:
             primary = visits[0].visitor
@@ -213,7 +228,7 @@ class VisitorPortalService:
             .join(Visitor, Visit.visitorId == Visitor.id)
             .options(
                 joinedload(Visit.visitor),
-                joinedload(Visit.branch),
+                joinedload(Visit.branch).joinedload(Branch.hospitalChain),
                 joinedload(Visit.staff),
             )
             .filter(
@@ -224,46 +239,8 @@ class VisitorPortalService:
             .all()
         )
 
-        dept_names: dict[str, str | None] = {}
-        sub_names: dict[str, str | None] = {}
-        for visit in visits:
-            if visit.departmentId and visit.departmentId not in dept_names:
-                dept = self.db.get(Department, visit.departmentId)
-                dept_names[visit.departmentId] = dept.name if dept else None
-            if visit.subDepartmentId and visit.subDepartmentId not in sub_names:
-                sub = self.db.get(SubDepartment, visit.subDepartmentId)
-                sub_names[visit.subDepartmentId] = sub.name if sub else None
-
-        items = []
-        for visit in visits:
-            items.append(
-                {
-                    "bookingId": visit.id,
-                    "status": visit.status,
-                    "purpose": visit.purpose,
-                    "appointmentDate": visit.appointmentDate.isoformat() if visit.appointmentDate else None,
-                    "doctorName": visit.staffName,
-                    "doctorFeedback": visit.doctorFeedback,
-                    "doctorFeedbackAt": visit.doctorFeedbackAt.isoformat() if visit.doctorFeedbackAt else None,
-                    "rejectionReason": visit.rejectionReason,
-                    "checkInTime": visit.checkInTime.isoformat() if visit.checkInTime else None,
-                    "checkOutTime": visit.checkOutTime.isoformat() if visit.checkOutTime else None,
-                    "totalDurationMinutes": visit.totalDurationMinutes,
-                    "branchName": visit.branch.name if visit.branch else None,
-                    "departmentName": dept_names.get(visit.departmentId),
-                    "subDepartmentName": sub_names.get(visit.subDepartmentId),
-                    "createdAt": visit.createdAt.isoformat() if visit.createdAt else None,
-                    "checkInQrCode": visit.visitQRCode
-                    if visit.status == VisitStatus.APPROVED.value and visit.visitQRCode
-                    else None,
-                    "checkInOtp": visit.checkInOtp
-                    if visit.status == VisitStatus.APPROVED.value
-                    else None,
-                    "checkInOtpExpiry": visit.checkInOtpExpiry.isoformat()
-                    if visit.status == VisitStatus.APPROVED.value and visit.checkInOtpExpiry
-                    else None,
-                }
-            )
+        dept_names, sub_names = self._dept_labels(visits)
+        items = [self._serialize_visit(visit, dept_names, sub_names) for visit in visits]
 
         profile = VisitorAccountService(self.db).get_preview(account_id)
         return {

@@ -1,6 +1,8 @@
 import {
   hospitalDeliveryIdFromLocation,
   vendorDeliveryIdFromLocation,
+  visitorVisitIdFromLocation,
+  visitorVisitPath,
 } from '@/lib/static-export-route';
 
 describe('static-export-route', () => {
@@ -20,5 +22,11 @@ describe('static-export-route', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     expect(hospitalDeliveryIdFromLocation(`/dashboard/delivery/${id}/`, '_')).toBe(id);
     expect(hospitalDeliveryIdFromLocation('/dashboard/delivery/vendors/', 'vendors')).toBe('');
+  });
+
+  it('reads a visitor visit UUID from the live URL after a static-export rewrite', () => {
+    const id = 'cbde6f99-8532-4345-8104-ea7b7135e3e5';
+    expect(visitorVisitIdFromLocation(`/visitor/visits/${id}/`, '_')).toBe(id);
+    expect(visitorVisitPath(id)).toBe(`/visitor/visits/${id}/`);
   });
 });

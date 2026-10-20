@@ -300,7 +300,7 @@ export default function DeliveryVendorsPage(): React.ReactElement {
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Can book</dt>
-                    <dd>{detail.canBookDeliveries ? 'Yes' : 'No — pending approvals'}</dd>
+                    <dd>{detail.canBookDeliveries ? 'Yes — hospital is chosen at booking' : 'No — profile rejected or inactive'}</dd>
                   </div>
                 </dl>
 

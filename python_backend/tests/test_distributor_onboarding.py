@@ -142,7 +142,7 @@ async def test_apply_creates_pending_distributor_user_wallet_mapping(db):
     assert mapping.approvalStatus == "PENDING"
 
 
-def test_book_delivery_blocked_when_verification_pending(db):
+def test_book_delivery_blocked_when_profile_rejected(db):
     branch = db.query(Branch).first()
     dist = Distributor(
         id=str(uuid.uuid4()),
@@ -150,7 +150,7 @@ def test_book_delivery_blocked_when_verification_pending(db):
         vendorName="Pending Vendor",
         vendorType="OTHER",
         isActive=True,
-        verificationStatus="PENDING",
+        verificationStatus="REJECTED",
     )
     db.add(dist)
     db.flush()
@@ -200,7 +200,7 @@ def test_book_delivery_blocked_when_verification_pending(db):
             },
         )
     assert ctx.value.status_code == 400
-    assert "not verified" in ctx.value.detail.lower()
+    assert "rejected" in ctx.value.detail.lower()
 
 
 def test_set_verification_approves_profile(db):

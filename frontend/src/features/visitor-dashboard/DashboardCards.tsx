@@ -9,6 +9,7 @@ import { StatusChip } from '@/components/mobile/StatusChip';
 import { formatIstDateTime } from '@/lib/datetime';
 import type { VisitorAppointment, VisitorDashboardData } from '@/lib/services/visitorPortalService';
 import type { VisitorWalletSummary } from '@/lib/services/visitorWalletService';
+import { visitorVisitPath } from '@/lib/static-export-route';
 import { GatePassButton } from './GatePassButton';
 import { doctorLabel, hasGatePass } from './visit-filters';
 
@@ -71,11 +72,14 @@ export function NextVisitCard({ item }: { item: VisitorAppointment | null }): Re
           </span>
         ) : null}
       </div>
-      <div className="relative mt-5">
+      <div className="relative mt-5 flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
+        <Button asChild variant="secondary" className="w-full bg-white text-[#001B71] hover:bg-white/90 lg:w-auto">
+          <a href={visitorVisitPath(item.bookingId)}>View details</a>
+        </Button>
         {hasGatePass(item) ? (
-          <div className="space-y-2">
-            <GatePassButton item={item} size="lg" className="w-full sm:w-auto sm:px-6" />
-            <p className="text-xs text-white/75">Gate pass is saved on this phone for the hospital gate.</p>
+          <div className="space-y-2 lg:space-y-0">
+            <GatePassButton item={item} size="lg" className="w-full lg:w-auto lg:px-6" />
+            <p className="text-xs text-white/75 lg:hidden">Gate pass is saved on this phone for the hospital gate.</p>
           </div>
         ) : item.status === 'REQUEST_SENT' ? (
           <p className="rounded-xl bg-white/12 px-3 py-2 text-sm text-white/90">

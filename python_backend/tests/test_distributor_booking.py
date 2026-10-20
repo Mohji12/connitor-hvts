@@ -345,6 +345,76 @@ def test_book_delivery_dummy_payment_zero_balance(db):
     assert float(debit.amount) == -49.0
 
 
+def test_selecting_hospital_at_booking_approves_mapping(db):
+    branch = db.query(Branch).first()
+    dist, user = _seed_vendor(db, branch.id)
+    db.query(VendorBranchMapping).filter(VendorBranchMapping.vendorId == dist.id).delete()
+    db.commit()
+    user_dict = {"id": user.id, "role": "DISTRIBUTOR", "distributorId": dist.id}
+    result = AgentVehicleService(db).request_branch_access(user_dict, branch.id)
+    assert result["approvalStatus"] == "APPROVED"
+    mapping = (
+        db.query(VendorBranchMapping)
+        .filter(VendorBranchMapping.vendorId == dist.id, VendorBranchMapping.branchId == branch.id)
+        .one()
+    )
+    assert mapping.approvalStatus == "APPROVED"
+
+
+def test_book_delivery_links_hospital_chosen_at_booking(db):
+    branch = db.query(Branch).first()
+    slot_start = now_ist() + timedelta(days=1)
+    slot = BranchDeliverySlot(
+        branchId=branch.id,
+        slotStart=slot_start,
+        slotEnd=slot_start + timedelta(hours=2),
+        maxDeliveries=4,
+        bookedCount=0,
+        isActive=True,
+    )
+    db.add(slot)
+    dist, user = _seed_vendor(db, branch.id)
+    db.query(VendorBranchMapping).filter(VendorBranchMapping.vendorId == dist.id).delete()
+    vehicle = DeliveryVehicle(
+        id=str(uuid.uuid4()),
+        distributorId=dist.id,
+        registrationNumber="KA01BOOK",
+        isActive=True,
+    )
+    agent = DeliveryAgent(
+        id=str(uuid.uuid4()),
+        distributorId=dist.id,
+        name="Driver Book",
+        email="driverbook@test.com",
+        phone="9111111111",
+        isActive=True,
+    )
+    db.add_all([vehicle, agent])
+    db.commit()
+    user_dict = {"id": user.id, "role": "DISTRIBUTOR", "distributorId": dist.id}
+    with patch.object(InboundDeliveryService, "_generate_qr"), patch(
+        "app.delivery.inbound_delivery_service.NotificationsService"
+    ):
+        result = InboundDeliveryService(db).book_delivery(
+            user_dict,
+            {
+                "branchId": branch.id,
+                "slotId": slot.id,
+                "packages": [{"packageType": "Small", "qty": 1}],
+                "vehicleCategory": "Bike",
+                "vehicleId": vehicle.id,
+                "agentId": agent.id,
+            },
+        )
+    assert result["status"] == "SCHEDULED"
+    mapping = (
+        db.query(VendorBranchMapping)
+        .filter(VendorBranchMapping.vendorId == dist.id, VendorBranchMapping.branchId == branch.id)
+        .one()
+    )
+    assert mapping.approvalStatus == "APPROVED"
+
+
 def test_bulk_create_slots(db):
     branch = db.query(Branch).first()
     admin = {"id": str(uuid.uuid4()), "role": "HOSPITAL_ADMIN", "branchId": branch.id}
