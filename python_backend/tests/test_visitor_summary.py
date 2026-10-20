@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import create_engine
@@ -113,3 +114,36 @@ def test_summary_includes_page_limit_and_data_rows(db) -> None:
     assert row["purpose"] == "Consultation"
     assert row["status"] == VisitStatus.APPROVED.value
     assert "visits" not in result
+
+
+def test_summary_filters_inclusive_custom_datetime_range(db) -> None:
+    visit = db.query(Visit).one()
+    visit.appointmentDate = now_ist().replace(hour=10, minute=0, second=0, microsecond=0)
+    db.commit()
+    day = visit.appointmentDate.strftime("%Y-%m-%d")
+    inside = VisitorsService(db).summary(
+        {"startDate": f"{day}T09:00", "endDate": f"{day}T11:00"},
+        _admin(db),
+    )
+    outside = VisitorsService(db).summary(
+        {"fromTime": f"{day}T11:30", "toTime": f"{day}T12:00"},
+        _admin(db),
+    )
+    assert inside["total"] == 1
+    assert outside["total"] == 0
+
+
+def test_summary_custom_range_includes_end_datetime(db) -> None:
+    visit = db.query(Visit).one()
+    visit.appointmentDate = now_ist().replace(hour=15, minute=0, second=0, microsecond=0)
+    db.commit()
+    earlier = visit.appointmentDate - timedelta(hours=2)
+    end = visit.appointmentDate
+    result = VisitorsService(db).summary(
+        {
+            "startDate": earlier.strftime("%Y-%m-%dT%H:%M"),
+            "endDate": end.strftime("%Y-%m-%dT%H:%M"),
+        },
+        _admin(db),
+    )
+    assert result["total"] == 1

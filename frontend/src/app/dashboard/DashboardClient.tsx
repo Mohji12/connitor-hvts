@@ -36,6 +36,7 @@ export default function DashboardClient({ user }: { user: User | null }) {
     case 'BRANCH_ADMIN':
       return <BranchAdminOverview />;
     case 'SECURITY':
+    case 'SECURITY_SUPERVISOR':
       return <SecurityOverview />;
     case 'STAFF':
       return <StaffOverview />;

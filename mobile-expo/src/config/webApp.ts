@@ -27,9 +27,13 @@ export const personaDefaultPaths = {
   attendant: webPaths.visitorPass,
 } as const;
 
-export function webUrl(path: string): string {
+export function webUrl(path: string, opts?: { cacheBust?: boolean }): string {
   const normalized = path.startsWith('/') ? path : `/${path}`;
-  return `${WEB_APP_ORIGIN}${normalized}`;
+  const url = new URL(`${WEB_APP_ORIGIN}${normalized}`);
+  if (opts?.cacheBust) {
+    url.searchParams.set('_cb', String(Date.now()));
+  }
+  return url.toString();
 }
 
 /** Turn a full Conninter URL into a path we can store / reopen. */
@@ -38,7 +42,10 @@ export function pathFromWebUrl(url: string): string | null {
     const parsed = new URL(url);
     const origin = new URL(WEB_APP_ORIGIN);
     if (parsed.origin !== origin.origin) return null;
-    return `${parsed.pathname}${parsed.search}` || '/';
+    parsed.searchParams.delete('_cb');
+    parsed.searchParams.delete('native');
+    const search = parsed.searchParams.toString();
+    return `${parsed.pathname}${search ? `?${search}` : ''}` || '/';
   } catch {
     return null;
   }

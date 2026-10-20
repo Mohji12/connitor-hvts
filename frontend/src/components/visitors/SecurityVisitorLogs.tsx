@@ -8,7 +8,6 @@ import useSWR from 'swr';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import {
-  Calendar as CalendarIcon,
   Check,
   LogIn,
   LogOut,
@@ -24,7 +23,8 @@ import {
 // API Services
 import { VisitorService } from '@/lib/services/visitorService';
 import { SecurityService } from '@/lib/services/securityService';
-import { cn } from '@/lib/utils';
+import { todayIstDateIso } from '@/lib/datetime';
+import { DateTimeRangeFilter, type DateTimeRange } from '@/components/filters/DateTimeRangeFilter';
 
 // Schemas and Types
 import {
@@ -38,7 +38,6 @@ import {
 // UI Components
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Calendar } from '@/components/ui/calendar';
 import {
   Dialog,
   DialogContent,
@@ -55,11 +54,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
@@ -832,8 +826,13 @@ const VisitorsTable = ({
 //================================================================//
 // MAIN PAGE COMPONENT                                            //
 //================================================================//
+function todayLogRange(): DateTimeRange {
+  const day = todayIstDateIso();
+  return { fromTime: `${day}T00:00`, toTime: `${day}T23:59` };
+}
+
 export function SecurityVisitorLogs({ user }: SecurityVisitorLogsProps) {
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [range, setRange] = useState<DateTimeRange>(todayLogRange);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('APPROVED');
 
@@ -864,20 +863,18 @@ export function SecurityVisitorLogs({ user }: SecurityVisitorLogsProps) {
     );
   }, [branch]);
 
-  const formattedDate = date ? format(date, 'yyyy-MM-dd') : undefined;
+  const minDate = branchCreationDate ? format(branchCreationDate, 'yyyy-MM-dd') : undefined;
 
   const {
     data: allVisitors,
     isLoading,
     mutate,
   } = useSWR(
-    formattedDate
-      ? `/api/visitor/summary?date=${formattedDate}&branchId=${user.branchId}`
-      : null,
+    `/api/visitor/summary?from=${range.fromTime}&to=${range.toTime}&branchId=${user.branchId}`,
     () =>
       VisitorService.getVisitorSummary({
-        date: formattedDate,
-        // branchId: user.branchId, // Removed to fix type error
+        startDate: range.fromTime,
+        endDate: range.toTime,
       }),
     { refreshInterval: 5_000 },
   );
@@ -975,31 +972,14 @@ export function SecurityVisitorLogs({ user }: SecurityVisitorLogsProps) {
           </p>
         </header>
 
-        <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={'outline'}
-                className={cn(
-                  'w-full sm:w-[280px] justify-start text-left font-normal cursor-pointer',
-                  !date && 'text-muted-foreground',
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? format(date, 'PPP') : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={setDate}
-                className="cursor-pointer"
-                autoFocus
-                disabled={{ before: branchCreationDate, after: new Date() }}
-              />
-            </PopoverContent>
-          </Popover>
+        <div className="flex flex-col gap-4 mb-6">
+          <DateTimeRangeFilter
+            value={range}
+            onApply={setRange}
+            idPrefix="security-logs"
+            minDate={minDate}
+          />
+        <div className="flex flex-col sm:flex-row items-center gap-4">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -1009,6 +989,7 @@ export function SecurityVisitorLogs({ user }: SecurityVisitorLogsProps) {
               className="pl-10 pr-10"
             />
           </div>
+        </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

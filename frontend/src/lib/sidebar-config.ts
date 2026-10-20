@@ -1,3 +1,44 @@
+const securityNav = [
+  { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
+  {
+    label: 'Quick Check-In',
+    href: '/security/dashboard?tab=check-in',
+    icon: 'user-plus',
+  },
+  {
+    label: "Today's Appointments",
+    href: '/security/dashboard?tab=appointments',
+    icon: 'calendar',
+  },
+  {
+    label: 'Visitor passes',
+    href: '/security/dashboard?tab=visitor-passes',
+    icon: 'id-card',
+  },
+  {
+    label: 'Visitor Logs',
+    href: '/security/dashboard?tab=logs',
+    icon: 'book',
+  },
+  {
+    label: 'Delivery Scan',
+    href: '/security/dashboard?tab=delivery-scan',
+    icon: 'truck',
+  },
+  {
+    label: 'Attendant Pass Scan',
+    href: '/security/dashboard?tab=attendant-scan',
+    icon: 'id-card',
+  },
+  {
+    label: "Today's Deliveries",
+    href: '/security/dashboard?tab=deliveries',
+    icon: 'package',
+  },
+  { label: 'All Appointments', href: '/dashboard/appointments', icon: 'calendar' },
+  { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
+];
+
 export const sidebarConfig = {
   SUPER_ADMIN: [
     { label: 'Overview', href: '/dashboard', icon: 'dashboard' },
@@ -14,7 +55,7 @@ export const sidebarConfig = {
     { label: 'Delivery', href: '/dashboard/delivery', icon: 'truck' },
     { label: 'Delivery Slots', href: '/dashboard/delivery-slots', icon: 'calendar' },
     { label: 'Vendors', href: '/dashboard/delivery/vendors', icon: 'users' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   HOSPITAL_ADMIN: [
     { label: 'Overview', href: '/dashboard', icon: 'dashboard' },
@@ -36,20 +77,20 @@ export const sidebarConfig = {
     { label: 'Emergency Pass', href: '/dashboard/ams/emergency', icon: 'id-card' },
     { label: 'AMS Reports', href: '/dashboard/ams/reports', icon: 'book' },
     { label: 'AMS Settings', href: '/dashboard/ams/settings', icon: 'settings' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   DEPARTMENT_ADMIN: [
     { label: 'Overview', href: '/dashboard', icon: 'dashboard' },
     { label: 'Sub-Departments', href: '/dashboard/sub-departments', icon: 'git-branch' },
     { label: 'Users', href: '/dashboard/users', icon: 'users' },
     { label: 'Appointments', href: '/dashboard/appointments', icon: 'calendar' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   SUB_DEPARTMENT_ADMIN: [
     { label: 'Overview', href: '/dashboard', icon: 'dashboard' },
     { label: 'Staff', href: '/dashboard/users', icon: 'users' },
     { label: 'Appointments', href: '/dashboard/appointments', icon: 'calendar' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   CHAIN_ADMIN: [
     { label: 'Overview', href: '/dashboard', icon: 'dashboard' },
@@ -59,11 +100,7 @@ export const sidebarConfig = {
       icon: 'building',
     },
     { label: 'Users', href: '/dashboard/users', icon: 'users' },
-    {
-      label: 'Settings',
-      href: '/dashboard/settings',
-      icon: 'settings',
-    },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   BRANCH_ADMIN: [
     { label: 'Overview', href: '/dashboard', icon: 'dashboard' },
@@ -71,105 +108,30 @@ export const sidebarConfig = {
     { label: 'Visitors', href: '/dashboard/visitors', icon: 'user-plus' },
     { label: 'Visitor passes', href: '/dashboard/visitor-passes', icon: 'id-card' },
     { label: 'Visit slots', href: '/dashboard/visit-slots', icon: 'calendar' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
-  SECURITY: [
-    {
-      label: 'Quick Check-In',
-      href: '/security/dashboard?tab=check-in',
-      icon: 'user-plus',
-    },
-    {
-      label: "Today's Appointments",
-      href: '/security/dashboard?tab=appointments',
-      icon: 'calendar',
-    },
-    {
-      label: 'Visitor passes',
-      href: '/security/dashboard?tab=visitor-passes',
-      icon: 'id-card',
-    },
-    {
-      label: 'Visitor Logs',
-      href: '/security/dashboard?tab=logs',
-      icon: 'book',
-    },
-    {
-      label: 'Delivery Scan',
-      href: '/security/dashboard?tab=delivery-scan',
-      icon: 'truck',
-    },
-    {
-      label: 'Attendant Pass Scan',
-      href: '/security/dashboard?tab=attendant-scan',
-      icon: 'id-card',
-    },
-    {
-      label: "Today's Deliveries",
-      href: '/security/dashboard?tab=deliveries',
-      icon: 'package',
-    },
-    { label: 'All Appointments', href: '/dashboard/appointments', icon: 'calendar' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
-  ],
-  SECURITY_SUPERVISOR: [
-    {
-      label: 'Quick Check-In',
-      href: '/security/dashboard?tab=check-in',
-      icon: 'user-plus',
-    },
-    {
-      label: "Today's Appointments",
-      href: '/security/dashboard?tab=appointments',
-      icon: 'calendar',
-    },
-    {
-      label: 'Visitor passes',
-      href: '/security/dashboard?tab=visitor-passes',
-      icon: 'id-card',
-    },
-    {
-      label: 'Visitor Logs',
-      href: '/security/dashboard?tab=logs',
-      icon: 'book',
-    },
-    {
-      label: 'Delivery Scan',
-      href: '/security/dashboard?tab=delivery-scan',
-      icon: 'truck',
-    },
-    {
-      label: 'Attendant Pass Scan',
-      href: '/security/dashboard?tab=attendant-scan',
-      icon: 'id-card',
-    },
-    {
-      label: "Today's Deliveries",
-      href: '/security/dashboard?tab=deliveries',
-      icon: 'package',
-    },
-    { label: 'All Appointments', href: '/dashboard/appointments', icon: 'calendar' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
-  ],
+  SECURITY: securityNav,
+  SECURITY_SUPERVISOR: securityNav,
   STAFF: [
     { label: 'Overview', href: '/dashboard', icon: 'dashboard' },
     { label: 'My Appointments', href: '/dashboard/my-visitors', icon: 'users' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   RECEIVING: [
     { label: 'Receiving Dashboard', href: '/dashboard/receiving', icon: 'package' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   PURCHASE: [
     { label: 'Delivery Overview', href: '/dashboard/delivery', icon: 'truck' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   DISTRIBUTOR: [
     { label: 'Deliveries', href: '/vendor/deliveries', icon: 'package' },
     { label: 'Wallet', href: '/vendor/wallet', icon: 'wallet' },
     { label: 'Book', href: '/vendor/deliveries/book', icon: 'truck' },
     { label: 'Fleet', href: '/vendor/fleet', icon: 'users' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Company profile', href: '/vendor/profile', icon: 'user-circle' },
+    { label: 'My account', href: '/dashboard/settings', icon: 'settings' },
   ],
   WARD_ADMIN: [
     { label: 'AMS Dashboard', href: '/dashboard/ams', icon: 'id-card' },
@@ -180,9 +142,10 @@ export const sidebarConfig = {
     { label: 'Emergency Pass', href: '/dashboard/ams/emergency', icon: 'id-card' },
     { label: 'AMS Reports', href: '/dashboard/ams/reports', icon: 'book' },
     { label: 'AMS Settings', href: '/dashboard/ams/settings', icon: 'settings' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   PRODUCT_ADMIN: [
     { label: 'Logs', href: '/dashboard/product-logs', icon: 'book' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
 };

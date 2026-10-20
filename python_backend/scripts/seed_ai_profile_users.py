@@ -9,6 +9,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import importlib.util
+from pathlib import Path
 
 from app.constants.electronic_city_entities import (
     CONNITOR_CHAIN_ID,
@@ -187,6 +189,7 @@ def _ensure_distributor_user(db) -> None:
                 distributorId=dist_id,
                 passwordHash=hash_password(PASSWORD),
                 isActive=True,
+                phoneVerified=True,
             )
         )
         print("Created DISTRIBUTOR distributor@citygen.demo")
@@ -196,6 +199,7 @@ def _ensure_distributor_user(db) -> None:
         user.branchId = BRANCH_ID
         user.hospitalChainId = CHAIN_ID
         user.isActive = True
+        user.phoneVerified = True
         print("Updated DISTRIBUTOR distributor@citygen.demo")
 
 
@@ -250,6 +254,12 @@ def run() -> None:
             _upsert_user(db, user, password_hash)
 
         _ensure_distributor_user(db)
+        demo_path = Path(__file__).with_name("seed_demo_visitor_distributor.py")
+        spec = importlib.util.spec_from_file_location("seed_demo_visitor_distributor", demo_path)
+        if spec and spec.loader:
+            demo_mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(demo_mod)
+            demo_mod.ensure_demo_visitor(db)
         db.commit()
 
         print("\n=== AI profile logins (password: Conninter123@) ===")

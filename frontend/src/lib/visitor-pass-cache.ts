@@ -25,13 +25,30 @@ function readAll(): Record<string, CachedVisitorPass> {
   }
 }
 
-/** Keep usable passes locally so the QR still opens at the gate without signal. */
+function writeAll(next: Record<string, CachedVisitorPass>): void {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(next));
+  } catch {
+    // Storage full or blocked: the pass page falls back to the network.
+  }
+}
+
+function isActivePassStatus(status: string): boolean {
+  return status === 'APPROVED' || status === 'CHECKED_IN';
+}
+
+/** Keep usable passes on this phone so the QR still opens at the gate without signal. */
 export function cacheVisitorPasses(appointments: VisitorAppointment[]): void {
   if (typeof window === 'undefined') return;
   const now = new Date().toISOString();
-  const next: Record<string, CachedVisitorPass> = {};
+  const next = readAll();
   for (const a of appointments) {
-    if (!a.checkInQrCode || (a.status !== 'APPROVED' && a.status !== 'CHECKED_IN')) continue;
+    if (!a.bookingId) continue;
+    if (!isActivePassStatus(a.status)) {
+      delete next[a.bookingId];
+      continue;
+    }
+    if (!a.checkInQrCode && !next[a.bookingId]?.checkInQrCode) continue;
     next[a.bookingId] = {
       bookingId: a.bookingId,
       status: a.status,
@@ -39,17 +56,17 @@ export function cacheVisitorPasses(appointments: VisitorAppointment[]): void {
       doctorName: a.doctorName,
       departmentName: a.departmentName,
       branchName: a.branchName,
-      checkInQrCode: a.checkInQrCode,
-      checkInOtp: a.checkInOtp,
-      checkInOtpExpiry: a.checkInOtpExpiry,
+      checkInQrCode: a.checkInQrCode ?? next[a.bookingId]?.checkInQrCode ?? null,
+      checkInOtp: a.checkInOtp ?? next[a.bookingId]?.checkInOtp ?? null,
+      checkInOtpExpiry: a.checkInOtpExpiry ?? next[a.bookingId]?.checkInOtpExpiry ?? null,
       cachedAt: now,
     };
   }
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(next));
-  } catch {
-    // Storage full or blocked: the pass page falls back to the network.
-  }
+  writeAll(next);
+}
+
+export function listCachedVisitorPasses(): CachedVisitorPass[] {
+  return Object.values(readAll()).sort((a, b) => (a.cachedAt < b.cachedAt ? 1 : -1));
 }
 
 export function getCachedVisitorPass(bookingId: string): CachedVisitorPass | null {

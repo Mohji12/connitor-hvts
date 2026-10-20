@@ -130,7 +130,12 @@ export const VisitorAccountApi = {
 
   async updateMyProfile(
     token: string,
-    data: Partial<ProfessionalValues>,
+    data: Partial<
+      Pick<
+        VisitorPreviewData,
+        'firstName' | 'lastName' | 'phone' | 'email' | 'companyName' | 'jobTitle' | 'linkedinUrl'
+      >
+    >,
   ): Promise<VisitorPreviewData> {
     const response = await apiClient.patch(`${BASE}/me`, data, {
       headers: { Authorization: `Bearer ${token}` },

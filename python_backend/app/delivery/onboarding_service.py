@@ -587,3 +587,161 @@ class DistributorOnboardingService:
         if dist.verificationStatus != "APPROVED":
             return False
         return any(m.approvalStatus == "APPROVED" for m in (dist.branchMappings or []))
+
+    def get_me(self, user: dict) -> dict:
+        dist_id = user.get("distributorId")
+        if not dist_id:
+            raise bad_request("This account is not linked to a distributor profile")
+        return self.get_distributor_detail(dist_id)
+
+    def update_me(self, user: dict, data: dict) -> dict:
+        dist_id = user.get("distributorId")
+        if not dist_id:
+            raise bad_request("This account is not linked to a distributor profile")
+        dist = self.db.get(Distributor, dist_id)
+        if not dist:
+            raise not_found("Distributor")
+
+        if "vendorName" in data and data["vendorName"] is not None:
+            name = str(data["vendorName"]).strip()
+            if not name:
+                raise bad_request("Company name is required")
+            dist.vendorName = name
+        if "tradeName" in data:
+            value = (data.get("tradeName") or "").strip()
+            dist.tradeName = value or None
+        if "legalEntityType" in data:
+            value = (data.get("legalEntityType") or "").strip()
+            dist.legalEntityType = value or None
+        if "website" in data:
+            value = (data.get("website") or "").strip()
+            dist.website = value or None
+        if "yearEstablished" in data:
+            raw = data.get("yearEstablished")
+            if raw in (None, ""):
+                dist.yearEstablished = None
+            else:
+                year = int(raw)
+                if year < 1900 or year > now_ist().year:
+                    raise bad_request("Enter a valid year established")
+                dist.yearEstablished = year
+        if "contactPerson" in data and data["contactPerson"] is not None:
+            contact = str(data["contactPerson"]).strip()
+            if not contact:
+                raise bad_request("Contact name is required")
+            dist.contactPerson = contact
+        if "designation" in data:
+            dist.designation = (data.get("designation") or "").strip() or None
+        if "preferredLanguage" in data:
+            dist.preferredLanguage = (data.get("preferredLanguage") or "").strip() or None
+        if "city" in data:
+            dist.city = (data.get("city") or "").strip() or None
+        if "state" in data:
+            dist.state = (data.get("state") or "").strip() or None
+        if "deliveryMode" in data and data["deliveryMode"] is not None:
+            mode = str(data["deliveryMode"]).strip().upper()
+            if mode not in ("OWN_FLEET", "THIRD_PARTY"):
+                raise bad_request("Delivery mode must be OWN_FLEET or THIRD_PARTY")
+            dist.deliveryMode = mode
+        if "goodsDescription" in data and data["goodsDescription"] is not None:
+            goods = str(data["goodsDescription"]).strip()
+            if not goods:
+                raise bad_request("Primary goods description is required")
+            dist.goodsDescription = goods
+
+        account = (
+            self.db.query(User)
+            .filter(User.distributorId == dist.id, User.role == Role.DISTRIBUTOR.value)
+            .first()
+        )
+
+        if "email" in data and data["email"] is not None:
+            email = str(data["email"]).strip().lower()
+            if "@" not in email:
+                raise bad_request("Enter a valid email")
+            email_q = self.db.query(User).filter(User.email == email)
+            if account:
+                email_q = email_q.filter(User.id != account.id)
+            if email_q.first():
+                raise bad_request("Another account already uses this email")
+            dist.email = email
+        if "accountsEmail" in data:
+            value = (data.get("accountsEmail") or "").strip().lower()
+            dist.accountsEmail = value or None
+
+        def _set_phone(field: str, attr: str, required: bool = False) -> str | None:
+            if field not in data:
+                return None
+            raw = data.get(field)
+            if raw in (None, ""):
+                if required:
+                    raise bad_request("Mobile number is required")
+                setattr(dist, attr, None)
+                return None
+            phone = self._normalize_phone(str(raw))
+            if not PHONE_RE.match(phone):
+                raise bad_request("Enter a valid 10-digit Indian mobile number")
+            setattr(dist, attr, phone)
+            return phone
+
+        new_phone = _set_phone("phone", "phone", required=True)
+        _set_phone("alternatePhone", "alternatePhone")
+        _set_phone("dispatchPhone", "dispatchPhone")
+
+        if "registeredAddress" in data and isinstance(data.get("registeredAddress"), dict):
+            addr = data["registeredAddress"]
+            line1 = str(addr.get("line1") or "").strip()
+            city = str(addr.get("city") or "").strip()
+            state = str(addr.get("state") or "").strip()
+            pin = str(addr.get("pinCode") or "").strip()
+            if not line1 or not city or not state or not re.match(r"^\d{6}$", pin):
+                raise bad_request("Complete registered address with 6-digit PIN is required")
+            registered = {
+                "line1": line1,
+                "line2": str(addr.get("line2") or "").strip() or None,
+                "city": city,
+                "state": state,
+                "pinCode": pin,
+            }
+            dist.registeredAddressJson = json.dumps(registered)
+            dist.city = city
+            dist.state = state
+        if "operatingAddress" in data and isinstance(data.get("operatingAddress"), dict):
+            addr = data["operatingAddress"]
+            dist.operatingAddressJson = json.dumps(
+                {
+                    "line1": str(addr.get("line1") or "").strip(),
+                    "line2": str(addr.get("line2") or "").strip() or None,
+                    "city": str(addr.get("city") or "").strip(),
+                    "state": str(addr.get("state") or "").strip(),
+                    "pinCode": str(addr.get("pinCode") or "").strip(),
+                }
+            )
+        if "serviceableStates" in data:
+            states = data.get("serviceableStates") or []
+            if not isinstance(states, list):
+                raise bad_request("serviceableStates must be a list")
+            dist.serviceableStatesJson = json.dumps([str(s).strip() for s in states if str(s).strip()])
+        if "supplyCategories" in data:
+            cats = data.get("supplyCategories") or []
+            if not isinstance(cats, list) or len(cats) < 1:
+                raise bad_request("Select at least one supply category")
+            dist.supplyCategoriesJson = json.dumps([str(c).strip() for c in cats if str(c).strip()])
+
+        if account:
+            if dist.contactPerson:
+                account.name = dist.contactPerson
+            if dist.email:
+                account.email = dist.email
+            if new_phone:
+                phone_clash = (
+                    self.db.query(User)
+                    .filter(User.phone == new_phone, User.id != account.id)
+                    .first()
+                )
+                if phone_clash:
+                    raise bad_request("Another account already uses this mobile number")
+                account.phone = new_phone
+
+        self.db.commit()
+        return self.get_distributor_detail(dist.id)

@@ -71,6 +71,16 @@ export interface GrowthData {
 
 export type TrendPeriod = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
+export type TrendRangeQuery = { fromTime?: string; toTime?: string };
+
+function trendQuery(period: TrendPeriod | 'custom', range?: TrendRangeQuery): Record<string, string | undefined> {
+  return {
+    period: period === 'custom' ? 'daily' : period,
+    fromTime: range?.fromTime,
+    toTime: range?.toTime,
+  };
+}
+
 export interface VisitDurationStats {
   avgMinutes: number;
   minMinutes: number;
@@ -108,9 +118,12 @@ export interface SuperAdminDashboardPayload {
 
 export const AnalyticsService = {
   /** One request for the whole Super Admin overview (fast path). */
-  async getSuperAdminDashboard(period: TrendPeriod = 'weekly'): Promise<SuperAdminDashboardPayload> {
+  async getSuperAdminDashboard(
+    period: TrendPeriod | 'custom' = 'weekly',
+    range?: TrendRangeQuery,
+  ): Promise<SuperAdminDashboardPayload> {
     const response = await apiClient.get('/api/analytics/super-admin/dashboard/', {
-      params: { period },
+      params: trendQuery(period, range),
     });
     return response.data;
   },
@@ -122,9 +135,12 @@ export const AnalyticsService = {
   },
 
   // Visitor trends
-  async getVisitorTrends(period: TrendPeriod = 'weekly'): Promise<VisitorTrends> {
+  async getVisitorTrends(
+    period: TrendPeriod | 'custom' = 'weekly',
+    range?: TrendRangeQuery,
+  ): Promise<VisitorTrends> {
     const response = await apiClient.get('/api/analytics/super-admin/visitor-trends', {
-      params: { period },
+      params: trendQuery(period, range),
     });
     return response.data;
   },
@@ -196,9 +212,13 @@ export const AnalyticsService = {
   },
 
   // Chain Admin visitor trends
-  async getChainVisitorTrends(chainId: string, period: TrendPeriod = 'weekly'): Promise<VisitorTrends> {
+  async getChainVisitorTrends(
+    chainId: string,
+    period: TrendPeriod | 'custom' = 'weekly',
+    range?: TrendRangeQuery,
+  ): Promise<VisitorTrends> {
     const response = await apiClient.get('/api/analytics/chain-admin/visitor-trends', {
-      params: { chainId, period },
+      params: { chainId, ...trendQuery(period, range) },
     });
     return response.data;
   },
@@ -218,10 +238,11 @@ export const AnalyticsService = {
   // Branch Admin visitor trends (hourly, daily, weekly, monthly, yearly)
   async getBranchVisitorTrends(
     branchId: string,
-    period: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' = 'hourly'
+    period: TrendPeriod | 'custom' = 'hourly',
+    range?: TrendRangeQuery,
   ): Promise<VisitorTrends> {
     const response = await apiClient.get('/api/analytics/branch-admin/visitor-trends', {
-      params: { branchId, period },
+      params: { branchId, ...trendQuery(period, range) },
     });
     return response.data;
   },
@@ -232,10 +253,11 @@ export const AnalyticsService = {
 
   async getSecurityVisitorTrends(
     branchId: string,
-    period: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' = 'hourly'
+    period: TrendPeriod | 'custom' = 'hourly',
+    range?: TrendRangeQuery,
   ): Promise<VisitorTrends> {
     const response = await apiClient.get('/api/analytics/security/visitor-trends', {
-      params: { branchId, period },
+      params: { branchId, ...trendQuery(period, range) },
     });
     return response.data;
   },
@@ -246,10 +268,11 @@ export const AnalyticsService = {
 
   async getStaffVisitorTrends(
     branchId: string,
-    period: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' = 'hourly'
+    period: TrendPeriod | 'custom' = 'hourly',
+    range?: TrendRangeQuery,
   ): Promise<VisitorTrends> {
     const response = await apiClient.get('/api/analytics/staff/visitor-trends', {
-      params: { branchId, period },
+      params: { branchId, ...trendQuery(period, range) },
     });
     return response.data;
   },
@@ -263,9 +286,12 @@ export const AnalyticsService = {
     return response.data;
   },
 
-  async getHospitalAdminVisitorTrends(period: TrendPeriod = 'weekly'): Promise<VisitorTrends> {
+  async getHospitalAdminVisitorTrends(
+    period: TrendPeriod | 'custom' = 'weekly',
+    range?: TrendRangeQuery,
+  ): Promise<VisitorTrends> {
     const response = await apiClient.get('/api/analytics/hospital-admin/visitor-trends', {
-      params: { period },
+      params: trendQuery(period, range),
     });
     return response.data;
   },
@@ -285,16 +311,22 @@ export const AnalyticsService = {
     return response.data;
   },
 
-  async getDepartmentVisitorTrends(period: TrendPeriod = 'weekly'): Promise<VisitorTrends> {
+  async getDepartmentVisitorTrends(
+    period: TrendPeriod | 'custom' = 'weekly',
+    range?: TrendRangeQuery,
+  ): Promise<VisitorTrends> {
     const response = await apiClient.get('/api/analytics/department-admin/visitor-trends', {
-      params: { period },
+      params: trendQuery(period, range),
     });
     return response.data;
   },
 
-  async getSubDepartmentVisitorTrends(period: TrendPeriod = 'weekly'): Promise<VisitorTrends> {
+  async getSubDepartmentVisitorTrends(
+    period: TrendPeriod | 'custom' = 'weekly',
+    range?: TrendRangeQuery,
+  ): Promise<VisitorTrends> {
     const response = await apiClient.get('/api/analytics/sub-department-admin/visitor-trends', {
-      params: { period },
+      params: trendQuery(period, range),
     });
     return response.data;
   },

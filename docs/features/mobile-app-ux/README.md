@@ -13,9 +13,11 @@ Phones (any browser below `lg`, 1024px) and the Capacitor app get an app shell. 
 
 The app opens `https://www.conninter.com/app/`:
 
-- A saved staff token goes straight to that role's dashboard.
-- A saved visitor token goes to `/visitor/dashboard`.
-- Otherwise the launch screen offers four choices (Visitor, Family / attendant, Hospital staff, Distributor). The last one used is listed first.
+- If that role is still signed in (they did not tap Logout), the app reopens the last screen they were on.
+- A saved staff or distributor JWT goes to that last path, or the role dashboard if none is stored.
+- A saved visitor JWT goes to the last visitor screen, or `/visitor/dashboard`.
+- Otherwise the launch screen offers four choices (Visitor, Hospital staff, Distributor, Attendant). The last one used is listed first.
+- Logout and expired tokens clear the resume path so the next open shows Welcome.
 
 `/app` must be deployed before you rebuild and install the app.
 
@@ -44,7 +46,9 @@ The app opens `https://www.conninter.com/app/`:
 - **Lists:** below `lg`, tables become `MobileListCard` lists. This covers appointments, AMS, deliveries, visitor passes, users, visitor logs, today's appointments and deliveries, and distributor deliveries.
 - **Row actions and forms:** these open as bottom sheets. Examples: hold a delivery, verify a visitor, doctor approve/reject, AMS pass actions, the receiving workspace, assigning a walk-in pass, and adding a fleet driver or vehicle.
 - **Wizards:** "Step x of y" with a progress bar, and the primary button in a `StickyActionBar`. This applies to visitor booking, the attendant pass and distributor delivery booking.
-- **Visitor gate pass:** `/visitor/pass?id=` shows a full-screen QR. It is cached in `localStorage` (`visitorPassCache`) so it still opens offline. The cache is cleared on sign-out.
+- **Visitor gate pass:** `/visitor/pass?id=` shows a full-screen QR. It is cached in `localStorage` (`visitorPassCache`) so it still opens offline. The cache is merged (keeps a saved QR if a later fetch omits it) and cleared on visitor sign-out.
+- **Delivery gate pass:** Distributor bookings save the gate QR to `deliveryPassCache` when booked or when the delivery detail page opens. The QR is shown on `/vendor/deliveries/[id]`.
+- **Camera access:** Native Welcome (`/app`), Profile, visitor home, and attendant scan have an **Allow camera** control. Expo Welcome also asks. Rebuild the APK after a frontend deploy.
 - **KPIs:** two-column grids on phones.
 
 ## QA checklist

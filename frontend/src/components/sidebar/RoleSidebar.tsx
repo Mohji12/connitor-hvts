@@ -31,6 +31,7 @@ import {
   Truck,
   Package,
   Wallet,
+  UserCircle,
 } from 'lucide-react';
 import { useResponsive } from '@/hooks/use-mobile';
 import { MobileBottomNav } from './mobile-bottom-nav';
@@ -51,6 +52,7 @@ const iconMap = {
   truck: Truck,
   package: Package,
   wallet: Wallet,
+  'user-circle': UserCircle,
 };
 
 // Define User Profile structure from API
@@ -121,7 +123,7 @@ export function RoleSidebar(props: RoleSidebarProps) {
   const roleItems = sidebarConfig[user.role as keyof typeof sidebarConfig];
   const items = roleItems ?? [
     { label: 'Overview', href: '/dashboard', icon: 'dashboard' },
-    { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
+    { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ];
 
   // Dynamic teamsData based on user info

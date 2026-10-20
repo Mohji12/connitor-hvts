@@ -47,15 +47,15 @@ export default function SubDepartmentAdminOverview() {
   ];
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">
+    <div className="w-full min-w-0 max-w-full overflow-x-hidden space-y-4 p-4 lg:space-y-6 md:p-6">
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 max-lg:hidden">
+          <h1 className="truncate text-2xl font-bold">
             {overview?.subDepartmentName ?? 'Sub-Department'} Dashboard
           </h1>
           <p className="text-muted-foreground">Manage staff and section appointments</p>
         </div>
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" className="w-full shrink-0 lg:w-auto">
           <Link href="/dashboard/sub-departments">Manage section</Link>
         </Button>
       </div>
@@ -78,7 +78,7 @@ export default function SubDepartmentAdminOverview() {
         overview={overview}
         overviewLoading={isLoading}
         trendsKey="subdept-trends"
-        trendsFetcher={(period) => AnalyticsService.getSubDepartmentVisitorTrends(period)}
+        trendsFetcher={(period, range) => AnalyticsService.getSubDepartmentVisitorTrends(period, range)}
         quickLinks={[
           { href: '/dashboard/sub-departments', label: 'Section settings' },
           { href: '/dashboard/users', label: 'Staff & doctors' },

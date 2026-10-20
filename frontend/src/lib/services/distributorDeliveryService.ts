@@ -115,6 +115,137 @@ export interface BookDeliveryPayload {
   paymentMethod?: 'DUMMY' | 'WALLET';
 }
 
+export interface DeliveryHospitalStat {
+  branchId: string;
+  branchName: string;
+  total: number;
+  completed: number;
+  spend: number;
+}
+
+export interface DeliveryGoodsStat {
+  goodsType: string;
+  count: number;
+  boxes: number;
+}
+
+export interface DeliveryTrendPoint {
+  date: string;
+  label: string;
+  bookings: number;
+  completed: number;
+  spend: number;
+}
+
+export interface DistributorDeliveryAnalytics {
+  total: number;
+  byStatus: Record<string, number>;
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  completed: number;
+  inProgress: number;
+  upcoming: number;
+  onHold: number;
+  rejected: number;
+  totalBoxes: number;
+  totalSpend: number;
+  avgUnloadMinutes: number;
+  byHospital: DeliveryHospitalStat[];
+  byGoodsType: DeliveryGoodsStat[];
+  trend: DeliveryTrendPoint[];
+}
+
+export interface DistributorAddress {
+  line1?: string | null;
+  line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pinCode?: string | null;
+}
+
+export interface DistributorHospitalMapping {
+  mappingId: string;
+  branchId: string;
+  branchName?: string | null;
+  approvalStatus: string;
+}
+
+export interface DistributorDocument {
+  id: string;
+  documentType: string;
+  documentNumber?: string | null;
+  expiresAt?: string | null;
+  fileUrl?: string | null;
+  verificationStatus: string;
+}
+
+export interface DistributorProfile {
+  id: string;
+  vendorCode: string;
+  vendorName: string;
+  tradeName?: string | null;
+  vendorType?: string | null;
+  legalEntityType?: string | null;
+  gstNumber?: string | null;
+  gstRegistrationType?: string | null;
+  panNumber?: string | null;
+  cin?: string | null;
+  udyamNumber?: string | null;
+  website?: string | null;
+  yearEstablished?: number | null;
+  contactPerson?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  alternatePhone?: string | null;
+  designation?: string | null;
+  preferredLanguage?: string | null;
+  city?: string | null;
+  state?: string | null;
+  registeredAddress?: DistributorAddress | null;
+  operatingAddress?: DistributorAddress | null;
+  serviceableStates?: string[];
+  supplyCategories?: string[];
+  deliveryMode?: string | null;
+  goodsDescription?: string | null;
+  accountsEmail?: string | null;
+  dispatchPhone?: string | null;
+  verificationStatus?: string | null;
+  onboardingStatus?: string | null;
+  rejectionReason?: string | null;
+  isActive?: boolean;
+  branchMappings?: DistributorHospitalMapping[];
+  documents?: DistributorDocument[];
+  canBookDeliveries?: boolean;
+}
+
+export type DistributorProfileUpdate = Partial<
+  Pick<
+    DistributorProfile,
+    | 'vendorName'
+    | 'tradeName'
+    | 'legalEntityType'
+    | 'website'
+    | 'yearEstablished'
+    | 'contactPerson'
+    | 'designation'
+    | 'preferredLanguage'
+    | 'email'
+    | 'phone'
+    | 'alternatePhone'
+    | 'dispatchPhone'
+    | 'accountsEmail'
+    | 'city'
+    | 'state'
+    | 'deliveryMode'
+    | 'goodsDescription'
+    | 'registeredAddress'
+    | 'operatingAddress'
+    | 'serviceableStates'
+    | 'supplyCategories'
+  >
+>;
+
 export interface DeliveryListItem {
   id: string;
   deliveryNumber: string;
@@ -250,11 +381,21 @@ export const DistributorDeliveryService = {
     return res.data;
   },
 
-  async getSummary(branchId?: string) {
-    const res = await apiClient.get<{ total: number; byStatus: Record<string, number> }>(
+  async getSummary(branchId?: string): Promise<DistributorDeliveryAnalytics> {
+    const res = await apiClient.get<DistributorDeliveryAnalytics>(
       '/api/delivery/deliveries/dashboard/summary',
       { params: branchId ? { branchId } : {} },
     );
+    return res.data;
+  },
+
+  async getProfile(): Promise<DistributorProfile> {
+    const res = await apiClient.get<DistributorProfile>('/api/delivery/distributors/me');
+    return res.data;
+  },
+
+  async updateProfile(payload: DistributorProfileUpdate): Promise<DistributorProfile> {
+    const res = await apiClient.patch<DistributorProfile>('/api/delivery/distributors/me', payload);
     return res.data;
   },
 

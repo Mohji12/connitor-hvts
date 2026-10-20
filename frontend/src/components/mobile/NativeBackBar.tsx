@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
-import { goBackInApp, isAppHome, useHasTopBar } from '@/lib/app-back';
+import { goBackInApp, isAppHome, isStandaloneAuthPath, useHasTopBar } from '@/lib/app-back';
 import { isNativeApp } from '@/lib/platform';
 
 /** Back bar for app pages that have no AppTopBar of their own (native app only). */
@@ -17,7 +17,8 @@ export function NativeBackBar(): React.ReactElement | null {
     setNative(isNativeApp());
   }, []);
 
-  const visible = native && !hasTopBar && !isAppHome(pathname);
+  const visible =
+    native && !hasTopBar && !isAppHome(pathname) && !isStandaloneAuthPath(pathname);
 
   React.useEffect(() => {
     if (!visible) return;

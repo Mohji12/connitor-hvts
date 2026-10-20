@@ -142,5 +142,35 @@ class AnalyticsSubDepartmentOverviewTests(unittest.TestCase):
         staff_count_query.filter.assert_called()
 
 
+class AnalyticsTrendBucketTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.service = AnalyticsService(MagicMock())
+
+    def test_hourly_last_24_hours(self) -> None:
+        now = datetime(2026, 10, 20, 18, 30, 0)
+        buckets = self.service._trend_buckets("hourly", now)
+        self.assertEqual(len(buckets), 24)
+        self.assertEqual(buckets[0][0], datetime(2026, 10, 19, 19, 0, 0))
+        self.assertEqual(buckets[-1][0], datetime(2026, 10, 20, 18, 0, 0))
+        self.assertEqual(buckets[-1][2], "18:00")
+
+    def test_custom_range_uses_hourly_when_short(self) -> None:
+        start = datetime(2026, 10, 20, 9, 15, 0)
+        end = datetime(2026, 10, 20, 14, 45, 0)
+        buckets = self.service._trend_buckets("weekly", datetime(2026, 10, 20, 15, 0, 0), start, end)
+        self.assertGreaterEqual(len(buckets), 5)
+        self.assertLessEqual(len(buckets), 7)
+        self.assertEqual(buckets[0][0], datetime(2026, 10, 20, 9, 0, 0))
+        self.assertEqual(buckets[-1][1], end)
+
+    def test_custom_range_uses_daily_when_multi_day(self) -> None:
+        start = datetime(2026, 10, 1, 8, 0, 0)
+        end = datetime(2026, 10, 10, 18, 0, 0)
+        buckets = self.service._trend_buckets("monthly", datetime(2026, 10, 20), start, end)
+        self.assertGreaterEqual(len(buckets), 9)
+        self.assertEqual(buckets[0][2], "01 Oct")
+        self.assertEqual(buckets[-1][1], end)
+
+
 if __name__ == "__main__":
     unittest.main()

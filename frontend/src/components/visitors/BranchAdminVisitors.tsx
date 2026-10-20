@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import useSWR from 'swr';
 import {
-  Calendar as CalendarIcon,
   Users,
   LogIn,
   LogOut,
@@ -17,7 +16,8 @@ import {
 // API Services
 import { VisitorService } from '@/lib/services/visitorService';
 import { BranchService } from '@/lib/services/branchService'; // IMPORT BranchService
-import { cn } from '@/lib/utils';
+import { todayIstDateIso } from '@/lib/datetime';
+import { DateTimeRangeFilter, type DateTimeRange } from '@/components/filters/DateTimeRangeFilter';
 
 // Schemas and Types
 import {
@@ -27,9 +27,7 @@ import {
 } from '@/lib/schema/schema';
 
 // UI Components
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Calendar } from '@/components/ui/calendar';
 import {
   Table,
   TableHeader,
@@ -38,11 +36,6 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -403,8 +396,13 @@ const VisitorsTable = ({
 //================================================================//
 // MAIN PAGE COMPONENT                                            //
 //================================================================//
+function todayLogRange(): DateTimeRange {
+  const day = todayIstDateIso();
+  return { fromTime: `${day}T00:00`, toTime: `${day}T23:59` };
+}
+
 export function BranchAdminVisitor({ user }: BranchAdminVisitorProps) {
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [range, setRange] = useState<DateTimeRange>(todayLogRange);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -425,15 +423,14 @@ export function BranchAdminVisitor({ user }: BranchAdminVisitorProps) {
     );
   }, [branch]);
 
-  const formattedDate = date ? format(date, 'yyyy-MM-dd') : undefined;
+  const minDate = branchCreationDate ? format(branchCreationDate, 'yyyy-MM-dd') : undefined;
 
   const { data: visitorResponse, isLoading } = useSWR(
-    formattedDate
-      ? `/api/visitors/summary?date=${formattedDate}&branchId=${user.branchId}`
-      : null,
+    `/api/visitors/summary?from=${range.fromTime}&to=${range.toTime}&branchId=${user.branchId}&status=${statusFilter}&search=${searchQuery}`,
     async () => {
       const response = await VisitorService.getVisitorSummary({
-        date: formattedDate,
+        startDate: range.fromTime,
+        endDate: range.toTime,
         personToMeet: undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         search: searchQuery || undefined,
@@ -579,36 +576,14 @@ export function BranchAdminVisitor({ user }: BranchAdminVisitorProps) {
 
       {/* Filters and Table */}
       <div className="space-y-4">
+        <div className="flex flex-col gap-4">
+          <DateTimeRangeFilter
+            value={range}
+            onApply={setRange}
+            idPrefix="branch-logs"
+            minDate={minDate}
+          />
         <div className="flex flex-col sm:flex-row items-center gap-4">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={'outline'}
-                className={cn(
-                  'w-full sm:w-[280px] justify-start text-left font-normal cursor-pointer',
-                  !date && 'text-muted-foreground',
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? format(date, 'PPP') : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={setDate}
-                autoFocus
-                className="cursor-pointer"
-                // FIX: Use the normalized date for the 'before' property
-                disabled={{
-                  before: branchCreationDate,
-                  after: new Date(),
-                }}
-              />
-            </PopoverContent>
-          </Popover>
-
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-[200px] cursor-pointer">
               <SelectValue placeholder="Filter by status" />
@@ -641,6 +616,7 @@ export function BranchAdminVisitor({ user }: BranchAdminVisitorProps) {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full sm:max-w-xs"
           />
+        </div>
         </div>
 
         <VisitorsTable visitors={filteredVisitors} isLoading={isLoading} />

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Package, Plus, Users, Wallet } from 'lucide-react';
+import { Package, Plus, UserCircle, Users, Wallet } from 'lucide-react';
 import { EmptyState } from '@/components/mobile/EmptyState';
 import { MobileListCard } from '@/components/mobile/MobileListCard';
 import { toast } from 'sonner';
@@ -10,13 +10,14 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import {
   DistributorDeliveryService,
   type DeliveryListItem,
+  type DistributorDeliveryAnalytics,
 } from '@/lib/services/distributorDeliveryService';
+import { DistributorDeliveryAnalytics as DeliveryAnalyticsPanel } from '@/features/delivery-management/DistributorDeliveryAnalytics';
 import { formatIstDateTime } from '@/lib/datetime';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   DeliveryEmptyState,
-  DeliveryKpiStrip,
   DeliveryPageShell,
   DeliveryStatusBadge,
 } from '@/features/delivery-management/ui';
@@ -24,10 +25,7 @@ import {
 export default function VendorDeliveriesPage(): React.ReactElement {
   const user = useAuthSession<{ branchId?: string; distributorId?: string }>();
   const [items, setItems] = React.useState<DeliveryListItem[]>([]);
-  const [summary, setSummary] = React.useState<{ total: number; byStatus: Record<string, number> }>({
-    total: 0,
-    byStatus: {},
-  });
+  const [summary, setSummary] = React.useState<DistributorDeliveryAnalytics | null>(null);
   const [walletBalance, setWalletBalance] = React.useState<number | null>(null);
 
   const load = React.useCallback(async () => {
@@ -37,7 +35,7 @@ export default function VendorDeliveriesPage(): React.ReactElement {
         DistributorDeliveryService.getSummary(user?.branchId),
       ]);
       setItems(list.items ?? []);
-      setSummary({ total: sum.total ?? 0, byStatus: sum.byStatus ?? {} });
+      setSummary(sum);
     } catch {
       toast.error('Could not load deliveries');
     }
@@ -57,9 +55,15 @@ export default function VendorDeliveriesPage(): React.ReactElement {
   return (
     <DeliveryPageShell
       title="My deliveries"
-      subtitle="Track bookings, drivers, and gate status. Drivers receive QR instructions by email."
+      subtitle="Delivery analytics for your bookings, plus live status for each trip."
       actions={
         <>
+          <Button asChild variant="outline">
+            <Link href="/vendor/profile">
+              <UserCircle className="mr-2 h-4 w-4" />
+              Profile
+            </Link>
+          </Button>
           <Button asChild variant="outline">
             <Link href="/vendor/wallet">
               <Wallet className="mr-2 h-4 w-4" />
@@ -81,7 +85,7 @@ export default function VendorDeliveriesPage(): React.ReactElement {
         </>
       }
     >
-      <DeliveryKpiStrip total={summary.total} byStatus={summary.byStatus} />
+      {summary ? <DeliveryAnalyticsPanel data={summary} /> : null}
 
       <ul className="space-y-2 pb-20 lg:hidden">
         {items.map((d) => (

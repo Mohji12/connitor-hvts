@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, GitBranch } from 'lucide-react';
 import { SubDepartmentRowActions } from '@/components/departments/SubDepartmentRowActions';
+import { humanLabel } from '@/lib/utils';
 
 type CreateSubDeptForm = z.infer<typeof SubDepartmentSchema>;
 
@@ -164,19 +165,19 @@ export default function SubDepartmentsPage() {
   };
 
   return (
-    <div className="w-full max-w-full min-w-0 space-y-6 p-4 md:p-6">
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-4 p-4 lg:space-y-6 md:p-6">
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 max-lg:hidden">
+          <h1 className="flex items-center gap-2 text-xl font-bold lg:text-2xl">
             <GitBranch className="h-6 w-6 shrink-0" /> Sub-Departments
           </h1>
-          <p className="text-sm text-muted-foreground sm:text-base">
+          <p className="text-sm text-muted-foreground lg:text-base">
             Sections within a department (e.g. ICU Cardiology)
           </p>
         </div>
         {canCreate && (
           <Button
-            className="w-full shrink-0 sm:w-auto"
+            className="w-full shrink-0 lg:w-auto"
             onClick={() => setOpen(true)}
             disabled={isDepartmentAdmin && !lockedDepartmentId}
           >
@@ -202,23 +203,28 @@ export default function SubDepartmentsPage() {
           )}
           <ul className="space-y-3">
             {subDepartments?.map((s) => {
-              const parentName = departments?.find((d) => d.id === s.departmentId)?.name;
-              const showCode = Boolean(s.code && s.code.trim().toLowerCase() !== s.name.trim().toLowerCase());
+              const parentName = humanLabel(
+                departments?.find((d) => d.id === s.departmentId)?.name,
+              );
+              const code = humanLabel(s.code);
+              const showCode = Boolean(
+                code && code.toLowerCase() !== s.name.trim().toLowerCase(),
+              );
               return (
                 <li
                   key={s.id}
-                  className="flex min-w-0 items-start gap-3 border-b pb-3 last:border-b-0"
+                  className="flex min-w-0 flex-col gap-2 border-b pb-3 last:border-b-0"
                 >
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0">
                     <p className="truncate font-medium">{s.name}</p>
                     {showCode ? (
-                      <p className="truncate text-xs text-muted-foreground">{s.code}</p>
+                      <p className="truncate text-xs text-muted-foreground">{code}</p>
                     ) : null}
                     {parentName ? (
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">{parentName}</p>
                     ) : null}
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="flex shrink-0 items-center justify-end gap-1.5">
                     <SubDepartmentRowActions
                       subDepartment={s}
                       canEdit={canEdit}

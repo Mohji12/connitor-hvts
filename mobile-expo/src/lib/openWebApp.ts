@@ -10,6 +10,8 @@ export type OpenWebAppOptions = {
   persona?: PersonaId;
   /** Prefer the last saved path for this persona when present. */
   resume?: boolean;
+  /** Cold-start restore should replace splash so Back does not return there. */
+  replace?: boolean;
 };
 
 /**
@@ -25,24 +27,29 @@ export function openWebApp(path: string, options?: OpenWebAppOptions): void {
     return;
   }
 
-  router.push({
-    pathname: '/app-web',
+  const target = {
+    pathname: '/app-web' as const,
     params: {
       path: normalized,
       ...(options?.persona ? { persona: options.persona } : {}),
     },
-  });
+  };
+  if (options?.replace) {
+    router.replace(target);
+    return;
+  }
+  router.push(target);
 }
 
 /** Open default or last-used path for a WebView persona (not attendant QR). */
 export async function openPersonaWebApp(
   persona: Exclude<PersonaId, 'attendant'>,
-  opts?: { resume?: boolean },
+  opts?: { resume?: boolean; replace?: boolean },
 ): Promise<void> {
   let path: string = personaDefaultPaths[persona];
   if (opts?.resume !== false) {
     const saved = await getLastWebPath(persona);
     if (saved) path = saved;
   }
-  openWebApp(path, { persona });
+  openWebApp(path, { persona, replace: opts?.replace });
 }

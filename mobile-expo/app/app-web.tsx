@@ -1,3 +1,4 @@
+import { useCameraPermissions } from 'expo-camera';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -33,9 +34,19 @@ function isMarketingHomeUrl(url?: string | null): boolean {
   }
 }
 
+function withCacheBust(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set('_cb', String(Date.now()));
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 function welcomeWebUrl(): string {
   // `native=1` persists on the live origin so Welcome stays the in-app home.
-  return webUrl('/app/?native=1');
+  return webUrl('/app/?native=1', { cacheBust: true });
 }
 
 type WebViewLike = {
@@ -58,6 +69,7 @@ export default function InAppWebPortal() {
     path?: string;
     persona?: string;
   }>();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const webRef = useRef<WebViewLike | null>(null);
   const [canGoBack, setCanGoBack] = useState(false);
   /** Full-screen blocker only for the first document load. */
@@ -76,6 +88,12 @@ export default function InAppWebPortal() {
     const raw = typeof path === 'string' ? path : '/portal/';
     return webUrl(decodeURIComponent(raw));
   }, [path]);
+
+  useEffect(() => {
+    if (cameraPermission && !cameraPermission.granted && cameraPermission.canAskAgain) {
+      void requestCameraPermission();
+    }
+  }, [cameraPermission, requestCameraPermission]);
 
   useFocusEffect(
     useCallback(() => {
@@ -265,7 +283,11 @@ function NativeWebView({
       ref={(instance: WebViewLike | null) => {
         webRef.current = instance;
       }}
-      source={{ uri: isMarketingHomeUrl(uri) ? welcomeWebUrl() : uri }}
+      source={{
+        uri: withCacheBust(isMarketingHomeUrl(uri) ? welcomeWebUrl() : uri),
+      }}
+      cacheEnabled={false}
+      cacheMode="LOAD_NO_CACHE"
       injectedJavaScriptBeforeContentLoaded={NATIVE_SHELL_BRIDGE_JS}
       injectedJavaScript={NATIVE_SHELL_SYNC_JS}
       onLoadStart={() => onLoadingChange(true)}
@@ -323,6 +345,9 @@ function NativeWebView({
       setSupportMultipleWindows={false}
       javaScriptEnabled
       domStorageEnabled
+      mediaPlaybackRequiresUserAction={false}
+      mediaCapturePermissionGrantType="grant"
+      allowsInlineMediaPlayback
       style={{ flex: 1, backgroundColor: colors.canvas }}
     />
   );

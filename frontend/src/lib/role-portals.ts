@@ -1,4 +1,5 @@
 import { getDashboardPathForRole } from '@/lib/auth-routing';
+import { DEMO_DISTRIBUTOR_LOGIN } from '@/lib/demo-logins';
 
 export type PortalRole =
   | 'SUPER_ADMIN'
@@ -92,7 +93,7 @@ export const DELIVERY_PORTALS: DeliveryPortal[] = [
     description: 'Book hospital deliveries, manage drivers and vehicles, and track shipments.',
     loginPath: '/delivery/login',
     dashboardPath: '/vendor/deliveries',
-    demoEmail: 'distributor@citygen.demo',
+    demoEmail: DEMO_DISTRIBUTOR_LOGIN.email,
   },
 ];
 

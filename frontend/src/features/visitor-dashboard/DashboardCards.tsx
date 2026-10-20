@@ -73,7 +73,10 @@ export function NextVisitCard({ item }: { item: VisitorAppointment | null }): Re
       </div>
       <div className="relative mt-5">
         {hasGatePass(item) ? (
-          <GatePassButton item={item} size="lg" className="w-full sm:w-auto sm:px-6" />
+          <div className="space-y-2">
+            <GatePassButton item={item} size="lg" className="w-full sm:w-auto sm:px-6" />
+            <p className="text-xs text-white/75">Gate pass is saved on this phone for the hospital gate.</p>
+          </div>
         ) : item.status === 'REQUEST_SENT' ? (
           <p className="rounded-xl bg-white/12 px-3 py-2 text-sm text-white/90">
             Waiting for the doctor to approve. Your gate pass appears here once approved.

@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
+import { CameraAccessCard } from '@/components/mobile/CameraAccessCard';
 import { QrCheckInScanner } from '@/components/security/QrCheckInScanner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,6 +76,8 @@ export default function AttendantScanPage(): React.ReactElement {
       <p className="mt-1 text-sm text-muted-foreground">
         Point the camera at the hospital QR at reception or the security gate.
       </p>
+
+      <CameraAccessCard className="mt-4" alwaysShow />
 
       <div className="mt-4 overflow-hidden rounded-2xl border bg-white">
         <QrCheckInScanner

@@ -29,7 +29,20 @@ export function useAuthSession<T extends object = { role?: string }>(
     };
 
     window.addEventListener('auth-session-cleared', onSessionCleared);
-    return () => window.removeEventListener('auth-session-cleared', onSessionCleared);
+    const onSessionUpdated = () => {
+      const token = getStoredAuthToken();
+      if (!token) return;
+      try {
+        setUser(jwtDecode<T>(token));
+      } catch {
+        /* ignore stale token decode */
+      }
+    };
+    window.addEventListener('auth-session-updated', onSessionUpdated);
+    return () => {
+      window.removeEventListener('auth-session-cleared', onSessionCleared);
+      window.removeEventListener('auth-session-updated', onSessionUpdated);
+    };
   }, []);
 
   useEffect(() => {

@@ -14,11 +14,11 @@ import {
   type VisitCategoryDistribution,
   type UserRoleDistribution,
   type ChainStats,
-  type TrendPeriod,
 } from '@/lib/services/analyticsService';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { TrendPeriodFilter, useTrendFilter } from '@/components/filters/TrendPeriodFilter';
 import {
   Dialog,
   DialogContent,
@@ -126,7 +126,7 @@ export default function SuperAdminOverview() {
 
   // Analytics state
   const [visitorTrends, setVisitorTrends] = useState<VisitorTrends | null>(null);
-  const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('weekly');
+  const { period: trendPeriod, range: trendRange, onPeriodChange, onRangeApply } = useTrendFilter('weekly');
   const [visitStatusDist, setVisitStatusDist] = useState<VisitStatusDistribution[]>([]);
   const [visitCategoryDist, setVisitCategoryDist] = useState<VisitCategoryDistribution[]>([]);
   const [userRoleDist, setUserRoleDist] = useState<UserRoleDistribution[]>([]);
@@ -179,7 +179,7 @@ export default function SuperAdminOverview() {
     };
 
     const load = (attempt = 0) => {
-      AnalyticsService.getSuperAdminDashboard(trendPeriod)
+      AnalyticsService.getSuperAdminDashboard(trendPeriod, trendRange)
         .then((data) => {
           if (!cancelled) {
             applyDashboard(data);
@@ -206,7 +206,7 @@ export default function SuperAdminOverview() {
     return () => {
       cancelled = true;
     };
-  }, [isSuperAdmin, reloadKey, trendPeriod]);
+  }, [isSuperAdmin, reloadKey, trendPeriod, trendRange]);
 
   // Branch counts per chain
   const branchCounts = useMemo(
@@ -553,21 +553,13 @@ export default function SuperAdminOverview() {
             <CardTitle className="text-lg font-semibold text-slate-900">
               Visitor Trends
             </CardTitle>
-            <div className="flex gap-1.5">
-              {(['daily', 'weekly', 'monthly', 'yearly'] as TrendPeriod[]).map((p) => (
-                <Button
-                  key={p}
-                  variant={trendPeriod === p ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setTrendPeriod(p)}
-                  className={`capitalize text-xs px-3 cursor-pointer ${
-                    trendPeriod === p ? 'bg-indigo-600 hover:bg-indigo-700' : 'text-slate-600'
-                  }`}
-                >
-                  {p}
-                </Button>
-              ))}
-            </div>
+            <TrendPeriodFilter
+              periods={['daily', 'weekly', 'monthly', 'yearly']}
+              period={trendPeriod}
+              onPeriodChange={onPeriodChange}
+              onRangeApply={onRangeApply}
+              idPrefix="super-trend"
+            />
           </CardHeader>
           <CardContent className="h-80">
             <Line data={visitorLineData} options={visitorLineOptions} />

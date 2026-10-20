@@ -1,5 +1,7 @@
 import { DEMO_USER_ID_STORAGE_KEY } from '@/lib/demo-config';
 import { clearStoredAuthToken } from '@/lib/auth-storage';
+import { clearDeliveryPassCache } from '@/lib/delivery-pass-cache';
+import { clearLastInAppPath } from '@/lib/native-session-paths';
 
 const AUTH_COOKIE_NAMES = ['user', 'authToken'] as const;
 
@@ -10,6 +12,9 @@ export function clearAuthSession(): void {
   }
 
   clearStoredAuthToken();
+  clearLastInAppPath('staff');
+  clearLastInAppPath('distributor');
+  clearDeliveryPassCache();
   sessionStorage.removeItem('email');
   sessionStorage.removeItem(DEMO_USER_ID_STORAGE_KEY);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { Bar, Line, Pie } from 'react-chartjs-2';
@@ -17,15 +17,16 @@ import {
   Filler,
 } from 'chart.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   type HierarchyOverview,
   type TrendPeriod,
+  type TrendRangeQuery,
   type VisitorTrends,
 } from '@/lib/services/analyticsService';
 import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
 import { ArrowRight, Clock, Timer } from 'lucide-react';
+import { TrendPeriodFilter, useTrendFilter } from '@/components/filters/TrendPeriodFilter';
 
 ChartJS.register(
   ArcElement,
@@ -61,7 +62,7 @@ function getNiceColors(n: number) {
 interface HierarchyOverviewChartsProps {
   overview?: HierarchyOverview;
   overviewLoading: boolean;
-  trendsFetcher: (period: TrendPeriod) => Promise<VisitorTrends>;
+  trendsFetcher: (period: TrendPeriod | 'custom', range?: TrendRangeQuery) => Promise<VisitorTrends>;
   trendsKey: string;
   quickLinks: { href: string; label: string }[];
 }
@@ -73,11 +74,11 @@ export function HierarchyOverviewCharts({
   trendsKey,
   quickLinks,
 }: HierarchyOverviewChartsProps) {
-  const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('weekly');
+  const { period: trendPeriod, range: trendRange, onPeriodChange, onRangeApply } = useTrendFilter('weekly');
 
   const { data: trends, isLoading: trendsLoading } = useSWR(
-    `${trendsKey}-${trendPeriod}`,
-    () => trendsFetcher(trendPeriod),
+    `${trendsKey}-${trendPeriod}-${trendRange?.fromTime ?? ''}-${trendRange?.toTime ?? ''}`,
+    () => trendsFetcher(trendPeriod, trendRange),
     { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
@@ -131,35 +132,30 @@ export function HierarchyOverviewCharts({
     <div className="w-full min-w-0 max-w-full space-y-6">
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <Card className="min-w-0 overflow-hidden lg:col-span-2">
-          <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <CardTitle className="shrink-0">Appointment Trends</CardTitle>
-            <div className="flex shrink-0 flex-wrap gap-1">
-              {(['daily', 'weekly', 'monthly'] as TrendPeriod[]).map((period) => (
-                <Button
-                  key={period}
-                  size="sm"
-                  variant={trendPeriod === period ? 'default' : 'outline'}
-                  className="h-8 px-2.5"
-                  onClick={() => setTrendPeriod(period)}
-                >
-                  {period.charAt(0).toUpperCase() + period.slice(1)}
-                </Button>
-              ))}
-            </div>
+            <TrendPeriodFilter
+              periods={['daily', 'weekly', 'monthly']}
+              period={trendPeriod}
+              onPeriodChange={onPeriodChange}
+              onRangeApply={onRangeApply}
+              idPrefix={`${trendsKey}-trend`}
+            />
           </CardHeader>
-          <CardContent className="min-w-0 overflow-hidden">
+          <CardContent className="min-w-0 overflow-hidden px-3 lg:px-6">
             {trendsLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : (
-              <div className="relative h-56 w-full min-w-0 sm:h-64">
+              <div className="chart-frame h-52 lg:h-64">
                 <Line
                   data={trendChart}
                   options={{
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' } },
+                    layout: { padding: { right: 4, left: 0, top: 4, bottom: 0 } },
                     scales: {
-                      y: { beginAtZero: true },
+                      y: { beginAtZero: true, ticks: { font: { size: 10 }, maxTicksLimit: 6 } },
                       x: {
                         ticks: {
                           maxRotation: 0,

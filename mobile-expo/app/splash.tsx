@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { StatusBar, View } from 'react-native';
 
 import { SplashAssembly } from '@/src/components/splash/SplashAssembly';
+import { resumeLastSession } from '@/src/lib/resumeLastSession';
 import { getHasCompletedOnboarding } from '@/src/storage/onboarding';
 import { colors } from '@/src/theme/colors';
 
@@ -18,9 +19,16 @@ export default function SplashScreen() {
     if (navigated.current) return;
     navigated.current = true;
     // Expo Go / Metro (__DEV__): always show the 3 onboarding sliders after splash.
-    // Release builds still skip once the user has completed onboarding.
+    // Release builds skip onboarding once completed, and skip Welcome when a role is still signed in.
     const done = __DEV__ ? false : await getHasCompletedOnboarding();
-    router.replace(done ? '/roles' : '/onboarding');
+    if (!done) {
+      router.replace('/onboarding');
+      return;
+    }
+    const resumed = await resumeLastSession();
+    if (!resumed) {
+      router.replace('/roles');
+    }
   }, []);
 
   return (

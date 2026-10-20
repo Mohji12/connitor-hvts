@@ -21,9 +21,12 @@
     try {
       const url = new URL(base);
       url.searchParams.set('native', '1');
+      // Bypass Android WebView HTML cache so a Vercel deploy shows up on the next open.
+      url.searchParams.set('_cb', String(Date.now()));
       return url.toString();
     } catch {
-      return base.includes('?') ? `${base}&native=1` : `${base}?native=1`;
+      const join = base.includes('?') ? '&' : '?';
+      return `${base}${join}native=1&_cb=${Date.now()}`;
     }
   }
 

@@ -103,6 +103,29 @@ function handleRoute(
   if (pathname === '/api/auth/verify-otp' && method === 'post') {
     return ok(config, { access_token: 'demo-token' });
   }
+  if (pathname === '/api/auth/me' && (method === 'get' || method === 'patch')) {
+    const user =
+      method === 'patch'
+        ? mockStore.updateUser(currentUser.id, {
+            name: String(body.name ?? currentUser.name),
+            email: String(body.email ?? currentUser.email),
+            phone: String(body.phone ?? currentUser.phone),
+          }) ?? currentUser
+        : currentUser;
+    const chain = mockStore.chains.find((item) => item.id === user.hospitalChainId);
+    const branch = mockStore.branches.find((item) => item.id === user.branchId);
+    const department = mockStore.departments.find((item) => item.id === user.departmentId);
+    const subDepartment = mockStore.subDepartments.find((item) => item.id === user.subDepartmentId);
+    return ok(config, {
+      ...user,
+      hospitalChainName: chain?.name ?? null,
+      branchName: branch?.name ?? null,
+      departmentName: department?.name ?? null,
+      subDepartmentName: subDepartment?.name ?? null,
+      hospitalChain: chain ? { name: chain.name } : null,
+      branch: branch ? { name: branch.name } : null,
+    });
+  }
 
   // Notifications
   if (pathname === '/api/notifications/unread' && method === 'get') {

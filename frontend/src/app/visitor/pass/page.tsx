@@ -127,6 +127,7 @@ function VisitorPass() {
             <Sun className="h-4 w-4" />
             Turn up screen brightness and show this at security
           </p>
+          <p className="mt-2 text-xs text-white/70">Saved on this phone for offline use</p>
           {offline ? (
             <p className="mt-2 flex items-center gap-2 text-xs text-amber-200">
               <WifiOff className="h-3.5 w-3.5" />

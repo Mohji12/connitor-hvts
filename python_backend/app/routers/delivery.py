@@ -1,6 +1,6 @@
 """Delivery management API routes."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from pydantic import BaseModel, Field
@@ -13,6 +13,7 @@ from app.delivery.agent_vehicle_service import AgentVehicleService
 from app.delivery.branch_delivery_service import BranchDeliveryService
 from app.delivery.delivery_slot_service import DeliverySlotService
 from app.delivery.distributor_service import DistributorService
+from app.delivery.onboarding_service import DistributorOnboardingService
 from app.delivery.gate_service import DeliveryGateService
 from app.delivery.inbound_delivery_service import InboundDeliveryService
 from app.delivery.receiving_service import ReceivingService
@@ -114,6 +115,30 @@ class AgentCreateBody(BaseModel):
     licenseNumber: str | None = None
 
 
+class DistributorProfileUpdateBody(BaseModel):
+    vendorName: str | None = None
+    tradeName: str | None = None
+    legalEntityType: str | None = None
+    website: str | None = None
+    yearEstablished: int | None = None
+    contactPerson: str | None = None
+    designation: str | None = None
+    preferredLanguage: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    alternatePhone: str | None = None
+    dispatchPhone: str | None = None
+    accountsEmail: str | None = None
+    city: str | None = None
+    state: str | None = None
+    deliveryMode: str | None = None
+    goodsDescription: str | None = None
+    registeredAddress: dict[str, Any] | None = None
+    operatingAddress: dict[str, Any] | None = None
+    serviceableStates: list[str] | None = None
+    supplyCategories: list[str] | None = None
+
+
 class SlotBulkCreateBody(BaseModel):
     startDate: str
     endDate: str
@@ -170,6 +195,25 @@ def quote_delivery(
     db: Annotated[Session, Depends(get_db)],
 ):
     return InboundDeliveryService(db).quote_delivery(user, body.model_dump())
+
+
+@router.get("/distributors/me")
+def my_distributor_profile(
+    user: Annotated[dict, Depends(require_permission("VIEW_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorOnboardingService(db).get_me(user)
+
+
+@router.patch("/distributors/me")
+def update_my_distributor_profile(
+    body: DistributorProfileUpdateBody,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorOnboardingService(db).update_me(
+        user, body.model_dump(exclude_unset=True)
+    )
 
 
 @router.get("/distributors/me/branches")

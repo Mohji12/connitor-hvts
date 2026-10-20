@@ -88,14 +88,14 @@ export function SubDepartmentRowActions({
 
   return (
     <>
-      <div className="flex gap-2 shrink-0">
+      <div className="flex shrink-0 gap-2">
         {canEdit && (
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+          <Button variant="outline" size="icon" aria-label="Edit section" onClick={() => setEditOpen(true)}>
             <Pencil className="h-4 w-4" />
           </Button>
         )}
         {canDelete && (
-          <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+          <Button variant="outline" size="icon" aria-label="Deactivate section" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="h-4 w-4" />
           </Button>
         )}

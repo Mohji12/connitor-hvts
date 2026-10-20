@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { isAuthenticatedResumePath } from '@/src/lib/sessionResume';
 import type { PersonaId } from '@/src/storage/persona';
 
 const keyFor = (id: PersonaId): string => `conninterLastWebPath:${id}`;
@@ -17,7 +18,17 @@ export async function getLastWebPath(id: PersonaId): Promise<string | null> {
 
 export async function setLastWebPath(id: PersonaId, path: string): Promise<void> {
   const normalized = path.startsWith('/') ? path : `/${path}`;
-  // Avoid storing auth-only entry points as “resume” forever if user never got past login.
+  if (!isAuthenticatedResumePath(normalized)) {
+    // Do not keep login / welcome URLs as the resume target after an explicit sign-out.
+    if (
+      normalized.replace(/\/+$/, '') === '/app' ||
+      normalized.includes('/login') ||
+      normalized.includes('/forgot-password')
+    ) {
+      await AsyncStorage.removeItem(keyFor(id));
+    }
+    return;
+  }
   await AsyncStorage.setItem(keyFor(id), normalized);
 }
 

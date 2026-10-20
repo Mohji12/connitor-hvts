@@ -38,6 +38,7 @@ import {
   sortVisits,
   type VisitFilter,
 } from '@/features/visitor-dashboard/visit-filters';
+import { CameraAccessCard } from '@/components/mobile/CameraAccessCard';
 import { cacheVisitorPasses, clearVisitorPassCache, pickUpcomingVisit } from '@/lib/visitor-pass-cache';
 
 const FILTER_TABS: { value: VisitFilter; label: string }[] = [
@@ -224,6 +225,7 @@ export default function VisitorDashboardPage() {
     >
       <main className="mx-auto w-full min-w-0 max-w-6xl space-y-5 px-3 py-5 sm:space-y-6 sm:px-6 sm:py-8">
         {bookedId && <BookedBanner item={bookedItem} onDismiss={() => setBookedId(null)} />}
+        <CameraAccessCard className="lg:hidden" alwaysShow />
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">

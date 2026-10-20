@@ -27,8 +27,15 @@ WARD_ADMIN            | ward.admin@connitor-elcity.com     | Conninter123@
 RECEIVING             | receiving@connitor-elcity.com      | Conninter123@
 PURCHASE              | purchase@connitor-elcity.com       | Conninter123@
 DISTRIBUTOR           | distributor@citygen.demo           | Conninter123@
+                      | phone 9000000102 (phoneVerified)
+VISITOR (dummy)       | visitor@conninter.demo             | Conninter123@
+                      | phone 9000000001 → /visitor/login
 
-Distributor login: /auth/login?role=DISTRIBUTOR → /vendor/deliveries
+Distributor login: /delivery/login  (or /auth/login?role=DISTRIBUTOR) → /vendor/deliveries
+Visitor login:     /visitor/login  (email or phone + password)
+
+Seed / reset dummy visitor + distributor:
+  python scripts/seed_demo_visitor_distributor.py --yes
 
 Chain / branch contact emails (not user logins):
   info@connitorhealth.com
@@ -99,8 +106,12 @@ If you ran seed_delivery_full.py / seed_distributor_electronic_city.py:
 4) PUBLIC VISITORS
 ========================================================================
 URL: /visitor/login
-No shared seed password — visitors register their own account
-(password, Google, LinkedIn, or email OTP).
+
+Dummy demo account (seed_demo_visitor_distributor.py --yes):
+  visitor@conninter.demo   | phone 9000000001 | Conninter123@
+  Wallet seeded at ₹1000 so a visit fee can be paid.
+
+Visitors can also register their own account (password, Google, LinkedIn, or mobile OTP).
 
 ========================================================================
 5) HOW TO SEED / RESET PASSWORDS (from python_backend/)

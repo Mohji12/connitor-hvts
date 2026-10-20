@@ -5,6 +5,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
@@ -19,6 +20,10 @@ public class MainActivity extends BridgeActivity {
 
     private static final String LIVE_WELCOME = "https://www.conninter.com/app/";
 
+    private static String liveWelcomeUrl() {
+        return LIVE_WELCOME + "?native=1&_cb=" + System.currentTimeMillis();
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -32,12 +37,14 @@ public class MainActivity extends BridgeActivity {
 
         WebView webView = bridgeWebView();
         if (webView != null && getBridge() != null) {
+            webView.clearCache(true);
+            webView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
             webView.setWebViewClient(new BridgeWebViewClient(getBridge()) {
                 @Override
                 public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                     Uri url = request.getUrl();
                     if (isLiveMarketingHome(url)) {
-                        view.loadUrl(LIVE_WELCOME);
+                        view.loadUrl(liveWelcomeUrl());
                         return true;
                     }
                     return super.shouldOverrideUrlLoading(view, request);
@@ -47,7 +54,7 @@ public class MainActivity extends BridgeActivity {
                 public void onPageStarted(WebView view, String url, Bitmap favicon) {
                     if (isLiveMarketingHome(url)) {
                         view.stopLoading();
-                        view.loadUrl(LIVE_WELCOME);
+                        view.loadUrl(liveWelcomeUrl());
                         return;
                     }
                     super.onPageStarted(view, url, favicon);

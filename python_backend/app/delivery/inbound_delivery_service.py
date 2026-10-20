@@ -8,6 +8,7 @@ import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta
+from collections import defaultdict
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -34,7 +35,7 @@ from app.models.delivery_entities import (
 from app.models import Branch
 from app.models.enums import DeliveryStatus, DeliveryType
 from app.services.notifications_service import NotificationsService
-from app.utils.timezone import now_ist
+from app.utils.timezone import now_ist, today_start_ist
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +111,26 @@ class InboundDeliveryService:
             )
         )
 
+    def _deliveries_query(
+        self,
+        user: dict,
+        *,
+        branch_id: str | None = None,
+        status: str | None = None,
+    ):
+        q = self.db.query(InboundDelivery).filter(InboundDelivery.isActive.is_(True))
+        branch = resolve_branch_filter(user, branch_id)
+        if branch:
+            q = q.filter(InboundDelivery.branchId == branch)
+        if user.get("role") == "DISTRIBUTOR":
+            dist_id = user.get("distributorId")
+            if not dist_id:
+                return q.filter(InboundDelivery.id == "__none__")
+            q = q.filter(InboundDelivery.vendorId == dist_id)
+        if status:
+            q = q.filter(InboundDelivery.status == status)
+        return q
+
     def list_deliveries(
         self,
         user: dict,
@@ -119,14 +140,7 @@ class InboundDeliveryService:
         skip: int = 0,
         limit: int = 50,
     ) -> dict:
-        branch = resolve_branch_filter(user, branch_id)
-        q = self.db.query(InboundDelivery).filter(InboundDelivery.isActive.is_(True))
-        if branch:
-            q = q.filter(InboundDelivery.branchId == branch)
-        if status:
-            q = q.filter(InboundDelivery.status == status)
-        if user.get("role") == "DISTRIBUTOR" and user.get("distributorId"):
-            q = q.filter(InboundDelivery.vendorId == user["distributorId"])
+        q = self._deliveries_query(user, branch_id=branch_id, status=status)
         total = q.count()
         rows = q.order_by(InboundDelivery.createdAt.desc()).offset(skip).limit(limit).all()
         return {"total": total, "items": [self._serialize_dashboard(d) for d in rows]}
@@ -699,15 +713,131 @@ class InboundDeliveryService:
         return self._serialize_dashboard(delivery)
 
     def dashboard_summary(self, user: dict, branch_id: str | None = None) -> dict:
-        branch = resolve_branch_filter(user, branch_id)
-        q = self.db.query(InboundDelivery).filter(InboundDelivery.isActive.is_(True))
-        if branch:
-            q = q.filter(InboundDelivery.branchId == branch)
-        rows = q.all()
+        rows = self._deliveries_query(user, branch_id=branch_id).all()
         by_status: dict[str, int] = {}
+        by_hospital: dict[str, dict] = {}
+        by_goods: dict[str, dict] = {}
+        trend_map: dict[str, dict] = defaultdict(lambda: {"bookings": 0, "completed": 0, "spend": 0.0})
+
+        done = {
+            DeliveryStatus.COMPLETED.value,
+            DeliveryStatus.EXITED.value,
+            DeliveryStatus.CLOSED.value,
+        }
+        in_flight = {
+            DeliveryStatus.ARRIVED_AT_GATE.value,
+            DeliveryStatus.GATE_VERIFIED.value,
+            DeliveryStatus.APPROVED.value,
+            DeliveryStatus.IN_PROGRESS.value,
+            DeliveryStatus.RECEIVED.value,
+        }
+        upcoming = {DeliveryStatus.DRAFT.value, DeliveryStatus.SCHEDULED.value}
+
+        now = now_ist()
+        today0 = today_start_ist()
+        week0 = today0 - timedelta(days=today0.weekday())
+        month0 = today0.replace(day=1)
+        trend_start = today0 - timedelta(days=13)
+
+        today = this_week = this_month = 0
+        completed = in_progress = upcoming_count = on_hold = rejected = 0
+        total_boxes = 0
+        total_spend = 0.0
+        unload_sum = 0.0
+        unload_n = 0
+
+        branch_names: dict[str, str] = {}
+
         for d in rows:
             by_status[d.status] = by_status.get(d.status, 0) + 1
-        return {"total": len(rows), "byStatus": by_status}
+            created = d.createdAt or now
+            if created >= today0:
+                today += 1
+            if created >= week0:
+                this_week += 1
+            if created >= month0:
+                this_month += 1
+            if d.status in done:
+                completed += 1
+            elif d.status in in_flight:
+                in_progress += 1
+            elif d.status in upcoming:
+                upcoming_count += 1
+            if d.status == DeliveryStatus.ON_HOLD.value:
+                on_hold += 1
+            if d.status == DeliveryStatus.REJECTED.value:
+                rejected += 1
+
+            boxes = int(d.totalBoxes or 0)
+            spend = float(d.walletFee or 0)
+            total_boxes += boxes
+            total_spend += spend
+            if d.unloadMinutes is not None:
+                unload_sum += float(d.unloadMinutes)
+                unload_n += 1
+
+            hid = d.branchId
+            if hid not in branch_names:
+                branch = self.db.get(Branch, hid)
+                branch_names[hid] = branch.name if branch else "Hospital"
+            hospital = by_hospital.setdefault(
+                hid,
+                {"branchId": hid, "branchName": branch_names[hid], "total": 0, "completed": 0, "spend": 0.0},
+            )
+            hospital["total"] += 1
+            hospital["spend"] += spend
+            if d.status in done:
+                hospital["completed"] += 1
+
+            goods_key = (d.goodsType or "Unspecified").strip() or "Unspecified"
+            goods = by_goods.setdefault(goods_key, {"goodsType": goods_key, "count": 0, "boxes": 0})
+            goods["count"] += 1
+            goods["boxes"] += boxes
+
+            if created >= trend_start:
+                day_key = created.date().isoformat()
+                trend_map[day_key]["bookings"] += 1
+                trend_map[day_key]["spend"] += spend
+                if d.status in done:
+                    trend_map[day_key]["completed"] += 1
+
+        trend = []
+        for i in range(14):
+            day = (trend_start + timedelta(days=i)).date()
+            key = day.isoformat()
+            point = trend_map[key]
+            trend.append(
+                {
+                    "date": key,
+                    "label": day.strftime("%d %b"),
+                    "bookings": point["bookings"],
+                    "completed": point["completed"],
+                    "spend": round(point["spend"], 2),
+                }
+            )
+
+        hospitals = sorted(by_hospital.values(), key=lambda row: row["total"], reverse=True)
+        for row in hospitals:
+            row["spend"] = round(row["spend"], 2)
+
+        return {
+            "total": len(rows),
+            "byStatus": by_status,
+            "today": today,
+            "thisWeek": this_week,
+            "thisMonth": this_month,
+            "completed": completed,
+            "inProgress": in_progress,
+            "upcoming": upcoming_count,
+            "onHold": on_hold,
+            "rejected": rejected,
+            "totalBoxes": total_boxes,
+            "totalSpend": round(total_spend, 2),
+            "avgUnloadMinutes": round(unload_sum / unload_n, 1) if unload_n else 0,
+            "byHospital": hospitals,
+            "byGoodsType": sorted(by_goods.values(), key=lambda row: row["count"], reverse=True),
+            "trend": trend,
+        }
 
     def _serialize(self, d: InboundDelivery, full: bool = False) -> dict:
         base = {

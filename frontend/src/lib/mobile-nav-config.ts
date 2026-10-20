@@ -42,7 +42,7 @@ export interface MobileNavConfig {
   more: MobileNavGroup[];
 }
 
-const settings: MobileNavItem = { label: 'Settings', href: '/dashboard/settings', icon: Settings };
+const settings: MobileNavItem = { label: 'Profile', href: '/dashboard/settings', icon: UserCircle };
 const account: MobileNavGroup = { title: 'Account', items: [settings] };
 
 const amsTools: MobileNavGroup = {
@@ -59,16 +59,17 @@ const amsTools: MobileNavGroup = {
 };
 
 const securityTabs: MobileNavItem[] = [
+  { label: 'Dashboard', href: '/dashboard', icon: Home },
   { label: 'Scan', href: '/security/dashboard?tab=check-in', icon: ScanLine },
   { label: 'Today', href: '/security/dashboard?tab=appointments', icon: CalendarCheck },
   { label: 'Deliveries', href: '/security/dashboard?tab=deliveries', icon: Package },
-  { label: 'Logs', href: '/security/dashboard?tab=logs', icon: BookOpen },
 ];
 
 const securityMore: MobileNavGroup[] = [
   {
     title: 'Gate',
     items: [
+      { label: 'Visitor logs', href: '/security/dashboard?tab=logs', icon: BookOpen },
       { label: 'On-spot visitor QR', href: '/security/dashboard?tab=on-spot', icon: QrCode },
       { label: 'Visitor passes', href: '/security/dashboard?tab=visitor-passes', icon: IdCard },
       { label: 'All appointments', href: '/dashboard/appointments', icon: CalendarDays },
@@ -217,11 +218,19 @@ export const MOBILE_NAV: Record<string, MobileNavConfig> = {
       { label: 'Wallet', href: '/vendor/wallet', icon: Wallet },
       { label: 'Fleet', href: '/vendor/fleet', icon: Users },
     ],
-    more: [account],
+    more: [
+      {
+        title: 'Account',
+        items: [
+          { label: 'Company profile', href: '/vendor/profile', icon: Building2 },
+          { label: 'My account', href: '/dashboard/settings', icon: UserCircle },
+        ],
+      },
+    ],
   },
   PRODUCT_ADMIN: {
     tabs: [{ label: 'Logs', href: '/dashboard/product-logs', icon: ClipboardList }],
-    more: [],
+    more: [account],
   },
 };
 
@@ -283,12 +292,14 @@ export function findActiveHref(
 
 const TITLE_OVERRIDES: Record<string, string> = {
   '/dashboard': 'Home',
-  '/dashboard/settings': 'Settings',
+  '/dashboard/settings': 'My profile',
   '/dashboard/my-visitors': 'My appointments',
   '/dashboard/visitors/check-in': 'Check in visitor',
   '/dashboard/visitors/visitors-logs': 'Visitor logs',
   '/dashboard/ams': 'Attendant passes',
   '/vendor/deliveries/book': 'Book delivery',
+  '/vendor/profile': 'Company profile',
+  '/vendor/deliveries': 'Deliveries',
 };
 
 const SECURITY_TAB_TITLES: Record<string, string> = {

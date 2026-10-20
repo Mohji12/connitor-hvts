@@ -43,6 +43,8 @@ import {
 import { jwtDecode } from 'jwt-decode';
 import Image from 'next/image';
 import { getDashboardPathForRole, getDashboardPrefetchPath } from '@/lib/auth-routing';
+import { setLastNativePersona } from '@/lib/native-session';
+import { isNativeApp } from '@/lib/platform';
 
 // Validation
 const OtpFormSchema = z.object({
@@ -171,6 +173,9 @@ export function AuthOtpForm() {
       login(accessToken);
 
       const decodedUser = jwtDecode<DecodedUser>(accessToken);
+      if (isNativeApp()) {
+        setLastNativePersona(decodedUser.role === 'DISTRIBUTOR' ? 'distributor' : 'staff');
+      }
       const dashboardPath = getDashboardPathForRole(decodedUser.role);
       router.prefetch(getDashboardPrefetchPath(decodedUser.role));
       router.push(dashboardPath);

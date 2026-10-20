@@ -51,3 +51,6 @@ scripts/deploy/config.env
 .env*
 
 .vercel
+
+.vercel
+.env*

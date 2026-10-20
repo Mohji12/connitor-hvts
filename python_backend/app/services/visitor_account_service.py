@@ -432,6 +432,35 @@ class VisitorAccountService:
 
     def update_profile(self, account_id: str, data: UpdateProfileBody) -> dict[str, Any]:
         account = self._get_account(account_id)
+        if data.firstName is not None:
+            name = data.firstName.strip()
+            if not name:
+                raise HTTPException(status_code=400, detail="First name is required")
+            account.firstName = name
+        if data.lastName is not None:
+            name = data.lastName.strip()
+            if not name:
+                raise HTTPException(status_code=400, detail="Last name is required")
+            account.lastName = name
+        if data.phone is not None:
+            clash = (
+                self.db.query(VisitorAccount)
+                .filter(VisitorAccount.phone == data.phone, VisitorAccount.id != account_id)
+                .first()
+            )
+            if clash:
+                raise HTTPException(status_code=409, detail="Another visitor already uses this mobile number")
+            account.phone = data.phone
+        if data.email is not None:
+            email = str(data.email).strip().lower()
+            clash = (
+                self.db.query(VisitorAccount)
+                .filter(VisitorAccount.email == email, VisitorAccount.id != account_id)
+                .first()
+            )
+            if clash:
+                raise HTTPException(status_code=409, detail="Another visitor already uses this email")
+            account.email = email
         if data.companyName is not None:
             account.companyName = data.companyName.strip()
         if data.jobTitle is not None:

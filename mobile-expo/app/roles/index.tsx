@@ -1,3 +1,4 @@
+import { useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -72,6 +73,7 @@ const PERSONAS: Persona[] = [
 export default function RoleSelectionScreen() {
   const [lastPersona, setLast] = useState<PersonaId | null>(null);
   const [ready, setReady] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   useEffect(() => {
     let cancelled = false;
@@ -163,6 +165,22 @@ export default function RoleSelectionScreen() {
               onPress={() => void choose(persona, { resume: true })}
             />
           ))}
+        </View>
+
+        <View className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+          <Text className="text-base font-semibold text-navy">Camera access</Text>
+          <Text className="mt-1 text-sm leading-5 text-slate-500">
+            Allow Conninter to scan gate QR codes and take visitor, attendant, and driver photos.
+          </Text>
+          <Pressable
+            onPress={() => void requestCameraPermission()}
+            className="mt-3 items-center rounded-xl bg-navy px-4 py-3"
+            accessibilityRole="button"
+          >
+            <Text className="font-semibold text-white">
+              {cameraPermission?.granted ? 'Camera allowed' : 'Allow camera'}
+            </Text>
+          </Pressable>
         </View>
 
         <View className="mt-auto items-center pt-8">

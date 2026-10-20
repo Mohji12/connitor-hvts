@@ -124,12 +124,21 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
-    @apply w-full max-w-[100vw] overflow-x-clip;
+    @apply w-full max-w-full overflow-x-clip;
   }
   body {
-    @apply bg-background text-foreground min-h-dvh w-full max-w-[100vw] overflow-x-clip font-sans antialiased;
+    @apply bg-background text-foreground min-h-dvh w-full max-w-full overflow-x-clip font-sans antialiased;
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+  }
+  /* Chart.js / images must not stretch the Android WebView wider than the screen. */
+  canvas {
+    display: block;
+    max-width: 100% !important;
+  }
+  html.native-app,
+  html.native-app body {
+    overflow-x: hidden;
   }
   @media (max-width: 1023px) {
     input:not([type='checkbox']):not([type='radio']),
@@ -162,6 +171,19 @@
   }
   .app-content {
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+  .chart-frame {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .chart-frame canvas {
+    max-width: 100% !important;
   }
   .app-content-action {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));

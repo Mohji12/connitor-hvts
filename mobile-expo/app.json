@@ -11,7 +11,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.conninter.hvts.expo",
       "infoPlist": {
-        "NSCameraUsageDescription": "Conninter uses the camera to scan hospital attendant-pass QR codes at reception or the security gate."
+        "NSCameraUsageDescription": "Conninter uses the camera to scan gate QR codes and to take visitor, attendant, and driver photos."
       }
     },
     "android": {
@@ -44,7 +44,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Conninter to scan hospital attendant-pass QR codes.",
+          "cameraPermission": "Allow Conninter to scan gate QR codes and take visitor, attendant, and driver photos.",
           "recordAudioAndroid": false
         }
       ],

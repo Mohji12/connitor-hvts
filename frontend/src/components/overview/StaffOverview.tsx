@@ -10,7 +10,6 @@ import { getStoredAuthToken } from '@/lib/auth-storage';
 import { jwtDecode } from 'jwt-decode';
 import { Bar, Line, Pie } from 'react-chartjs-2';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
-import { Button } from '@/components/ui/button';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -26,8 +25,7 @@ import {
 import { StaffService } from '@/lib/services/staffService';
 import { AnalyticsService } from '@/lib/services/analyticsService';
 import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
-
-type TrendPeriod = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+import { TrendPeriodFilter, useTrendFilter } from '@/components/filters/TrendPeriodFilter';
 
 interface DecodedToken {
   branchId?: string;
@@ -92,7 +90,7 @@ interface Appointment {
 export default function StaffOverview() {
   const demoUser = useOverviewSessionUser<{ branchId?: string | null }>();
   const todayISO = todayIstDateIso();
-  const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('hourly');
+  const { period: trendPeriod, range: trendRange, onPeriodChange, onRangeApply } = useTrendFilter('hourly');
   const [branchId, setBranchId] = useState<string | null>(null);
 
   const [clientDate, setClientDate] = useState('');
@@ -145,8 +143,8 @@ export default function StaffOverview() {
 
   // Fetch visitor trends based on period
   const { data: visitorTrends } = useSWR(
-    branchId ? ['staff-visitor-trends', branchId, trendPeriod] : null,
-    () => AnalyticsService.getStaffVisitorTrends(branchId!, trendPeriod),
+    branchId ? ['staff-visitor-trends', branchId, trendPeriod, trendRange?.fromTime, trendRange?.toTime] : null,
+    () => AnalyticsService.getStaffVisitorTrends(branchId!, trendPeriod, trendRange),
     { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
@@ -560,19 +558,13 @@ export default function StaffOverview() {
                 <div className="w-3 h-3 bg-green-200 rounded-full"></div>
                 Visitor Traffic
               </CardTitle>
-              <div className="flex flex-wrap gap-2">
-                {(['hourly', 'daily', 'weekly', 'monthly', 'yearly'] as TrendPeriod[]).map((period) => (
-                  <Button
-                    key={period}
-                    size="sm"
-                    variant={trendPeriod === period ? 'default' : 'outline'}
-                    onClick={() => setTrendPeriod(period)}
-                    className="cursor-pointer text-xs capitalize"
-                  >
-                    {period}
-                  </Button>
-                ))}
-              </div>
+              <TrendPeriodFilter
+                periods={['hourly', 'daily', 'weekly', 'monthly', 'yearly']}
+                period={trendPeriod}
+                onPeriodChange={onPeriodChange}
+                onRangeApply={onRangeApply}
+                idPrefix="staff-trend"
+              />
             </div>
           </CardHeader>
           <CardContent className="h-80 p-6 min-w-0">

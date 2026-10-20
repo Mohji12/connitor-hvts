@@ -348,17 +348,36 @@ class VisitorsService:
             q = q.filter(Visit.branchId == user.get("branchId"))
         if query.get("status"):
             q = q.filter(Visit.status == query["status"])
+        start_raw = query.get("startDate") or query.get("fromTime")
+        end_raw = query.get("endDate") or query.get("toTime")
         date_value = query.get("date")
-        if isinstance(date_value, str) and date_value.strip():
+        start: datetime | None = None
+        end: datetime | None = None
+        if isinstance(start_raw, str) and start_raw.strip() and isinstance(end_raw, str) and end_raw.strip():
+            start = parse_to_ist_naive(start_raw.strip())
+            end = parse_to_ist_naive(end_raw.strip())
+            if end < start:
+                start, end = end, start
+        elif isinstance(date_value, str) and date_value.strip():
             day = datetime.strptime(date_value.strip()[:10], "%Y-%m-%d")
             start = day.replace(hour=0, minute=0, second=0, microsecond=0)
             end = start + timedelta(days=1)
+        if start and end:
+            inclusive = bool(start_raw and end_raw)
+            appointment_in_range = (
+                (Visit.appointmentDate >= start) & (Visit.appointmentDate <= end)
+                if inclusive
+                else (Visit.appointmentDate >= start) & (Visit.appointmentDate < end)
+            )
+            created_in_range = (
+                (Visit.createdAt >= start) & (Visit.createdAt <= end)
+                if inclusive
+                else (Visit.createdAt >= start) & (Visit.createdAt < end)
+            )
             q = q.filter(
                 or_(
-                    (Visit.appointmentDate >= start) & (Visit.appointmentDate < end),
-                    (Visit.appointmentDate.is_(None))
-                    & (Visit.createdAt >= start)
-                    & (Visit.createdAt < end),
+                    appointment_in_range,
+                    (Visit.appointmentDate.is_(None)) & created_in_range,
                 )
             )
         search = (query.get("search") or "").strip()

@@ -21,6 +21,22 @@ export function isAppHome(pathname: string | null | undefined): boolean {
   return path === '/app';
 }
 
+/** Login / register screens already have their own chrome — no extra native Back bar. */
+export function isStandaloneAuthPath(pathname: string | null | undefined): boolean {
+  const path = (pathname ?? '').replace(/\/+$/, '') || '/';
+  return (
+    path.startsWith('/staff/login') ||
+    path.startsWith('/delivery/login') ||
+    path.startsWith('/security/login') ||
+    path.startsWith('/auth') ||
+    path.startsWith('/visitor/login') ||
+    path.startsWith('/visitor/register') ||
+    path.startsWith('/visitor/forgot-password') ||
+    path.startsWith('/vendor/register') ||
+    path === '/portal'
+  );
+}
+
 // Pages that render AppTopBar already have a back arrow; the global bar stays hidden there.
 let mountedTopBars = 0;
 const listeners = new Set<() => void>();

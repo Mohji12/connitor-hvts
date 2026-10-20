@@ -1,15 +1,21 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { parseAttendantQr } from '@/src/scanning/parseAttendantQr';
 import { setLastPersona } from '@/src/storage/persona';
+import { setLastWebPath } from '@/src/storage/personaWebPath';
 import { colors } from '@/src/theme/colors';
 
 export default function AttendantScanScreen() {
+  useEffect(() => {
+    void setLastPersona('attendant');
+    void setLastWebPath('attendant', '/attendant/scan');
+  }, []);
+
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
   const [error, setError] = useState<string | null>(null);

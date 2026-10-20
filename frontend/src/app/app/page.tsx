@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { jwtDecode } from 'jwt-decode';
 import {
   ChevronRight,
   HeartHandshake,
@@ -14,15 +13,18 @@ import {
 } from 'lucide-react';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
-import { getStoredAuthToken } from '@/lib/auth-storage';
-import { getVisitorToken } from '@/lib/visitor-auth-storage';
-import { getDashboardPathForRole } from '@/lib/auth-routing';
+import {
+  getLastNativePersona,
+  isNativePersonaId,
+  resolveNativeResumePath,
+  setLastNativePersona,
+  type NativePersonaId,
+} from '@/lib/native-session';
 import { isNativeApp } from '@/lib/platform';
 import { cn } from '@/lib/utils';
+import { CameraAccessCard } from '@/components/mobile/CameraAccessCard';
 
-const PERSONA_KEY = 'conninterPersona';
-
-type PersonaId = 'visitor' | 'staff' | 'distributor' | 'attendant';
+type PersonaId = NativePersonaId;
 
 const PERSONAS: {
   id: PersonaId;
@@ -75,25 +77,14 @@ export default function AppLaunchPage(): React.ReactElement {
 
   useEffect(() => {
     setNativeShell(isNativeApp());
-    const staffToken = getStoredAuthToken();
-    if (staffToken) {
-      try {
-        const { role } = jwtDecode<{ role?: string }>(staffToken);
-        if (role) {
-          router.replace(getDashboardPathForRole(role));
-          return;
-        }
-      } catch {
-        // Invalid token: fall through to the chooser.
-      }
-    }
-    if (getVisitorToken()) {
-      router.replace('/visitor/dashboard');
+    const resume = resolveNativeResumePath();
+    if (resume) {
+      router.replace(resume);
       return;
     }
-    const saved = localStorage.getItem(PERSONA_KEY);
-    if (saved && PERSONAS.some((p) => p.id === saved)) {
-      setLastPersona(saved as PersonaId);
+    const saved = getLastNativePersona();
+    if (saved && isNativePersonaId(saved)) {
+      setLastPersona(saved);
     }
     setChecking(false);
   }, [router]);
@@ -137,7 +128,7 @@ export default function AppLaunchPage(): React.ReactElement {
               <li key={persona.id}>
                 <Link
                   href={persona.href}
-                  onClick={() => localStorage.setItem(PERSONA_KEY, persona.id)}
+                  onClick={() => setLastNativePersona(persona.id)}
                   className={cn(
                     'flex min-h-20 items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm active:bg-[#F7F9FC]',
                     isLast ? 'border-primary ring-2 ring-primary/15' : 'border-slate-200',
@@ -168,6 +159,12 @@ export default function AppLaunchPage(): React.ReactElement {
             );
           })}
         </ul>
+
+        {nativeShell ? (
+          <div className="px-4 pb-4">
+            <CameraAccessCard />
+          </div>
+        ) : null}
       </main>
 
       {/* Bottom chrome — clears gesture / nav bar */}

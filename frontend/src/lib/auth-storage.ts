@@ -7,15 +7,39 @@ import { isNativeApp } from '@/lib/platform';
  */
 export const AUTH_TOKEN_STORAGE_KEY = 'authToken';
 
-function tokenStore(): Storage {
-  return isNativeApp() ? localStorage : sessionStorage;
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as { exp?: unknown };
+    if (typeof payload.exp !== 'number') return false;
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    return false;
+  }
 }
 
 export function getStoredAuthToken(): string | null {
   if (typeof window === 'undefined') {
     return null;
   }
-  return tokenStore().getItem(AUTH_TOKEN_STORAGE_KEY);
+  const native = isNativeApp();
+  const fromLocal = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  const fromSession = sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  const token = native ? fromLocal || fromSession : fromSession;
+  if (!token) {
+    return null;
+  }
+  if (isTokenExpired(token)) {
+    clearStoredAuthToken();
+    return null;
+  }
+  if (native && fromLocal !== token) {
+    try {
+      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+    } catch {
+      // Ignore quota / private-mode failures.
+    }
+  }
+  return token;
 }
 
 export function setStoredAuthToken(token: string): void {
@@ -24,7 +48,7 @@ export function setStoredAuthToken(token: string): void {
   }
   if (isNativeApp()) {
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
-    sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
     return;
   }
   sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);

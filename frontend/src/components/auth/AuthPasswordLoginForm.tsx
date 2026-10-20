@@ -10,7 +10,8 @@ import { Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
 import Link from 'next/link';
 import Image from 'next/image';
-import { clearStoredAuthToken } from '@/lib/auth-storage';
+import { clearStoredAuthToken, getStoredAuthToken } from '@/lib/auth-storage';
+import { resolveNativeResumePath, setLastNativePersona } from '@/lib/native-session';
 import apiClient from '@/lib/api';
 import { DistributorOnboardingService } from '@/lib/services/distributorOnboardingService';
 import { useAuth } from '@/hooks/useAuth';
@@ -92,7 +93,17 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
     setMounted(true);
     setHomeHref(appSafeHomeHref());
     setNativeShell(isNativeApp());
-  }, []);
+    const existing = getStoredAuthToken();
+    if (!existing) return;
+    try {
+      const decodedUser = jwtDecode<DecodedUser>(existing);
+      if (!decodedUser.role) return;
+      const resume = isNativeApp() ? resolveNativeResumePath() : null;
+      router.replace(resume ?? getDashboardPathForRole(decodedUser.role));
+    } catch {
+      // Stale token — stay on the sign-in form.
+    }
+  }, [router]);
 
   useEffect(() => {
     router.prefetch(getDashboardPrefetchPath(roleParam));
@@ -127,6 +138,9 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
       login(accessToken);
 
       const decodedUser = jwtDecode<DecodedUser>(accessToken);
+      if (isNativeApp()) {
+        setLastNativePersona(decodedUser.role === 'DISTRIBUTOR' ? 'distributor' : 'staff');
+      }
       const dashboardPath = getDashboardPathForRole(decodedUser.role);
       router.prefetch(getDashboardPrefetchPath(decodedUser.role));
       router.push(dashboardPath);
@@ -146,26 +160,26 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
   return (
     <Card
       className={cn(
-        'flex w-full max-w-lg flex-col border-[#001B71]/08 shadow-xl',
-        'max-sm:shadow-md',
+        'flex w-full min-w-0 max-w-lg flex-col overflow-hidden border-[#001B71]/08 shadow-xl',
+        'max-lg:shadow-md',
       )}
     >
-      <CardHeader className="space-y-2 px-4 pb-2 pt-4 text-center sm:space-y-4 sm:p-6">
+      <CardHeader className="space-y-2 px-4 pb-2 pt-4 text-center lg:space-y-4 lg:p-6">
         <div className="flex justify-center">
           <Image
             src="/images/conninter-logo.png"
             alt="Conninter Logo"
             width={220}
             height={80}
-            className="h-auto w-[160px] sm:w-[200px]"
+            className="h-auto w-[140px] lg:w-[200px]"
             priority
           />
         </div>
 
-        <CardTitle className="text-xl font-bold sm:text-3xl">
+        <CardTitle className="text-xl font-bold lg:text-3xl">
           {portalLabel ? `Sign in — ${portalLabel}` : 'Sign in'}
         </CardTitle>
-        <CardDescription className="text-sm sm:text-base">
+        <CardDescription className="text-sm lg:text-base">
           {rolePortal
             ? `Use your work email and password to open the ${rolePortal.label.toLowerCase()} dashboard.`
             : deliveryPortal
@@ -182,7 +196,7 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
           </Badge>
         ) : null}
       </CardHeader>
-      <CardContent className="px-4 pb-4 pt-0 sm:p-6 sm:pt-0">
+      <CardContent className="px-4 pb-4 pt-0 lg:p-6 lg:pt-0">
         {error && (
           <div
             data-testid="login-error"
@@ -192,7 +206,7 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
           </div>
         )}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 sm:space-y-5">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 lg:space-y-5">
             <FormField
               control={form.control}
               name="email"

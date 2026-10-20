@@ -1,5 +1,7 @@
 import time
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session, joinedload
 
 from app.cache import _store
@@ -14,8 +16,13 @@ class SuperAdminDashboardService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def get_dashboard(self, trend_period: str = "weekly") -> dict:
-        cache_key = f"super_admin_dashboard:{trend_period}"
+    def get_dashboard(
+        self,
+        trend_period: str = "weekly",
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> dict:
+        cache_key = f"super_admin_dashboard:{trend_period}:{start}:{end}"
         now = time.monotonic()
         hit = _store.get(cache_key)
         if hit and now - hit[0] < 45:
@@ -32,7 +39,7 @@ class SuperAdminDashboardService:
             "branches": branches,
             "staff": staff,
             "overview": overview,
-            "visitorTrends": analytics.get_visitor_trends(trend_period),
+            "visitorTrends": analytics.get_visitor_trends(trend_period, start=start, end=end),
             "visitStatusDistribution": analytics.get_visit_status_distribution(),
             "visitCategoryDistribution": analytics.get_visit_category_distribution(),
             "userRoleDistribution": analytics.get_user_role_distribution(),

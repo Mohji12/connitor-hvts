@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import useSWR from 'swr';
 import { Line } from 'react-chartjs-2';
 import {
@@ -23,13 +23,11 @@ import {
 } from '@/lib/services/analyticsService';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { TrendPeriodFilter, useTrendFilter } from '@/components/filters/TrendPeriodFilter';
 import { Building2, Users, Activity, Layers, Calendar } from 'lucide-react';
 import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
 
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Legend, Filler);
-
-type TrendPeriod = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 interface SessionUser extends User {
   hospitalChainId: string;
@@ -38,7 +36,7 @@ interface SessionUser extends User {
 
 export default function HospitalAdminOverview() {
   const user = useOverviewSessionUser<SessionUser>();
-  const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('weekly');
+  const { period: trendPeriod, range: trendRange, onPeriodChange, onRangeApply } = useTrendFilter('weekly');
 
   const { data: overview, isLoading: overviewLoading } = useSWR<BranchStats>(
     user?.branchId ? '/api/analytics/hospital-admin/overview' : null,
@@ -47,8 +45,10 @@ export default function HospitalAdminOverview() {
   );
 
   const { data: visitorTrends, isLoading: trendsLoading } = useSWR<VisitorTrends>(
-    user?.branchId ? [`/api/analytics/hospital-admin/visitor-trends`, trendPeriod] : null,
-    () => AnalyticsService.getHospitalAdminVisitorTrends(trendPeriod),
+    user?.branchId
+      ? [`/api/analytics/hospital-admin/visitor-trends`, trendPeriod, trendRange?.fromTime, trendRange?.toTime]
+      : null,
+    () => AnalyticsService.getHospitalAdminVisitorTrends(trendPeriod, trendRange),
     { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
@@ -95,10 +95,10 @@ export default function HospitalAdminOverview() {
   });
 
   return (
-    <div className="w-full max-w-full min-w-0 space-y-6 p-4 md:p-6">
-      <div className="min-w-0">
-        <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
-          <Building2 className="h-6 w-6 shrink-0 text-teal-700 sm:h-7 sm:w-7" />
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-4 p-4 lg:space-y-6 md:p-6">
+      <div className="min-w-0 max-lg:hidden">
+        <h1 className="flex items-center gap-2 text-xl font-bold lg:text-2xl">
+          <Building2 className="h-6 w-6 shrink-0 text-teal-700 lg:h-7 lg:w-7" />
           <span className="min-w-0 truncate">{overview?.branchName ?? 'Hospital'} Overview</span>
         </h1>
         <p className="text-muted-foreground">{today}</p>
@@ -139,34 +139,28 @@ export default function HospitalAdminOverview() {
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <Card className="min-w-0 overflow-hidden">
-          <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <CardTitle className="shrink-0">Visitor trends</CardTitle>
-            <div className="flex shrink-0 flex-wrap gap-1">
-              {(['weekly', 'monthly'] as TrendPeriod[]).map((p) => (
-                <Button
-                  key={p}
-                  size="sm"
-                  variant={trendPeriod === p ? 'default' : 'outline'}
-                  className="h-8 px-2.5 capitalize"
-                  onClick={() => setTrendPeriod(p)}
-                >
-                  {p}
-                </Button>
-              ))}
-            </div>
+            <TrendPeriodFilter
+              periods={['daily', 'weekly', 'monthly']}
+              period={trendPeriod}
+              onPeriodChange={onPeriodChange}
+              onRangeApply={onRangeApply}
+              idPrefix="hospital-trend"
+            />
           </CardHeader>
-          <CardContent className="min-w-0 overflow-hidden">
+          <CardContent className="min-w-0 overflow-hidden px-3 lg:px-6">
             {trendsLoading ? (
               <ConnitorLoader variant="inline" message="Loading trends…" />
             ) : (
-              <div className="relative h-56 w-full min-w-0 sm:h-64">
+              <div className="chart-frame h-52 lg:h-64">
                 <Line
                   data={lineChartData}
                   options={{
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
-                    layout: { padding: { right: 4 } },
+                    layout: { padding: { right: 4, left: 0, top: 4, bottom: 0 } },
                     scales: {
                       x: {
                         ticks: {
@@ -176,7 +170,7 @@ export default function HospitalAdminOverview() {
                           font: { size: 10 },
                         },
                       },
-                      y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                      y: { beginAtZero: true, ticks: { font: { size: 10 }, maxTicksLimit: 6 } },
                     },
                   }}
                 />
@@ -199,7 +193,7 @@ export default function HospitalAdminOverview() {
             {departmentStats?.map((dept) => (
               <div
                 key={dept.departmentId}
-                className="flex min-w-0 items-start gap-2 border-b pb-2 text-sm"
+                className="flex min-w-0 flex-col gap-1 border-b pb-2 text-sm lg:flex-row lg:items-start lg:justify-between lg:gap-2"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{dept.departmentName}</p>
@@ -207,7 +201,7 @@ export default function HospitalAdminOverview() {
                     {dept.staffCount} staff · {dept.todayAppointments} today
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                <span className="w-fit shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                   {dept.pendingAppointments} pending
                 </span>
               </div>

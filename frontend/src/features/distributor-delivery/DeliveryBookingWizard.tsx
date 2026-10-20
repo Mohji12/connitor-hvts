@@ -14,6 +14,7 @@ import {
   type VehicleCategory,
 } from '@/lib/services/distributorDeliveryService';
 import { todayIstDateIso, formatIstDateTime } from '@/lib/datetime';
+import { cacheDeliveryPass } from '@/lib/delivery-pass-cache';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { DeliveryStepper } from '@/features/delivery-management/ui';
 import { DriverPhotoField } from '@/features/distributor-delivery/DriverPhotoField';
@@ -495,11 +496,21 @@ export function DeliveryBookingWizard(): React.ReactElement {
         paymentMethod: (payMethod === 'WALLET' ? 'WALLET' : 'DUMMY') as 'WALLET' | 'DUMMY',
       };
       const result = await DistributorDeliveryService.bookDelivery(payload);
+      cacheDeliveryPass({
+        id: String(result.id ?? ''),
+        deliveryNumber: result.deliveryNumber,
+        status: result.status,
+        branchName: result.branchName,
+        agentName: result.agentName,
+        vehicleNumber: result.vehicleNumber,
+        expectedArrivalTime: result.expectedArrivalTime,
+        qr: result.qr,
+      });
       setSuccess({
         deliveryNumber: result.deliveryNumber,
         walletFee: result.pricing?.walletFee ?? result.walletFee,
       });
-      toast.success('Payment successful — delivery booked');
+      toast.success('Payment successful — delivery booked. Pass saved on this phone.');
     } catch (e: unknown) {
       toast.error(apiDetail(e) || 'Payment / booking failed');
     } finally {

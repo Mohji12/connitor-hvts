@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Layers } from 'lucide-react';
 import { DepartmentRowActions } from '@/components/departments/DepartmentRowActions';
+import { humanLabel } from '@/lib/utils';
 
 const CreateDepartmentSchema = DepartmentSchema;
 type CreateDepartmentForm = z.infer<typeof CreateDepartmentSchema>;
@@ -77,19 +78,19 @@ export default function DepartmentsPage() {
   };
 
   return (
-    <div className="w-full max-w-full min-w-0 space-y-6 p-4 md:p-6">
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-4 p-4 lg:space-y-6 md:p-6">
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 max-lg:hidden">
+          <h1 className="flex items-center gap-2 text-xl font-bold lg:text-2xl">
             <Layers className="h-6 w-6 shrink-0" /> Departments
           </h1>
-          <p className="text-sm text-muted-foreground sm:text-base">
+          <p className="text-sm text-muted-foreground lg:text-base">
             Hospital departments (e.g. Cardiology, Orthopedics)
           </p>
         </div>
         {canManageDepartments && (
           <Button
-            className="w-full shrink-0 sm:w-auto"
+            className="w-full shrink-0 lg:w-auto"
             onClick={() => {
               if (isHospitalAdmin && user?.hospitalChainId && user?.branchId) {
                 form.reset({
@@ -119,7 +120,8 @@ export default function DepartmentsPage() {
           )}
           <ul className="space-y-3">
             {departments?.map((d) => {
-              const branchName = branches?.find((b) => b.id === d.branchId)?.name;
+              const subtitle = humanLabel(d.description, d.code);
+              const branchName = humanLabel(branches?.find((b) => b.id === d.branchId)?.name);
               return (
                 <li
                   key={d.id}
@@ -127,9 +129,9 @@ export default function DepartmentsPage() {
                 >
                   <div className="min-w-0">
                     <p className="truncate font-medium">{d.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {d.description ?? d.code}
-                    </p>
+                    {subtitle ? (
+                      <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+                    ) : null}
                     {branchName ? (
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">{branchName}</p>
                     ) : null}

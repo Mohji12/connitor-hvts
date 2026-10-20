@@ -26,6 +26,38 @@ export function todayIstDateIso(): string {
   );
 }
 
+function istParts(type: 'date' | 'time'): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: IST_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const get = (part: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === part)?.value ?? '00';
+  const date = `${get('year')}-${get('month')}-${get('day')}`;
+  const time = `${get('hour')}:${get('minute')}`;
+  return type === 'date' ? date : time;
+}
+
+/** Current IST clock as `HH:mm` for `<input type="time">`. */
+export function nowIstTimeValue(): string {
+  return istParts('time');
+}
+
+/** Start of today in IST as `YYYY-MM-DDTHH:mm`. */
+export function startOfTodayIstDateTime(): string {
+  return `${todayIstDateIso()}T00:00`;
+}
+
+/** Now in IST as `YYYY-MM-DDTHH:mm`. */
+export function nowIstDateTime(): string {
+  return `${todayIstDateIso()}T${nowIstTimeValue()}`;
+}
+
 /** Parse a stored datetime as IST wall-clock parts for date comparisons. */
 export function istDateParts(value: string | Date): { year: number; month: number; day: number } {
   const parts = new Intl.DateTimeFormat('en-CA', {

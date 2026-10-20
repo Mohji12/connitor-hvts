@@ -86,9 +86,25 @@ class ResetPasswordBody(BaseModel):
 
 
 class UpdateProfileBody(BaseModel):
+    firstName: str | None = Field(default=None, max_length=100)
+    lastName: str | None = Field(default=None, max_length=100)
+    phone: str | None = Field(default=None, max_length=15)
+    email: EmailStr | None = None
     companyName: str | None = None
     jobTitle: str | None = None
     linkedinUrl: str | None = None
+
+    @field_validator("phone")
+    @classmethod
+    def normalize_optional_phone(cls, v: str | None) -> str | None:
+        if v is None or not str(v).strip():
+            return None
+        digits = re.sub(r"\D", "", v)
+        if len(digits) == 12 and digits.startswith("91"):
+            digits = digits[2:]
+        if len(digits) != 10:
+            raise ValueError("Phone must be 10 digits")
+        return digits
 
 
 def hash_token(token: str) -> str:

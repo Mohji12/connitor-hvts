@@ -10,11 +10,11 @@ import {
   type ChainStats,
   type VisitorTrends,
   type BranchStats,
-  type TrendPeriod,
 } from '@/lib/services/analyticsService';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { TrendPeriodFilter, useTrendFilter } from '@/components/filters/TrendPeriodFilter';
 import {
   Dialog,
   DialogContent,
@@ -74,7 +74,7 @@ export default function ChainAdminOverview() {
   const [branchesStats, setBranchesStats] = useState<BranchStats[]>([]);
   const [staff, setStaff] = useState<User[]>([]);
   const [visitorTrends, setVisitorTrends] = useState<VisitorTrends | null>(null);
-  const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('weekly');
+  const { period: trendPeriod, range: trendRange, onPeriodChange, onRangeApply } = useTrendFilter('weekly');
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
@@ -94,7 +94,7 @@ export default function ChainAdminOverview() {
     Promise.all([
       AnalyticsService.getChainAdminOverview(chainId),
       AnalyticsService.getChainBranchesStats(chainId),
-      AnalyticsService.getChainVisitorTrends(chainId, trendPeriod),
+      AnalyticsService.getChainVisitorTrends(chainId, trendPeriod, trendRange),
       BranchService.getAll(chainId),
       UserService.getAll({ chainId }),
     ])
@@ -110,15 +110,15 @@ export default function ChainAdminOverview() {
         setError('Failed to fetch data.');
         setReady(true);
       });
-  }, [user, chainId, trendPeriod]);
+  }, [user, chainId, trendPeriod, trendRange]);
 
   // Update trends when period changes
   useEffect(() => {
     if (!chainId) return;
-    AnalyticsService.getChainVisitorTrends(chainId, trendPeriod)
+    AnalyticsService.getChainVisitorTrends(chainId, trendPeriod, trendRange)
       .then(setVisitorTrends)
       .catch(console.error);
-  }, [chainId, trendPeriod]);
+  }, [chainId, trendPeriod, trendRange]);
 
   const getBranchStaffCount = useCallback(
     (branchId: string | undefined) =>
@@ -351,21 +351,13 @@ export default function ChainAdminOverview() {
               <TrendingUp className="h-5 w-5 text-indigo-500" />
               Visitor Trends
             </CardTitle>
-            <div className="flex gap-1.5">
-              {(['daily', 'weekly', 'monthly', 'yearly'] as TrendPeriod[]).map((p) => (
-                <Button
-                  key={p}
-                  variant={trendPeriod === p ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setTrendPeriod(p)}
-                  className={`capitalize text-xs px-3 cursor-pointer ${
-                    trendPeriod === p ? 'bg-indigo-600 hover:bg-indigo-700' : 'text-slate-600'
-                  }`}
-                >
-                  {p}
-                </Button>
-              ))}
-            </div>
+            <TrendPeriodFilter
+              periods={['daily', 'weekly', 'monthly', 'yearly']}
+              period={trendPeriod}
+              onPeriodChange={onPeriodChange}
+              onRangeApply={onRangeApply}
+              idPrefix="chain-trend"
+            />
           </CardHeader>
           <CardContent>
             <div className="h-72 min-w-0">

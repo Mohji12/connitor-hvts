@@ -26,6 +26,7 @@ import { DASHBOARD_REFRESH_MS } from '@/lib/dashboard-refresh';
 import { Shield, Clock, Users, Phone, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { TrendPeriodFilter, useTrendFilter } from '@/components/filters/TrendPeriodFilter';
 
 ChartJS.register(
   CategoryScale,
@@ -82,8 +83,6 @@ type VisitorSummary = {
   entryGate?: string;
 };
 
-type TrendPeriod = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-
 interface DecodedToken {
   branchId?: string;
 }
@@ -91,7 +90,7 @@ interface DecodedToken {
 export default function SecurityOverview() {
   const demoUser = useOverviewSessionUser<{ branchId?: string | null }>();
   const todayISO = getLocalDateISO();
-  const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('hourly');
+  const { period: trendPeriod, range: trendRange, onPeriodChange, onRangeApply } = useTrendFilter('hourly');
   const [branchId, setBranchId] = useState<string | null>(null);
 
   const [clientDate, setClientDate] = useState('');
@@ -153,8 +152,8 @@ export default function SecurityOverview() {
 
   // Fetch visitor trends based on period
   const { data: visitorTrends, isLoading: trendsLoading } = useSWR(
-    branchId ? ['security-visitor-trends', branchId, trendPeriod] : null,
-    () => AnalyticsService.getSecurityVisitorTrends(branchId!, trendPeriod),
+    branchId ? ['security-visitor-trends', branchId, trendPeriod, trendRange?.fromTime, trendRange?.toTime] : null,
+    () => AnalyticsService.getSecurityVisitorTrends(branchId!, trendPeriod, trendRange),
     { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
@@ -259,14 +258,6 @@ export default function SecurityOverview() {
     }
   };
 
-  const periodButtons: { value: TrendPeriod; label: string }[] = [
-    { value: 'hourly', label: 'Hourly' },
-    { value: 'daily', label: 'Daily' },
-    { value: 'weekly', label: 'Weekly' },
-    { value: 'monthly', label: 'Monthly' },
-    { value: 'yearly', label: 'Yearly' },
-  ];
-
   if (activeLoading || summaryLoading) {
     return (
       <ConnitorLoader
@@ -360,19 +351,13 @@ export default function SecurityOverview() {
                 </svg>
                 Visitor Traffic
               </CardTitle>
-              <div className="flex flex-wrap gap-2">
-                {periodButtons.map((btn) => (
-                  <Button
-                    key={btn.value}
-                    size="sm"
-                    variant={trendPeriod === btn.value ? 'default' : 'outline'}
-                    onClick={() => setTrendPeriod(btn.value)}
-                    className="cursor-pointer text-xs"
-                  >
-                    {btn.label}
-                  </Button>
-                ))}
-              </div>
+              <TrendPeriodFilter
+                periods={['hourly', 'daily', 'weekly', 'monthly', 'yearly']}
+                period={trendPeriod}
+                onPeriodChange={onPeriodChange}
+                onRangeApply={onRangeApply}
+                idPrefix="security-trend"
+              />
             </div>
           </CardHeader>
           <CardContent>

@@ -1,6 +1,6 @@
 'use client';
 
-import { BadgeCheck, Bell, ChevronsUpDown, LogOut, Settings } from 'lucide-react';
+import { Bell, ChevronsUpDown, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -98,12 +98,8 @@ export function NavUser({
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/settings" className="flex items-center gap-2 cursor-pointer">
                   <Settings />
-                  Settings
+                  Profile
                 </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BadgeCheck />
-                Account
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Bell />

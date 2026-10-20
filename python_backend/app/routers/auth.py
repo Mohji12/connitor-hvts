@@ -64,6 +64,23 @@ def reset_password(body: ResetPasswordBody, request: Request, db: Annotated[Sess
     return AuthService(db).reset_password_with_otp(body.phone, body.otp, body.password)
 
 
+class UpdateOwnProfileBody(BaseModel):
+    name: str = Field(min_length=1, max_length=191)
+    email: EmailStr
+    phone: str = Field(min_length=10, max_length=20)
+    currentPassword: str | None = None
+    newPassword: str | None = None
+
+
 @router.get("/me")
 def get_me(user: Annotated[dict, Depends(get_current_user)], db: Annotated[Session, Depends(get_db)]):
     return AuthService(db).get_profile(user["id"])
+
+
+@router.patch("/me")
+def update_me(
+    body: UpdateOwnProfileBody,
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return AuthService(db).update_own_profile(user["id"], body.model_dump())

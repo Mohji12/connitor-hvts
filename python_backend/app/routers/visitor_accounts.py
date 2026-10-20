@@ -37,6 +37,23 @@ def create_account(body: CreateVisitorAccountBody, db: Annotated[Session, Depend
     return VisitorAccountService(db).create_draft(body)
 
 
+@router.get("/me")
+def my_profile(
+    account: Annotated[dict, Depends(get_current_visitor_account)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return VisitorAccountService(db).get_preview(account["accountId"])
+
+
+@router.patch("/me")
+def update_my_profile(
+    body: UpdateProfileBody,
+    account: Annotated[dict, Depends(get_current_visitor_account)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return VisitorAccountService(db).update_profile(account["accountId"], body)
+
+
 @router.patch("/{account_id}")
 @public_route
 def update_professional(
@@ -160,20 +177,3 @@ def activate_account(account_id: str, db: Annotated[Session, Depends(get_db)]):
 @public_route
 def preview_account(account_id: str, db: Annotated[Session, Depends(get_db)]):
     return VisitorAccountService(db).get_preview(account_id)
-
-
-@router.get("/me")
-def my_profile(
-    account: Annotated[dict, Depends(get_current_visitor_account)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return VisitorAccountService(db).get_preview(account["accountId"])
-
-
-@router.patch("/me")
-def update_my_profile(
-    body: UpdateProfileBody,
-    account: Annotated[dict, Depends(get_current_visitor_account)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return VisitorAccountService(db).update_profile(account["accountId"], body)

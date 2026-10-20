@@ -26,6 +26,7 @@ import { AnalyticsService, type VisitorTrends } from '@/lib/services/analyticsSe
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { TrendPeriodFilter, useTrendFilter } from '@/components/filters/TrendPeriodFilter';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -58,8 +59,6 @@ ChartJS.register(
   Filler
 );
 
-type TrendPeriod = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-
 interface ExtendedUser extends User {
   hospitalChainId: string;
   branchId: string;
@@ -68,7 +67,7 @@ interface ExtendedUser extends User {
 export default function BranchAdminOverview() {
   const user = useOverviewSessionUser<ExtendedUser>();
   const [isVisitorDialogOpen, setIsVisitorDialogOpen] = useState(false);
-  const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('hourly');
+  const { period: trendPeriod, range: trendRange, onPeriodChange, onRangeApply } = useTrendFilter('hourly');
 
   const branchId = user?.branchId;
   const chainId = user?.hospitalChainId;
@@ -101,8 +100,10 @@ export default function BranchAdminOverview() {
 
   // Fetch visitor trends from analytics API
   const { data: visitorTrends, isLoading: trendsLoading } = useSWR<VisitorTrends>(
-    branchId ? [`/api/analytics/branch-admin/visitor-trends`, branchId, trendPeriod] : null,
-    () => AnalyticsService.getBranchVisitorTrends(branchId!, trendPeriod),
+    branchId
+      ? [`/api/analytics/branch-admin/visitor-trends`, branchId, trendPeriod, trendRange?.fromTime, trendRange?.toTime]
+      : null,
+    () => AnalyticsService.getBranchVisitorTrends(branchId!, trendPeriod, trendRange),
     { refreshInterval: DASHBOARD_REFRESH_MS },
   );
 
@@ -308,21 +309,13 @@ export default function BranchAdminOverview() {
               <TrendingUp className="h-5 w-5 text-indigo-500" />
               Visitor Traffic
             </CardTitle>
-            <div className="flex gap-1.5 flex-wrap">
-              {(['hourly', 'daily', 'weekly', 'monthly', 'yearly'] as TrendPeriod[]).map((p) => (
-                <Button
-                  key={p}
-                  variant={trendPeriod === p ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setTrendPeriod(p)}
-                  className={`capitalize text-xs px-3 cursor-pointer ${
-                    trendPeriod === p ? 'bg-indigo-600 hover:bg-indigo-700' : 'text-slate-600'
-                  }`}
-                >
-                  {p}
-                </Button>
-              ))}
-            </div>
+            <TrendPeriodFilter
+              periods={['hourly', 'daily', 'weekly', 'monthly', 'yearly']}
+              period={trendPeriod}
+              onPeriodChange={onPeriodChange}
+              onRangeApply={onRangeApply}
+              idPrefix="branch-trend"
+            />
           </CardHeader>
           <CardContent>
             <div className="h-72 min-w-0">

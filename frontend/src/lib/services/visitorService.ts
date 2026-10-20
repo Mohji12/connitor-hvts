@@ -87,6 +87,8 @@ export const VisitorService = {
     date?: string;
     startDate?: string;
     endDate?: string;
+    fromTime?: string;
+    toTime?: string;
     status?: string;
     personToMeet?: number;
     search?: string;

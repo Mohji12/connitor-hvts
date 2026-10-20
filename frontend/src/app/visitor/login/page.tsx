@@ -27,6 +27,7 @@ import {
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VisitorAuthService } from '@/lib/services/visitorAuthService';
+import { DEMO_VISITOR_LOGIN } from '@/lib/demo-logins';
 
 const PasswordLoginSchema = z.object({
   identifier: z.string().min(3, 'Enter email or phone'),
@@ -209,7 +210,11 @@ function VisitorLoginContent() {
                       <FormItem>
                         <FormLabel>Email or mobile</FormLabel>
                         <FormControl>
-                          <Input {...field} autoComplete="username" placeholder="you@example.com or 9876543210" />
+                          <Input
+                            {...field}
+                            autoComplete="username"
+                            placeholder={`${DEMO_VISITOR_LOGIN.email} or ${DEMO_VISITOR_LOGIN.phone}`}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

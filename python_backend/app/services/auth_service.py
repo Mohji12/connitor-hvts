@@ -253,7 +253,12 @@ class AuthService:
     def get_profile(self, user_id: str) -> dict:
         user = (
             self.db.query(User)
-            .options(joinedload(User.hospitalChain), joinedload(User.branch))
+            .options(
+                joinedload(User.hospitalChain),
+                joinedload(User.branch),
+                joinedload(User.dept),
+                joinedload(User.subDept),
+            )
             .filter(User.id == user_id)
             .first()
         )
@@ -263,7 +268,74 @@ class AuthService:
         data = model_to_dict(user)
         data["hospitalChain"] = model_to_dict(user.hospitalChain) if user.hospitalChain else None
         data["branch"] = model_to_dict(user.branch) if user.branch else None
+        data["hospitalChainName"] = user.hospitalChain.name if user.hospitalChain else None
+        data["branchName"] = user.branch.name if user.branch else None
+        data["departmentName"] = user.dept.name if user.dept else None
+        data["subDepartmentName"] = user.subDept.name if user.subDept else None
         return data
+
+    def update_own_profile(self, user_id: str, data: dict) -> dict:
+        user = self.db.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        name = (data.get("name") or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Name is required")
+
+        email = self.normalize_email(data.get("email") or "")
+        if not email or "@" not in email:
+            raise HTTPException(status_code=400, detail="Enter a valid email")
+
+        phone = re.sub(r"\D", "", str(data.get("phone") or ""))
+        if len(phone) > 10:
+            phone = phone[-10:]
+        if len(phone) != 10:
+            raise HTTPException(status_code=400, detail="Enter a valid 10-digit mobile number")
+
+        email_clash = (
+            self.db.query(User).filter(User.email == email, User.id != user.id).first()
+        )
+        if email_clash:
+            raise HTTPException(status_code=409, detail="Another account already uses this email")
+        phone_clash = (
+            self.db.query(User).filter(User.phone == phone, User.id != user.id).first()
+        )
+        if phone_clash:
+            raise HTTPException(status_code=409, detail="Another account already uses this mobile number")
+
+        new_password = (data.get("newPassword") or "").strip()
+        if new_password:
+            current = data.get("currentPassword") or ""
+            if not user.passwordHash or not verify_password(current, user.passwordHash):
+                raise HTTPException(status_code=400, detail="Current password is incorrect")
+            self.validate_password_strength(new_password)
+            user.passwordHash = hash_password(new_password)
+
+        user.name = name
+        user.email = email
+        user.phone = phone
+        user.updatedAt = now_ist()
+
+        if user.distributorId and user.role == "DISTRIBUTOR":
+            from app.models.delivery_entities import Distributor
+
+            dist = self.db.get(Distributor, user.distributorId)
+            if dist:
+                dist.contactPerson = name
+                dist.email = email
+                dist.phone = phone
+
+        self.db.commit()
+        profile = self.get_profile(user_id)
+        fresh = (
+            self.db.query(User)
+            .options(joinedload(User.hospitalChain), joinedload(User.branch))
+            .filter(User.id == user_id)
+            .first()
+        )
+        token = self._issue_access_token(fresh) if fresh else {}
+        return {**profile, "access_token": token.get("access_token")}
 
     @staticmethod
     def validate_password_strength(password: str) -> None:

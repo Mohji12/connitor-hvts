@@ -110,18 +110,70 @@ class AnalyticsService:
             "checkOuts": int(check_outs or 0),
         }
 
-    def _trend_buckets(self, period: str, now: datetime) -> list[tuple[datetime, datetime, str]]:
+    def _range_buckets(self, start: datetime, end: datetime) -> list[tuple[datetime, datetime, str]]:
+        if end < start:
+            start, end = end, start
+        span = (end - start).total_seconds()
         buckets: list[tuple[datetime, datetime, str]] = []
-        if period == "daily":
+        if span <= 48 * 3600:
+            cursor = start.replace(minute=0, second=0, microsecond=0)
+            step = timedelta(hours=1)
+            label = lambda d: d.strftime("%d %b %H:%M") if span > 24 * 3600 else d.strftime("%H:%M")
+        elif span <= 21 * 86400:
+            cursor = start.replace(hour=0, minute=0, second=0, microsecond=0)
+            step = timedelta(days=1)
+            label = lambda d: d.strftime("%d %b")
+        elif span <= 120 * 86400:
+            cursor = start.replace(hour=0, minute=0, second=0, microsecond=0)
+            step = timedelta(days=7)
+            label = lambda d: d.strftime("%d %b")
+        else:
+            cursor = datetime(start.year, start.month, 1)
+            while cursor < end and len(buckets) < 48:
+                nxt = (
+                    datetime(cursor.year + 1, 1, 1)
+                    if cursor.month == 12
+                    else datetime(cursor.year, cursor.month + 1, 1)
+                )
+                bucket_start = max(cursor, start)
+                bucket_end = min(nxt - timedelta(seconds=1), end)
+                buckets.append((bucket_start, bucket_end, cursor.strftime("%b %Y")))
+                cursor = nxt
+            return buckets
+
+        while cursor < end and len(buckets) < 48:
+            nxt = min(cursor + step, end)
+            bucket_end = end if nxt >= end else nxt - timedelta(seconds=1)
+            buckets.append((cursor, bucket_end, label(cursor)))
+            cursor = nxt
+        return buckets
+
+    def _trend_buckets(
+        self,
+        period: str,
+        now: datetime,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> list[tuple[datetime, datetime, str]]:
+        if start and end:
+            return self._range_buckets(start, end)
+        buckets: list[tuple[datetime, datetime, str]] = []
+        if period == "hourly":
+            hour_start = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=23)
+            for i in range(24):
+                bucket_start = hour_start + timedelta(hours=i)
+                bucket_end = bucket_start + timedelta(hours=1) - timedelta(seconds=1)
+                buckets.append((bucket_start, bucket_end, bucket_start.strftime("%H:00")))
+        elif period == "daily":
             for i in range(6, -1, -1):
-                start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
-                end = start + timedelta(days=1) - timedelta(seconds=1)
-                buckets.append((start, end, start.strftime("%a %d")))
+                day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+                day_end = day_start + timedelta(days=1) - timedelta(seconds=1)
+                buckets.append((day_start, day_end, day_start.strftime("%a %d")))
         elif period == "weekly":
             for i in range(3, -1, -1):
-                end = now - timedelta(days=i * 7)
-                start = (end - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
-                buckets.append((start, end, f"Week {4 - i}"))
+                week_end = now - timedelta(days=i * 7)
+                week_start = (week_end - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+                buckets.append((week_start, week_end, f"Week {4 - i}"))
         elif period == "monthly":
             for i in range(5, -1, -1):
                 month = now.month - i
@@ -129,23 +181,29 @@ class AnalyticsService:
                 while month <= 0:
                     month += 12
                     year -= 1
-                start = datetime(year, month, 1)
+                month_start = datetime(year, month, 1)
                 if month == 12:
-                    end = datetime(year + 1, 1, 1) - timedelta(seconds=1)
+                    month_end = datetime(year + 1, 1, 1) - timedelta(seconds=1)
                 else:
-                    end = datetime(year, month + 1, 1) - timedelta(seconds=1)
-                buckets.append((start, end, start.strftime("%b")))
+                    month_end = datetime(year, month + 1, 1) - timedelta(seconds=1)
+                buckets.append((month_start, month_end, month_start.strftime("%b")))
         else:
             for i in range(4, -1, -1):
                 year = now.year - i
-                start = datetime(year, 1, 1)
-                end = datetime(year, 12, 31, 23, 59, 59)
-                buckets.append((start, end, str(year)))
+                year_start = datetime(year, 1, 1)
+                year_end = datetime(year, 12, 31, 23, 59, 59)
+                buckets.append((year_start, year_end, str(year)))
         return buckets
 
-    def get_visitor_trends(self, period: str = "weekly", branch_ids: list[str] | None = None) -> dict:
+    def get_visitor_trends(
+        self,
+        period: str = "weekly",
+        branch_ids: list[str] | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> dict:
         """One grouped query for every bucket, instead of a round trip per week or month."""
-        buckets = self._trend_buckets(period, now_ist())
+        buckets = self._trend_buckets(period, now_ist(), start, end)
         if not buckets:
             return {"period": period, "data": []}
 
@@ -437,21 +495,33 @@ class AnalyticsService:
             data.append({"label": start.strftime("%b"), "count": count})
         return {"period": "monthly", "data": data}
 
-    def get_chain_visitor_trends(self, chain_id: str, period: str = "weekly") -> dict:
+    def get_chain_visitor_trends(
+        self,
+        chain_id: str,
+        period: str = "weekly",
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> dict:
         branch_ids = [
             b.id
             for b in self.db.query(Branch).filter(Branch.hospitalChainId == chain_id).all()
         ]
-        return self.get_visitor_trends(period, branch_ids or None)
+        return self.get_visitor_trends(period, branch_ids or None, start=start, end=end)
 
     def get_chain_branches_with_stats(self, chain_id: str) -> list[dict]:
         branches = self.db.query(Branch).filter(Branch.hospitalChainId == chain_id).all()
         return [self.get_branch_stats(b.id) for b in branches]
 
-    def get_branch_visitor_trends(self, branch_id: str, period: str = "hourly") -> dict:
+    def get_branch_visitor_trends(
+        self,
+        branch_id: str,
+        period: str = "hourly",
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> dict:
         return _analytics_cached(
-            f"branch_trends:{branch_id}:{period}",
-            lambda: self.get_visitor_trends(period, [branch_id]),
+            f"branch_trends:{branch_id}:{period}:{start}:{end}",
+            lambda: self.get_visitor_trends(period, [branch_id], start=start, end=end),
         )
 
     def get_department_stats_for_branch(self, branch_id: str) -> list[dict]:
@@ -687,7 +757,13 @@ class AnalyticsService:
             "visitDuration": self._duration_summary(appt_q),
         }
 
-    def get_department_visitor_trends(self, department_id: str, period: str = "weekly") -> dict:
+    def get_department_visitor_trends(
+        self,
+        department_id: str,
+        period: str = "weekly",
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> dict:
         visit_ids = [
             v.id
             for v in self.db.query(Visit.id)
@@ -704,10 +780,16 @@ class AnalyticsService:
             .distinct()
             .all()
         ]
-        trends = self.get_visitor_trends(period, branch_ids or None)
+        trends = self.get_visitor_trends(period, branch_ids or None, start=start, end=end)
         return trends
 
-    def get_sub_department_visitor_trends(self, sub_department_id: str, period: str = "weekly") -> dict:
+    def get_sub_department_visitor_trends(
+        self,
+        sub_department_id: str,
+        period: str = "weekly",
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> dict:
         branch_ids = [
             b[0]
             for b in self.db.query(Visit.branchId)
@@ -715,7 +797,7 @@ class AnalyticsService:
             .distinct()
             .all()
         ]
-        return self.get_visitor_trends(period, branch_ids or None)
+        return self.get_visitor_trends(period, branch_ids or None, start=start, end=end)
 
     def get_visit_duration_stats(self, req_user: dict) -> dict:
         q = self.db.query(Visit).filter(
