@@ -173,13 +173,14 @@ if (typeof window !== 'undefined') {
     async (error) => {
       const config = error?.config as BusyTrackedConfig | undefined;
       if (
+        config &&
         shouldRetryGetRequest(
-          { method: config?.method, retryCount: config?.retryCount },
+          { method: config.method, retryCount: config.retryCount },
           { code: error?.code, message: error?.message, response: error?.response },
         )
       ) {
-        const retryConfig: BusyTrackedConfig = { ...config, retryCount: (config?.retryCount ?? 0) + 1 };
-        return apiClient.request(retryConfig);
+        config.retryCount = (config.retryCount ?? 0) + 1;
+        return apiClient.request(config);
       }
       releaseBusy(config);
       clearRejectedSession(error, config);
