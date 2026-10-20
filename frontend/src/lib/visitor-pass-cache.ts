@@ -37,7 +37,10 @@ function isActivePassStatus(status: string): boolean {
   return status === 'APPROVED' || status === 'CHECKED_IN';
 }
 
-/** Keep usable passes on this phone so the QR still opens at the gate without signal. */
+/**
+ * Keep usable pass images on this phone so the visitor can still open the QR screen
+ * without signal. Display-only: a cached image is not gate authorization.
+ */
 export function cacheVisitorPasses(appointments: VisitorAppointment[]): void {
   if (typeof window === 'undefined') return;
   const now = new Date().toISOString();

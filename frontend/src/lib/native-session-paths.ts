@@ -2,6 +2,8 @@ import { isStandaloneAuthPath, isAppHome } from '@/lib/app-back';
 import { isNativeApp } from '@/lib/platform';
 
 export const NATIVE_PERSONA_KEY = 'conninterPersona';
+/** Native Welcome after logout or an expired session. */
+export const NATIVE_WELCOME_PATH = '/app/';
 const LAST_PATHS_KEY = 'conninterLastInAppPaths';
 
 export type NativePersonaId = 'visitor' | 'staff' | 'distributor' | 'attendant';

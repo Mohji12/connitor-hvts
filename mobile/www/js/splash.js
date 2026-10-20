@@ -32,6 +32,11 @@
 
   function goNext() {
     const done = window.ConninterStorage.getHasCompletedOnboarding();
+    // Website is unreachable: use the bundled offline gate, not www.conninter.com.
+    if (done && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      window.location.replace('./offline-gate.html');
+      return;
+    }
     // Always land on Welcome (/app/), never the marketing homepage.
     if (done) {
       window.location.replace(appHome());

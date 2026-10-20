@@ -14,6 +14,8 @@ import {
 } from '@/lib/visitor-auth-storage';
 import { beginMutationBusy, endMutationBusy } from '@/lib/mutation-busy';
 import { isHtmlPayload } from '@/lib/ensure-array';
+import { API_TIMEOUT_MS, shouldRetryGetRequest } from '@/lib/api-client-policy';
+import { clearAuthSession } from '@/lib/logout';
 
 function resolveBaseUrl(): string {
   return USE_MOCK_API ? '/' : getBackendBaseUrl();
@@ -24,6 +26,7 @@ const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
 type BusyTrackedConfig = InternalAxiosRequestConfig & {
   skipBusyLoader?: boolean;
   __busyTracked?: boolean;
+  retryCount?: number;
 };
 
 function shouldTrackBusy(config: BusyTrackedConfig): boolean {
@@ -34,6 +37,7 @@ function shouldTrackBusy(config: BusyTrackedConfig): boolean {
 
 const apiClient = axios.create({
   baseURL: resolveBaseUrl(),
+  timeout: API_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -68,6 +72,29 @@ function normalizeApiUrl(
   return `${path}/${query}`;
 }
 
+function clearRejectedSession(error: unknown, config?: InternalAxiosRequestConfig): void {
+  if (!axios.isAxiosError(error) || error.response?.status !== 401) {
+    return;
+  }
+  const requestUrl = `${config?.url ?? ''}`;
+  const authHeader = String(config?.headers?.Authorization ?? '');
+
+  const visitorToken = getVisitorToken();
+  if (
+    visitorToken &&
+    isVisitorPortalApiPath(requestUrl) &&
+    authHeader === `Bearer ${visitorToken}`
+  ) {
+    clearVisitorToken();
+    return;
+  }
+
+  const staffToken = getStoredAuthToken();
+  if (staffToken && !isVisitorPortalApiPath(requestUrl) && authHeader === `Bearer ${staffToken}`) {
+    clearAuthSession();
+  }
+}
+
 if (typeof window !== 'undefined') {
   apiClient.defaults.adapter = async (config) => {
     if (USE_MOCK_API) {
@@ -84,6 +111,9 @@ if (typeof window !== 'undefined') {
       const busyConfig = config as BusyTrackedConfig;
       busyConfig.baseURL = resolveBaseUrl();
       busyConfig.url = normalizeApiUrl(busyConfig.url, busyConfig.baseURL);
+      if (busyConfig.timeout == null) {
+        busyConfig.timeout = API_TIMEOUT_MS;
+      }
 
       if (typeof FormData !== 'undefined' && busyConfig.data instanceof FormData) {
         busyConfig.headers.delete('Content-Type');
@@ -140,20 +170,19 @@ if (typeof window !== 'undefined') {
       }
       return response;
     },
-    (error) => {
-      releaseBusy(error?.config);
-      // A visitor session the backend rejects (expired, or its profile was removed) is dropped so
-      // pages stop retrying it and show sign-in again.
-      const config = error?.config as InternalAxiosRequestConfig | undefined;
-      const visitorToken = getVisitorToken();
+    async (error) => {
+      const config = error?.config as BusyTrackedConfig | undefined;
       if (
-        error?.response?.status === 401 &&
-        visitorToken &&
-        isVisitorPortalApiPath(config?.url) &&
-        String(config?.headers?.Authorization ?? '') === `Bearer ${visitorToken}`
+        shouldRetryGetRequest(
+          { method: config?.method, retryCount: config?.retryCount },
+          { code: error?.code, message: error?.message, response: error?.response },
+        )
       ) {
-        clearVisitorToken();
+        const retryConfig: BusyTrackedConfig = { ...config, retryCount: (config?.retryCount ?? 0) + 1 };
+        return apiClient.request(retryConfig);
       }
+      releaseBusy(config);
+      clearRejectedSession(error, config);
       return Promise.reject(error);
     },
   );

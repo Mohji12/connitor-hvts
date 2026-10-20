@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#001B71" />
+    <title>Offline gate — Conninter</title>
+    <link rel="stylesheet" href="css/shell.css" />
+    <style>
+      .gate {
+        min-height: 100vh;
+        padding: calc(16px + env(safe-area-inset-top)) 16px 24px;
+        background: #f7f9fc;
+        color: #0f172a;
+        font-family: Inter, system-ui, sans-serif;
+      }
+      .gate h1 {
+        color: #001b71;
+        font-size: 1.25rem;
+        margin: 0 0 8px;
+      }
+      .banner {
+        background: #fff7ed;
+        border: 1px solid #fdba74;
+        border-radius: 12px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 4px rgb(0 0 0 / 6%);
+      }
+      video {
+        width: 100%;
+        border-radius: 12px;
+        background: #000;
+      }
+      textarea,
+      button {
+        width: 100%;
+        margin-top: 8px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        padding: 10px;
+        font: inherit;
+      }
+      button {
+        background: #001b71;
+        color: #fff;
+        border: 0;
+      }
+      .verdict {
+        font-weight: 700;
+        font-size: 1.1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="gate">
+      <h1>Offline gate</h1>
+      <div id="status" class="banner">
+        This screen works without www.conninter.com. A saved QR image is not proof of entry.
+      </div>
+      <div class="card">
+        <video id="camera" playsinline muted></video>
+        <textarea id="raw" rows="3" placeholder="Or paste the QR text"></textarea>
+        <button type="button" id="verify-btn">Verify</button>
+      </div>
+      <div class="card">
+        <div id="verdict" class="verdict">Waiting for a scan</div>
+        <p id="detail"></p>
+      </div>
+    </main>
+    <script src="js/offline-gate.js"></script>
+  </body>
+</html>

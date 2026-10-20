@@ -1,4 +1,18 @@
 import axios from 'axios';
+import { isNativeApp } from '@/lib/platform';
+
+function isProductionFacingHost(): boolean {
+  if (typeof window === 'undefined') {
+    return process.env.NODE_ENV === 'production';
+  }
+  const host = window.location.hostname;
+  return (
+    host === 'conninter.com' ||
+    host.endsWith('.conninter.com') ||
+    host.endsWith('.vercel.app') ||
+    host.endsWith('.amplifyapp.com')
+  );
+}
 
 /** True when the browser cannot reach the Python API (proxy ECONNREFUSED or network down). */
 export function isBackendUnreachable(err: unknown): boolean {
@@ -18,12 +32,25 @@ export function isBackendUnreachable(err: unknown): boolean {
   return false;
 }
 
+export function getRequestTimeoutMessage(): string {
+  return 'The request timed out. Check your connection and try again.';
+}
+
 export function getBackendUnreachableMessage(): string {
+  if (typeof window !== 'undefined' && (isNativeApp() || isProductionFacingHost())) {
+    return 'Cannot reach Conninter right now. Check your connection and try again.';
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return 'Cannot reach Conninter right now. Check your connection and try again.';
+  }
   return 'Cannot reach the Python API. Start it with: cd python_backend && uvicorn main:app --reload';
 }
 
 /** Parse Python API errors (`message`) and legacy NestJS errors (`detail`). */
 export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
+    return getRequestTimeoutMessage();
+  }
   if (isBackendUnreachable(error)) {
     return getBackendUnreachableMessage();
   }

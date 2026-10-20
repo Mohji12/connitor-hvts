@@ -35,6 +35,7 @@ const securityNav = [
     href: '/security/dashboard?tab=deliveries',
     icon: 'package',
   },
+  { label: 'Offline gate', href: '/security/offline-gate', icon: 'book' },
   { label: 'All Appointments', href: '/dashboard/appointments', icon: 'calendar' },
   { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
 ];
@@ -55,6 +56,7 @@ export const sidebarConfig = {
     { label: 'Delivery', href: '/dashboard/delivery', icon: 'truck' },
     { label: 'Delivery Slots', href: '/dashboard/delivery-slots', icon: 'calendar' },
     { label: 'Vendors', href: '/dashboard/delivery/vendors', icon: 'users' },
+    { label: 'Gate offline', href: '/dashboard/gate-offline', icon: 'book' },
     { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   HOSPITAL_ADMIN: [
@@ -77,6 +79,7 @@ export const sidebarConfig = {
     { label: 'Emergency Pass', href: '/dashboard/ams/emergency', icon: 'id-card' },
     { label: 'AMS Reports', href: '/dashboard/ams/reports', icon: 'book' },
     { label: 'AMS Settings', href: '/dashboard/ams/settings', icon: 'settings' },
+    { label: 'Gate offline', href: '/dashboard/gate-offline', icon: 'book' },
     { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },
   ],
   DEPARTMENT_ADMIN: [

@@ -43,7 +43,10 @@ export function qrValueFromDeliveryQr(qr: DeliveryQrFields | null | undefined): 
   return qr.qrPayload;
 }
 
-/** Keep the gate QR on the phone so the driver can still open it without signal. */
+/**
+ * Keep the delivery pass image on the phone so the driver can still open it without
+ * signal. Display-only: a cached QR is not gate authorization.
+ */
 export function cacheDeliveryPass(input: {
   id: string;
   deliveryNumber?: string | null;

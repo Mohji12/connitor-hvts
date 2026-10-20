@@ -18,6 +18,10 @@
     "test:e2e:report": "npx playwright show-report"
   },
   "dependencies": {
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/network": "^7.0.4",
+    "@capacitor/preferences": "^7.0.4",
     "@hookform/resolvers": "^5.1.1",
     "@livekit/components-react": "^2.9.24",
     "@livekit/components-styles": "^1.2.0",

@@ -6,6 +6,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+export { parseQrScanText } from '@/lib/parse-qr-scan';
+
 type Props = {
   onScan: (payload: string) => void | Promise<void>;
   disabled?: boolean;
@@ -419,17 +421,3 @@ export function QrCheckInScanner({
   );
 }
 
-/** Parse emailed QR JSON or raw payload string into qrPayload + signature. */
-export function parseQrScanText(raw: string): { qrPayload: string; signature: string } | null {
-  const text = raw.trim();
-  if (!text) return null;
-  try {
-    const parsed = JSON.parse(text) as { qrPayload?: string; signature?: string };
-    if (parsed.qrPayload && parsed.signature) {
-      return { qrPayload: parsed.qrPayload, signature: parsed.signature };
-    }
-  } catch {
-    // not JSON
-  }
-  return null;
-}

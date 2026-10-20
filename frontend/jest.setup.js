@@ -1,5 +1,25 @@
 import '@testing-library/jest-dom';
 
+jest.mock('@capacitor/network', () => ({
+  Network: {
+    getStatus: jest.fn(async () => ({ connected: true, connectionType: 'wifi' })),
+    addListener: jest.fn(async () => ({ remove: jest.fn() })),
+  },
+}));
+
+jest.mock('@capacitor/app', () => ({
+  App: {
+    addListener: jest.fn(async () => ({ remove: jest.fn() })),
+  },
+}));
+
+jest.mock('@capacitor/preferences', () => ({
+  Preferences: {
+    get: jest.fn(async () => ({ value: null })),
+    set: jest.fn(async () => undefined),
+  },
+}));
+
 global.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}

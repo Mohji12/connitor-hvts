@@ -10,6 +10,7 @@ from app.routers import (
     delivery,
     departments,
     doctor_urgent_passcode,
+    gate_offline,
     doctor_schedule,
     jobs,
     product_logs,
@@ -132,3 +133,4 @@ api_router.include_router(wapblaster_webhooks.router, prefix="/webhooks", tags=[
 api_router.include_router(razorpay_webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(delivery.router, prefix="/delivery", tags=["delivery"])
 api_router.include_router(attendant_passes.router, prefix="/attendant-passes", tags=["attendant-passes"])
+api_router.include_router(gate_offline.router, prefix="/gate", tags=["gate-offline"])

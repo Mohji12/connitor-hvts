@@ -1,23 +1,14 @@
+import { isJwtExpired } from '@/lib/jwt-claims';
 import { isNativeApp } from '@/lib/platform';
 import { clearLastInAppPath, setLastNativePersona } from '@/lib/native-session-paths';
 
 const VISITOR_TOKEN_KEY = 'visitorAuthToken';
 
-function isTokenExpired(token: string): boolean {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as { exp?: unknown };
-    if (typeof payload.exp !== 'number') return false;
-    return payload.exp * 1000 <= Date.now();
-  } catch {
-    return false;
-  }
-}
-
 export function getVisitorToken(): string | null {
   if (typeof window === 'undefined') return null;
   const token = localStorage.getItem(VISITOR_TOKEN_KEY);
   if (!token) return null;
-  if (isTokenExpired(token)) {
+  if (isJwtExpired(token)) {
     clearVisitorToken();
     return null;
   }
@@ -34,6 +25,9 @@ export function setVisitorToken(token: string): void {
 export function clearVisitorToken(): void {
   localStorage.removeItem(VISITOR_TOKEN_KEY);
   clearLastInAppPath('visitor');
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('conninter-session-changed'));
+  }
 }
 
 export function isVisitorPortalApiPath(url: string | undefined): boolean {

@@ -58,4 +58,12 @@ describe('visitor-pass-cache', () => {
     clearVisitorPassCache();
     expect(getCachedVisitorPass('b1')).toBeNull();
   });
+
+  it('is display-only and is not a gate authorization decision', () => {
+    cacheVisitorPasses([visit({})]);
+    const cached = getCachedVisitorPass('b1');
+    expect(cached?.checkInQrCode).toBeTruthy();
+    expect(cached).not.toHaveProperty('authorized');
+    expect(cached).not.toHaveProperty('gateDecision');
+  });
 });

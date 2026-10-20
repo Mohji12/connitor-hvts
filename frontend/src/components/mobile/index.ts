@@ -11,3 +11,4 @@ export { ResponsiveList } from './ResponsiveList';
 export { EmptyState, ListSkeleton } from './EmptyState';
 export { ScanVerdict, type ScanVerdictTone } from './ScanVerdict';
 export { SegmentedControl } from './SegmentedControl';
+export { OfflineBanner } from './OfflineBanner';

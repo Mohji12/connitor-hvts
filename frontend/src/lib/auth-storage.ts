@@ -1,3 +1,4 @@
+import { isJwtExpired } from '@/lib/jwt-claims';
 import { isNativeApp } from '@/lib/platform';
 
 /**
@@ -6,16 +7,6 @@ import { isNativeApp } from '@/lib/platform';
  * the WebView is closed (see `isNativeApp` + `__CONNINTER_NATIVE_SHELL__`).
  */
 export const AUTH_TOKEN_STORAGE_KEY = 'authToken';
-
-function isTokenExpired(token: string): boolean {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as { exp?: unknown };
-    if (typeof payload.exp !== 'number') return false;
-    return payload.exp * 1000 <= Date.now();
-  } catch {
-    return false;
-  }
-}
 
 export function getStoredAuthToken(): string | null {
   if (typeof window === 'undefined') {
@@ -28,7 +19,7 @@ export function getStoredAuthToken(): string | null {
   if (!token) {
     return null;
   }
-  if (isTokenExpired(token)) {
+  if (isJwtExpired(token)) {
     clearStoredAuthToken();
     return null;
   }

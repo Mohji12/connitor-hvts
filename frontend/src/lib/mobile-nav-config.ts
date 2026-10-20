@@ -73,6 +73,7 @@ const securityMore: MobileNavGroup[] = [
       { label: 'On-spot visitor QR', href: '/security/dashboard?tab=on-spot', icon: QrCode },
       { label: 'Visitor passes', href: '/security/dashboard?tab=visitor-passes', icon: IdCard },
       { label: 'All appointments', href: '/dashboard/appointments', icon: CalendarDays },
+      { label: 'Offline gate', href: '/security/offline-gate', icon: ScanLine },
     ],
   },
   account,
@@ -94,6 +95,7 @@ export const MOBILE_NAV: Record<string, MobileNavConfig> = {
           { label: 'Departments', href: '/dashboard/departments', icon: Layers },
           { label: 'Sub-departments', href: '/dashboard/sub-departments', icon: GitBranch },
           { label: 'Appointments', href: '/dashboard/appointments', icon: CalendarDays },
+          { label: 'Gate offline', href: '/dashboard/gate-offline', icon: ScanLine },
         ],
       },
       {
@@ -123,6 +125,7 @@ export const MOBILE_NAV: Record<string, MobileNavConfig> = {
           { label: 'Departments', href: '/dashboard/departments', icon: Layers },
           { label: 'Sub-departments', href: '/dashboard/sub-departments', icon: GitBranch },
           { label: 'Users', href: '/dashboard/users', icon: Users },
+          { label: 'Gate offline', href: '/dashboard/gate-offline', icon: ScanLine },
         ],
       },
       amsTools,
@@ -300,6 +303,8 @@ const TITLE_OVERRIDES: Record<string, string> = {
   '/vendor/deliveries/book': 'Book delivery',
   '/vendor/profile': 'Company profile',
   '/vendor/deliveries': 'Deliveries',
+  '/dashboard/gate-offline': 'Gate offline',
+  '/security/offline-gate': 'Offline gate',
 };
 
 const SECURITY_TAB_TITLES: Record<string, string> = {

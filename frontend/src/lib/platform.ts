@@ -43,7 +43,11 @@ function looksLikeEmbeddedWebView(): boolean {
   return false;
 }
 
-/** True when the page runs inside the Conninter Android/iOS shell (Capacitor or Expo WebView). */
+/**
+ * True when the page runs inside the Conninter Android/iOS shell (Capacitor or Expo WebView).
+ * UI context only (chrome, storage location, resume). Never use this as authorization
+ * or as proof that a gate scan is valid.
+ */
 export function isNativeApp(): boolean {
   if (typeof window === 'undefined') {
     return false;

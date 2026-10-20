@@ -1,7 +1,8 @@
 import { DEMO_USER_ID_STORAGE_KEY } from '@/lib/demo-config';
 import { clearStoredAuthToken } from '@/lib/auth-storage';
 import { clearDeliveryPassCache } from '@/lib/delivery-pass-cache';
-import { clearLastInAppPath } from '@/lib/native-session-paths';
+import { clearLastInAppPath, NATIVE_WELCOME_PATH } from '@/lib/native-session-paths';
+import { isNativeApp } from '@/lib/platform';
 
 const AUTH_COOKIE_NAMES = ['user', 'authToken'] as const;
 
@@ -23,10 +24,15 @@ export function clearAuthSession(): void {
   }
 
   window.dispatchEvent(new Event('auth-session-cleared'));
+  window.dispatchEvent(new Event('conninter-session-changed'));
 }
 
-/** Ends the hospital staff/admin session and returns to the sign-in page. */
-export function logout(redirectTo = '/auth/login/'): void {
+function defaultLogoutPath(): string {
+  return isNativeApp() ? NATIVE_WELCOME_PATH : '/auth/login/';
+}
+
+/** Ends the hospital staff/admin session and returns to the sign-in page (Welcome in the native app). */
+export function logout(redirectTo?: string): void {
   clearAuthSession();
-  window.location.assign(redirectTo);
+  window.location.assign(redirectTo ?? defaultLogoutPath());
 }

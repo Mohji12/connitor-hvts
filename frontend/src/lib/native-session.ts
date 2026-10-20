@@ -1,14 +1,18 @@
 import { getDashboardPathForRole } from '@/lib/auth-routing';
 import { getStoredAuthToken } from '@/lib/auth-storage';
+import { isJwtExpired, readJwtPayload } from '@/lib/jwt-claims';
 import {
   getLastInAppPath,
   getLastNativePersona,
+  isResumableInAppPath,
   type NativePersonaId,
 } from '@/lib/native-session-paths';
+import { isNativeApp } from '@/lib/platform';
 import { getVisitorToken } from '@/lib/visitor-auth-storage';
 
 export {
   NATIVE_PERSONA_KEY,
+  NATIVE_WELCOME_PATH,
   clearLastInAppPath,
   getLastInAppPath,
   getLastNativePersona,
@@ -23,12 +27,10 @@ export {
 export type { NativePersonaId } from '@/lib/native-session-paths';
 
 function decodeStaffRole(token: string): string | null {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as { role?: unknown };
-    return typeof payload.role === 'string' && payload.role ? payload.role : null;
-  } catch {
-    return null;
-  }
+  if (isJwtExpired(token)) return null;
+  const payload = readJwtPayload(token);
+  const role = payload?.role;
+  return typeof role === 'string' && role ? role : null;
 }
 
 function pickResumePath(persona: NativePersonaId, fallback: string): string {
@@ -67,4 +69,21 @@ export function resolveNativeResumePath(): string | null {
     return pickResumePath('visitor', '/visitor/dashboard/');
   }
   return null;
+}
+
+/**
+ * True when a native staff/visitor/distributor session is gone and the current
+ * screen should not stay open. Attendant scan does not require a JWT.
+ */
+export function shouldReturnToNativeWelcome(pathWithSearch?: string): boolean {
+  if (typeof window === 'undefined') return false;
+  if (!isNativeApp()) return false;
+  const persona = getLastNativePersona();
+  if (persona !== 'staff' && persona !== 'visitor' && persona !== 'distributor') {
+    return false;
+  }
+  const path =
+    pathWithSearch ?? `${window.location.pathname}${window.location.search}`;
+  if (!isResumableInAppPath(path)) return false;
+  return resolveNativeResumePath() === null;
 }

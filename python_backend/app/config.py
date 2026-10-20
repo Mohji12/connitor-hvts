@@ -198,6 +198,9 @@ class Settings(BaseSettings):
 
     hvts_test_mode: bool = Field(default=False, validation_alias="HVTS_TEST_MODE")
     delivery_module_enabled: bool = Field(default=True, validation_alias="DELIVERY_MODULE_ENABLED")
+    gate_offline_enabled: bool = Field(default=False, validation_alias="GATE_OFFLINE_ENABLED")
+    gate_manifest_ttl_minutes: int = Field(default=120, validation_alias="GATE_MANIFEST_TTL_MINUTES")
+    gate_manifest_hmac_key: str | None = Field(default=None, validation_alias="GATE_MANIFEST_HMAC_KEY")
     delivery_wallet_enabled: bool = Field(default=False, validation_alias="DELIVERY_WALLET_ENABLED")
     visitor_visit_fee_inr: int = Field(default=200, validation_alias="VISITOR_VISIT_FEE_INR")
     # Temporary: lets visitors confirm a doctor booking without charging money. Set false once Razorpay is live.

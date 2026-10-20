@@ -73,6 +73,12 @@ from app.models.delivery_entities import (  # noqa: F401 — register ORM tables
     VisitDeliveryLink,
     WalletTransaction,
 )
+from app.models.gate_offline_entities import (  # noqa: F401 — register ORM tables
+    GateDevice,
+    GateManifestVersion,
+    GatePassRedemption,
+    GateScanEvent,
+)
 from app.models.attendant_entities import (  # noqa: F401
     Admission,
     AdmissionVisitSlot,

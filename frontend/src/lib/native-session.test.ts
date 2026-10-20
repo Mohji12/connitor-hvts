@@ -1,12 +1,14 @@
 import { getStoredAuthToken, setStoredAuthToken } from '@/lib/auth-storage';
+import { clearAuthSession } from '@/lib/logout';
 import {
   clearLastInAppPath,
   getLastInAppPath,
   isResumableInAppPath,
   rememberInAppPath,
   resolveNativeResumePath,
+  shouldReturnToNativeWelcome,
 } from '@/lib/native-session';
-import { setVisitorToken } from '@/lib/visitor-auth-storage';
+import { clearVisitorToken, setVisitorToken } from '@/lib/visitor-auth-storage';
 
 const native = { value: true };
 
@@ -85,5 +87,63 @@ describe('native session restore', () => {
     clearLastInAppPath('staff');
     expect(getLastInAppPath('staff')).toBeNull();
     expect(getLastInAppPath('distributor')).toBe('/vendor/deliveries');
+  });
+
+  it('does not restore an expired visitor token', () => {
+    setVisitorToken(
+      jwt({
+        sub: 'visitor-1',
+        exp: Math.floor(Date.now() / 1000) - 30,
+      }),
+    );
+    localStorage.setItem('conninterPersona', 'visitor');
+    rememberInAppPath('/visitor/dashboard');
+    expect(resolveNativeResumePath()).toBeNull();
+  });
+
+  it('returns null after logout even if a last path remains', () => {
+    const token = jwt({
+      role: 'HOSPITAL_ADMIN',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+    setStoredAuthToken(token);
+    localStorage.setItem('conninterPersona', 'staff');
+    rememberInAppPath('/dashboard/visitors');
+    clearAuthSession();
+    expect(getStoredAuthToken()).toBeNull();
+    expect(resolveNativeResumePath()).toBeNull();
+  });
+
+  it('returns null after the visitor token is cleared', () => {
+    setVisitorToken(
+      jwt({
+        sub: 'visitor-1',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      }),
+    );
+    localStorage.setItem('conninterPersona', 'visitor');
+    rememberInAppPath('/visitor/wallet');
+    clearVisitorToken();
+    expect(resolveNativeResumePath()).toBeNull();
+  });
+
+  it('sends expired native staff sessions on a dashboard back to Welcome', () => {
+    localStorage.setItem('conninterPersona', 'staff');
+    localStorage.setItem(
+      'authToken',
+      jwt({
+        role: 'SECURITY',
+        exp: Math.floor(Date.now() / 1000) - 30,
+      }),
+    );
+    expect(shouldReturnToNativeWelcome('/security/dashboard')).toBe(true);
+    expect(shouldReturnToNativeWelcome('/app/')).toBe(false);
+  });
+
+  it('does not treat native detection as authorization for attendant scan', () => {
+    native.value = true;
+    localStorage.setItem('conninterPersona', 'attendant');
+    expect(resolveNativeResumePath()).toBeNull();
+    expect(shouldReturnToNativeWelcome('/attendant/scan')).toBe(false);
   });
 });
