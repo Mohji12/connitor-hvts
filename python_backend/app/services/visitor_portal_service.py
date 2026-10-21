@@ -134,6 +134,7 @@ class VisitorPortalService:
         show_pass = self._gate_pass_visible(visit.status)
         return {
             "bookingId": visit.id,
+            "hostKind": "HOSPITAL",
             "status": visit.status,
             "purpose": visit.purpose,
             "itemsCarrying": visit.itemsCarrying,
@@ -241,6 +242,13 @@ class VisitorPortalService:
 
         dept_names, sub_names = self._dept_labels(visits)
         items = [self._serialize_visit(visit, dept_names, sub_names) for visit in visits]
+        from app.delivery.distributor_visit_service import DistributorVisitService
+
+        items.extend(DistributorVisitService(self.db).list_for_account(account_id))
+        items.sort(
+            key=lambda row: row.get("appointmentDate") or row.get("createdAt") or "",
+            reverse=True,
+        )
 
         profile = VisitorAccountService(self.db).get_preview(account_id)
         return {

@@ -8,7 +8,18 @@ from app.utils.timezone import ist_day_bounds, now_ist, parse_to_ist_naive, toda
 from sqlalchemy import and_, case, func
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Branch, Department, HospitalChain, SubDepartment, User, Visit, Visitor
+from app.models import (
+    Admission,
+    Attendant,
+    AttendantPass,
+    Branch,
+    Department,
+    HospitalChain,
+    SubDepartment,
+    User,
+    Visit,
+    Visitor,
+)
 from app.models.enums import Role, VisitStatus
 
 OPERATIONAL_STAFF_ROLES = (
@@ -511,6 +522,119 @@ class AnalyticsService:
     def get_chain_branches_with_stats(self, chain_id: str) -> list[dict]:
         branches = self.db.query(Branch).filter(Branch.hospitalChainId == chain_id).all()
         return [self.get_branch_stats(b.id) for b in branches]
+
+    def get_chain_branch_report(self, chain_id: str, branch_id: str) -> dict:
+        """Full branch profile for a hospital super admin: contact, people, visits, attendants."""
+        branch = (
+            self.db.query(Branch)
+            .options(joinedload(Branch.hospitalChain))
+            .filter(Branch.id == branch_id)
+            .first()
+        )
+        if not branch or branch.hospitalChainId != chain_id:
+            raise ValueError("Branch not found")
+
+        stats = self.get_branch_stats(branch_id)
+        departments = self.get_department_stats_for_branch(branch_id)
+        role_rows = (
+            self.db.query(User.role, func.count(User.id))
+            .filter(User.branchId == branch_id, User.isActive.is_(True))
+            .group_by(User.role)
+            .all()
+        )
+        admins = (
+            self.db.query(User)
+            .filter(User.branchId == branch_id, User.role == Role.HOSPITAL_ADMIN.value)
+            .order_by(User.name.asc())
+            .all()
+        )
+        patients_admitted = (
+            self.db.query(func.count(Admission.id))
+            .filter(Admission.branchId == branch_id, Admission.status == "ACTIVE")
+            .scalar()
+        )
+        attendants_registered = (
+            self.db.query(func.count(Attendant.id))
+            .filter(Attendant.branchId == branch_id)
+            .scalar()
+        )
+        currently_inside = (
+            self.db.query(func.count(AttendantPass.id))
+            .filter(
+                AttendantPass.branchId == branch_id,
+                AttendantPass.enteredAt.isnot(None),
+                AttendantPass.exitedAt.is_(None),
+                AttendantPass.status != "EXPIRED",
+            )
+            .scalar()
+        )
+        pending_approval = (
+            self.db.query(func.count(Attendant.id))
+            .filter(Attendant.branchId == branch_id, Attendant.status == "PENDING")
+            .scalar()
+        )
+        recent = (
+            self.db.query(Visit)
+            .options(joinedload(Visit.visitor))
+            .filter(Visit.branchId == branch_id)
+            .order_by(Visit.createdAt.desc())
+            .limit(15)
+            .all()
+        )
+        activity = []
+        for visit in recent:
+            visitor = visit.visitor
+            name = "—"
+            if visitor:
+                name = f"{visitor.firstName} {visitor.lastName}".strip() or "—"
+            when = visit.appointmentDate or visit.createdAt
+            activity.append(
+                {
+                    "id": visit.id,
+                    "visitor": name,
+                    "purpose": visit.purpose or visit.visitCategory or "Visit",
+                    "staffName": visit.staffName,
+                    "status": visit.status,
+                    "when": when.isoformat() if when else None,
+                }
+            )
+        chain = branch.hospitalChain
+        return {
+            "generatedAt": now_ist().isoformat(),
+            "branch": {
+                "id": branch.id,
+                "name": branch.name,
+                "email": branch.email,
+                "phone": branch.phone,
+                "street": branch.street,
+                "city": branch.city,
+                "state": branch.state,
+                "pinCode": branch.pinCode,
+                "country": branch.country,
+                "slug": branch.slug,
+            },
+            "chainName": chain.name if chain else None,
+            "stats": stats,
+            "roleCounts": {role: int(count or 0) for role, count in role_rows},
+            "hospitalAdmins": [
+                {
+                    "id": admin.id,
+                    "name": admin.name,
+                    "email": admin.email,
+                    "phone": admin.phone,
+                    "isActive": admin.isActive,
+                }
+                for admin in admins
+            ],
+            "departments": departments,
+            "attendants": {
+                "patientsAdmitted": int(patients_admitted or 0),
+                "attendantsRegistered": int(attendants_registered or 0),
+                "currentlyInside": int(currently_inside or 0),
+                "pendingApproval": int(pending_approval or 0),
+            },
+            "recentVisits": activity,
+        }
 
     def get_branch_visitor_trends(
         self,

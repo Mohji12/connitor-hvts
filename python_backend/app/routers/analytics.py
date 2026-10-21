@@ -139,6 +139,21 @@ def chain_admin_branches(chainId: str = Query(...), db: Session = Depends(get_db
     return AnalyticsService(db).get_chain_branches_with_stats(chainId)
 
 
+@router.get("/chain-admin/branches/{branch_id}/report")
+def chain_admin_branch_report(
+    branch_id: str,
+    user: Annotated[dict, Depends(require_roles(Role.CHAIN_ADMIN.value))],
+    db: Session = Depends(get_db),
+):
+    chain_id = user.get("hospitalChainId")
+    if not chain_id:
+        raise HTTPException(status_code=400, detail="Hospital super admin must belong to a hospital.")
+    try:
+        return AnalyticsService(db).get_chain_branch_report(chain_id, branch_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Branch not found") from exc
+
+
 @router.get("/branch-admin/visitor-trends", dependencies=[Depends(require_roles(Role.BRANCH_ADMIN.value))])
 def branch_admin_trends(
     branchId: str = Query(...),

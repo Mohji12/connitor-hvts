@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -68,8 +69,9 @@ import {
   UserX,
   Building,
 } from 'lucide-react';
-import Image from 'next/image';
 import { BranchPublicLinkField } from '@/components/branches/BranchPublicLinkField';
+import { BranchGateQr } from '@/components/branches/BranchGateQr';
+import { PasswordInput } from '@/components/ui/password-input';
 import { GitBranch as GitBranchIcon } from 'lucide-react';
 
 // Define a user type specific to this component's needs
@@ -81,6 +83,7 @@ type ChainAdminUser = {
 const CreateBranchWithAdminSchema = BranchSchema.extend({
   createAdmin: z.boolean().default(false),
   adminName: z.string().optional(),
+  adminPassword: z.string().optional(),
   adminEmail: z.preprocess(
     (val) => (val === '' ? undefined : val),
     z.string().email({ message: 'Invalid email address.' }).optional(),
@@ -92,7 +95,10 @@ const CreateBranchWithAdminSchema = BranchSchema.extend({
 }).refine(
   (data) =>
     !data.createAdmin ||
-    (!!data.adminName && !!data.adminEmail && !!data.adminPhone),
+    (!!data.adminName &&
+      !!data.adminEmail &&
+      !!data.adminPhone &&
+      (data.adminPassword?.length ?? 0) >= 8),
   {
     message: 'Admin details are required when the box is checked.',
     path: ['adminName'],
@@ -104,6 +110,7 @@ const addAdminFormSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   email: z.string().email(),
   phone: z.string().length(10),
+  password: z.string().min(8, 'Password must be at least 8 characters.'),
 });
 type AddAdminFormData = z.infer<typeof addAdminFormSchema>;
 
@@ -123,19 +130,22 @@ const AddBranchAdminDialog = ({
 }) => {
   const form = useForm<AddAdminFormData>({
     resolver: zodResolver(addAdminFormSchema),
-    defaultValues: { name: '', email: '', phone: '' },
+    defaultValues: { name: '', email: '', phone: '', password: '' },
   });
 
   const onSubmit = async (data: AddAdminFormData) => {
     try {
       const payload: z.infer<typeof UserFormSchema> = {
-        ...data,
-        role: 'BRANCH_ADMIN',
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        password: data.password,
+        role: 'HOSPITAL_ADMIN',
         hospitalChainId: branch.hospitalChainId,
         branchId: branch.id,
       };
       await UserService.create(payload);
-      toast.success(`Admin '${data.name}' added to ${branch.name}!`);
+      toast.success(`Hospital admin '${data.name}' added to ${branch.name}!`);
       onAdminAdded();
       onOpenChange(false);
       form.reset();
@@ -149,10 +159,10 @@ const AddBranchAdminDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Admin to {branch.name}</DialogTitle>
+          <DialogTitle>Create hospital admin for {branch.name}</DialogTitle>
           <DialogDescription>
-            This user will have administrative privileges over this specific
-            branch.
+            This profile signs in as the hospital admin for this branch. The
+            password is emailed to them.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -196,6 +206,19 @@ const AddBranchAdminDialog = ({
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <PasswordInput autoComplete="new-password" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
               <Button
                 type="button"
@@ -210,7 +233,7 @@ const AddBranchAdminDialog = ({
                 disabled={form.formState.isSubmitting}
                 className="cursor-pointer"
               >
-                {form.formState.isSubmitting ? 'Adding...' : 'Add Admin'}
+                {form.formState.isSubmitting ? 'Creating...' : 'Create profile'}
                 <ArrowRight />
               </Button>
             </DialogFooter>
@@ -315,33 +338,14 @@ const ManageBranchDialog = ({
                   </div>
                 </div>
                 <BranchPublicLinkField branch={branch} onSaved={onBranchUpdated} />
-                {/* QR Code Section */}
-                {branch.qrCode && (
-                  <div className="flex flex-col items-center gap-2 mt-6">
-                    <p className="font-semibold text-slate-500 text-xs mb-1">
-                      Branch QR Code
-                    </p>
-                    <Image
-                      src={branch.qrCode}
-                      alt="Branch QR Code"
-                      width={180}
-                      height={180}
-                      className="border rounded bg-white"
-                    />
-                    <Button
-                      variant="default"
-                      className="mt-2 cursor-pointer"
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = branch.qrCode!;
-                        link.download = `${branch.name}-qrcode.png`;
-                        link.click();
-                      }}
-                    >
-                      Download QR Code
-                    </Button>
-                  </div>
-                )}
+                <div className="mt-6">
+                  <BranchGateQr
+                    branchId={branch.id}
+                    branchName={branch.name}
+                    chainId={branch.hospitalChainId}
+                    canRefresh
+                  />
+                </div>
                 <DialogFooter className="pt-4">
                   <Button variant="outline" className="cursor-pointer">
                     <Pencil className="mr-2 h-4 w-4" /> Edit Details
@@ -447,8 +451,8 @@ export function ChainAdminBranches({ user }: { user: ChainAdminUser }) {
     isLoading: isLoadingAdmins,
     mutate: mutateAdmins,
   } = useSWR<User[]>(
-    chainId ? `/api/users?role=BRANCH_ADMIN&chainId=${chainId}` : null,
-    () => UserService.getAll({ role: 'BRANCH_ADMIN' }),
+    chainId ? `/api/users?role=HOSPITAL_ADMIN&chainId=${chainId}` : null,
+    () => UserService.getAll({ role: 'HOSPITAL_ADMIN' }),
   );
 
   const form = useForm({
@@ -466,6 +470,7 @@ export function ChainAdminBranches({ user }: { user: ChainAdminUser }) {
       adminName: '',
       adminEmail: '',
       adminPhone: '',
+      adminPassword: '',
     },
   });
   const watchCreateAdmin = form.watch('createAdmin');
@@ -491,24 +496,25 @@ export function ChainAdminBranches({ user }: { user: ChainAdminUser }) {
   }, [branches, searchQuery, searchFilter]);
 
   const onSubmit = async (data: CreateBranchWithAdminData) => {
-    const { adminName, adminEmail, adminPhone, createAdmin, ...branchData } =
+    const { adminName, adminEmail, adminPhone, adminPassword, createAdmin, ...branchData } =
       data;
     try {
       const newBranch = await BranchService.create(chainId, branchData);
       toast.success(`Branch '${newBranch.name}' created successfully!`);
 
       if (createAdmin) {
-        toast.info('Creating initial branch admin...');
+        toast.info('Creating hospital admin...');
         const payload: z.infer<typeof UserFormSchema> = {
           name: adminName!,
           email: adminEmail!,
           phone: adminPhone!,
-          role: 'BRANCH_ADMIN',
+          password: adminPassword,
+          role: 'HOSPITAL_ADMIN',
           hospitalChainId: chainId,
           branchId: newBranch.id,
         };
         await UserService.create(payload);
-        toast.success('Initial branch admin created!');
+        toast.success('Hospital admin created!');
         await mutateAdmins();
       }
 
@@ -723,11 +729,11 @@ export function ChainAdminBranches({ user }: { user: ChainAdminUser }) {
                             </FormControl>
                             <div className="space-y-1 leading-none">
                               <FormLabel>
-                                Create an initial branch administrator
+                                Create the hospital admin for this branch
                               </FormLabel>
                               <DialogDescription className="text-xs">
-                                Optional: Create a primary admin for this branch
-                                now.
+                                Optional: create their sign-in profile now. The
+                                password is emailed to them.
                               </DialogDescription>
                             </div>
                           </FormItem>
@@ -762,6 +768,26 @@ export function ChainAdminBranches({ user }: { user: ChainAdminUser }) {
                                         ? field.value
                                         : ''
                                     }
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="adminPassword"
+                            render={({ field }) => (
+                              <FormItem className="sm:col-span-2">
+                                <FormLabel>Admin password</FormLabel>
+                                <FormControl>
+                                  <PasswordInput
+                                    autoComplete="new-password"
+                                    value={typeof field.value === 'string' ? field.value : ''}
+                                    onChange={field.onChange}
+                                    onBlur={field.onBlur}
+                                    name={field.name}
+                                    ref={field.ref}
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -837,7 +863,8 @@ export function ChainAdminBranches({ user }: { user: ChainAdminUser }) {
                     <TableHead className="w-[5%]">Sl.No</TableHead>
                     <TableHead className="w-[25%]">Branch</TableHead>
                     <TableHead className="w-[40%]">Address</TableHead>
-                    <TableHead className="w-[30%]">Contact</TableHead>
+                    <TableHead className="w-[22%]">Contact</TableHead>
+                    <TableHead className="w-[8%]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -877,11 +904,16 @@ export function ChainAdminBranches({ user }: { user: ChainAdminUser }) {
                             </span>
                           </div>
                         </TableCell>
+                        <TableCell>
+                          <Button asChild variant="outline" size="sm" onClick={(event) => event.stopPropagation()}>
+                            <Link href={`/dashboard/branches/${branch.id}/`}>Dashboard</Link>
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-64 text-center">
+                      <TableCell colSpan={5} className="h-64 text-center">
                         <div className="flex flex-col items-center justify-center gap-4">
                           <Building className="h-10 w-10 text-muted-foreground/50" />
                           <div>
@@ -924,6 +956,9 @@ export function ChainAdminBranches({ user }: { user: ChainAdminUser }) {
                         <span>{branch.phone}</span>
                       </div>
                     </div>
+                    <Button asChild variant="outline" size="sm" className="w-full" onClick={(event) => event.stopPropagation()}>
+                      <Link href={`/dashboard/branches/${branch.id}/`}>Dashboard and report</Link>
+                    </Button>
                   </div>
                 ))
               ) : (

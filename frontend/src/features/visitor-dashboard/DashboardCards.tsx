@@ -11,7 +11,7 @@ import type { VisitorAppointment, VisitorDashboardData } from '@/lib/services/vi
 import type { VisitorWalletSummary } from '@/lib/services/visitorWalletService';
 import { visitorVisitPath } from '@/lib/static-export-route';
 import { GatePassButton } from './GatePassButton';
-import { doctorLabel, hasGatePass } from './visit-filters';
+import { hasGatePass, hostLabel } from './visit-filters';
 
 const CARD = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
 
@@ -37,15 +37,20 @@ export function NextVisitCard({ item }: { item: VisitorAppointment | null }): Re
           </span>
           <div>
             <p className="font-semibold text-slate-900">No upcoming visits</p>
-            <p className="text-sm text-muted-foreground">Book a doctor and your gate pass will show up here.</p>
+            <p className="text-sm text-muted-foreground">Book a hospital visit or meet a distributor.</p>
           </div>
         </div>
-        <Button asChild className="w-full sm:w-auto">
-          <Link href="/book-appointment">
-            <CalendarPlus className="mr-2 h-4 w-4" />
-            Book a visit
-          </Link>
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/book-appointment">
+              <CalendarPlus className="mr-2 h-4 w-4" />
+              Book a visit
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href="/book-distributor-visit">Meet a distributor</Link>
+          </Button>
+        </div>
       </section>
     );
   }
@@ -58,7 +63,7 @@ export function NextVisitCard({ item }: { item: VisitorAppointment | null }): Re
         <StatusChip status={item.status} className="bg-white/90" />
       </div>
       <h2 className="relative mt-2 text-xl font-semibold leading-snug sm:text-2xl">
-        {doctorLabel(item.doctorName) ?? item.departmentName ?? 'Appointment'}
+        {hostLabel(item)}
       </h2>
       <div className="relative mt-3 flex flex-col gap-1.5 text-sm text-white/85 sm:flex-row sm:flex-wrap sm:gap-x-5">
         <span className="flex items-center gap-2">

@@ -22,6 +22,8 @@ from app.routers import (
     public_appointments,
     public_attendant_passes,
     public_distributor_onboarding,
+    public_distributor_visits,
+    public_profile_cards,
     public_registration,
     public_sales_meeting,
     public_urgent_passcodes,
@@ -123,6 +125,16 @@ api_router.include_router(
     public_distributor_onboarding.router,
     prefix="/public/distributor-onboarding",
     tags=["public-distributor-onboarding"],
+)
+api_router.include_router(
+    public_distributor_visits.router,
+    prefix="/public/distributor-visits",
+    tags=["public-distributor-visits"],
+)
+api_router.include_router(
+    public_profile_cards.router,
+    prefix="/public/profile-cards",
+    tags=["public-profile-cards"],
 )
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(meetings.router, prefix="/public/meetings", tags=["meetings"])

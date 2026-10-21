@@ -126,30 +126,10 @@ export default function DeliveryVendorsPage(): React.ReactElement {
     }
   };
 
-  const setVerification = async (status: 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW') => {
-    if (!selectedId) return;
-    try {
-      const res = await apiClient.post(`/api/delivery/distributors/${selectedId}/verification`, {
-        status,
-        rejectionReason:
-          status === 'REJECTED' ? 'Incomplete or invalid documents — please re-apply or contact vendor desk.' : undefined,
-      });
-      setDetail(res.data);
-      toast.success(`Platform verification set to ${status}`);
-      await load();
-    } catch (e: unknown) {
-      const detailMsg =
-        typeof e === 'object' && e && 'response' in e
-          ? String((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? '')
-          : '';
-      toast.error(detailMsg || 'Could not update verification');
-    }
-  };
-
   return (
     <DeliveryPageShell
       title="Delivery vendors"
-      subtitle="Review distributor onboarding profiles, verify documents, and approve branch mappings."
+      subtitle="View distributor profiles and documents. Onboarding is self-serve — hospital approval is not required."
     >
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="border-amber-100 bg-white/90">
@@ -334,29 +314,10 @@ export default function DeliveryVendorsPage(): React.ReactElement {
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2 border-t pt-3">
-                  <Button
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => void setVerification('APPROVED')}
-                  >
-                    Verify platform profile
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void setVerification('UNDER_REVIEW')}
-                  >
-                    Mark under review
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => void setVerification('REJECTED')}
-                  >
-                    Reject
-                  </Button>
-                </div>
+                <p className="border-t pt-3 text-xs text-muted-foreground">
+                  Distributors are approved when they pay the onboarding fee. Hospital staff do not
+                  verify or reject new applications.
+                </p>
               </div>
             )}
           </CardContent>

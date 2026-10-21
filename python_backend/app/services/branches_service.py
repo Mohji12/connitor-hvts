@@ -1,14 +1,24 @@
 import io
-from urllib.parse import urlencode
 
 import qrcode
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
-from app.models import Branch, HospitalChain, User
+from app.config import get_public_frontend_url
+from app.models import Branch, HospitalChain
 from app.models.enums import Role
 from app.utils.slug import RESERVED_BRANCH_SLUGS, branch_slug_base, normalize_branch_slug
+
+_OWN_BRANCH_ROLES = {
+    Role.HOSPITAL_ADMIN.value,
+    Role.BRANCH_ADMIN.value,
+    Role.SECURITY.value,
+    Role.SECURITY_SUPERVISOR.value,
+}
+
+
+def branch_gate_url(branch_id: str) -> str:
+    return f"{get_public_frontend_url()}/gate/{branch_id}/"
 
 
 def unique_branch_slug(db: Session, base: str, exclude_branch_id: str | None = None) -> str:
@@ -43,9 +53,21 @@ class BranchesService:
             raise HTTPException(status_code=404, detail="Hospital chain not found")
         return chain
 
-    def _ensure_access(self, user: dict, chain_id: str) -> None:
-        if user["role"] == Role.CHAIN_ADMIN.value and user.get("hospitalChainId") != chain_id:
-            raise HTTPException(status_code=403, detail="You can only access branches in your own chain")
+    def _ensure_access(self, user: dict, chain_id: str, branch_id: str | None = None) -> None:
+        role = user.get("role")
+        if role == Role.SUPER_ADMIN.value:
+            return
+        if role == Role.CHAIN_ADMIN.value:
+            if user.get("hospitalChainId") != chain_id:
+                raise HTTPException(status_code=403, detail="You can only access branches in your own chain")
+            return
+        if role in _OWN_BRANCH_ROLES:
+            if user.get("hospitalChainId") and user.get("hospitalChainId") != chain_id:
+                raise HTTPException(status_code=403, detail="You can only access your own hospital")
+            if branch_id and user.get("branchId") != branch_id:
+                raise HTTPException(status_code=403, detail="You can only access your own branch")
+            return
+        raise HTTPException(status_code=403, detail="Not allowed")
 
     def _validated_slug(self, value: str, branch_id: str | None) -> str:
         try:
@@ -60,10 +82,7 @@ class BranchesService:
         return slug
 
     def _generate_qr(self, branch: Branch) -> str:
-        settings = get_settings()
-        params = urlencode({"branchId": branch.id, "name": branch.name})
-        url = f"{settings.visitor_form_url}?{params}"
-        img = qrcode.make(url)
+        img = qrcode.make(branch_gate_url(branch.id))
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
         import base64
@@ -104,7 +123,7 @@ class BranchesService:
 
     def find_one(self, chain_id: str, branch_id: str, user: dict) -> Branch:
         self._ensure_chain(chain_id)
-        self._ensure_access(user, chain_id)
+        self._ensure_access(user, chain_id, branch_id)
         branch = (
             self.db.query(Branch)
             .filter(Branch.id == branch_id, Branch.hospitalChainId == chain_id)

@@ -127,6 +127,9 @@ class Distributor(Base):
     reviewedAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     reviewedById: Mapped[str | None] = mapped_column(String(36), ForeignKey("User.id"), nullable=True)
     termsAcceptedAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    onboardingFeeAmount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    onboardingPaymentMethod: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    onboardingPaidAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist)
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist, onupdate=now_ist)
 

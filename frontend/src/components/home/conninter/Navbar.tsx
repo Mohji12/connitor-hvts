@@ -9,7 +9,6 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 
 const navLinks = [
   { label: 'Hospitals', href: '#hospitals' },
-  { label: 'How It Works', href: '#how-it-works' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'Partners', href: '#hospitals' },
   { label: 'Demo', href: '/demo' },

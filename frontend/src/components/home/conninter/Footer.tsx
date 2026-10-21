@@ -6,7 +6,6 @@ import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 
 const productLinks = [
   { label: 'Hospitals', href: '#hospitals' },
-  { label: 'How It Works', href: '#how-it-works' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'Book appointment', href: '/book-appointment' },
   { label: 'Visitor register', href: '/visitor/register' },

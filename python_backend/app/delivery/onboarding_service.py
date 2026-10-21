@@ -6,6 +6,7 @@ import json
 import logging
 import re
 from datetime import timedelta
+from decimal import Decimal
 from typing import Any
 
 from fastapi import UploadFile
@@ -19,6 +20,7 @@ from app.models.delivery_entities import (
     VendorBranchMapping,
     VendorCodeSequence,
     VendorWallet,
+    WalletTransaction,
 )
 from app.models.enums import Role
 from app.services.gcp_storage_service import GcpStorageService
@@ -43,6 +45,7 @@ VENDOR_TYPES = {
 GSTIN_RE = re.compile(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")
 PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]{1}$")
 PHONE_RE = re.compile(r"^[6-9]\d{9}$")
+ONBOARDING_FEE = Decimal("150.00")
 
 
 class DistributorOnboardingService:
@@ -126,9 +129,9 @@ class DistributorOnboardingService:
         # Hospital branches are chosen later in delivery booking (optional at apply).
         if branch_ids is not None and not isinstance(branch_ids, list):
             raise bad_request("branchIds must be a list")
-        if not isinstance(supply, list) or len(supply) < 1:
-            raise bad_request("Select at least one supply category")
-        if delivery_mode not in ("OWN_FLEET", "THIRD_PARTY"):
+        if supply is not None and not isinstance(supply, list):
+            raise bad_request("supplyCategories must be a list")
+        if delivery_mode and delivery_mode not in ("OWN_FLEET", "THIRD_PARTY"):
             raise bad_request("Delivery mode must be OWN_FLEET or THIRD_PARTY")
         if not goods:
             raise bad_request("Primary goods description is required")
@@ -136,6 +139,9 @@ class DistributorOnboardingService:
             raise bad_request("You must accept the terms")
         if not data.get("declarationTrue"):
             raise bad_request("You must confirm the declaration")
+        payment_method = (data.get("paymentMethod") or "").strip().upper()
+        if payment_method != "DUMMY":
+            raise bad_request("Pay the ₹150 onboarding fee to continue")
 
         city = (data.get("city") or "").strip()
         state = (data.get("state") or "").strip()
@@ -203,7 +209,7 @@ class DistributorOnboardingService:
             city=registered["city"],
             state=registered["state"],
             isActive=True,
-            verificationStatus="PENDING",
+            verificationStatus="APPROVED",
             legalEntityType=(data.get("legalEntityType") or "").strip() or None,
             tradeName=(data.get("tradeName") or "").strip() or None,
             cin=(data.get("cin") or "").strip() or None,
@@ -215,16 +221,20 @@ class DistributorOnboardingService:
             operatingAddressJson=json.dumps(operating),
             serviceableStatesJson=json.dumps(data.get("serviceableStates") or []),
             supplyCategoriesJson=json.dumps(data.get("supplyCategories") or []),
-            deliveryMode=(data.get("deliveryMode") or "").strip() or None,
+            deliveryMode=(data.get("deliveryMode") or "").strip() or "OWN_FLEET",
             goodsDescription=(data.get("goodsDescription") or "").strip() or None,
             accountsEmail=(data.get("accountsEmail") or "").strip().lower() or None,
             dispatchPhone=self._normalize_phone(data.get("dispatchPhone") or "") or None,
             alternatePhone=self._normalize_phone(data.get("alternatePhone") or "") or None,
             designation=(data.get("designation") or "").strip() or None,
             preferredLanguage=(data.get("preferredLanguage") or "").strip() or None,
-            onboardingStatus="SUBMITTED",
+            onboardingStatus="APPROVED",
             submittedAt=now,
+            reviewedAt=now,
             termsAcceptedAt=now,
+            onboardingFeeAmount=ONBOARDING_FEE,
+            onboardingPaymentMethod="DUMMY",
+            onboardingPaidAt=now,
         )
         self.db.add(dist)
         self.db.flush()
@@ -244,6 +254,8 @@ class DistributorOnboardingService:
         self.db.add(user)
 
         self.db.add(VendorWallet(vendorId=dist.id, balance=0))
+        self.db.flush()
+        self._record_dummy_onboarding_fee(dist.id)
 
         branch_ids: list[str] = list(dict.fromkeys(data.get("branchIds") or []))
         for bid in branch_ids:
@@ -254,7 +266,7 @@ class DistributorOnboardingService:
                 VendorBranchMapping(
                     vendorId=dist.id,
                     branchId=bid,
-                    approvalStatus="PENDING",
+                    approvalStatus="APPROVED",
                 )
             )
 
@@ -342,14 +354,43 @@ class DistributorOnboardingService:
             "email": dist.email,
             "onboardingStatus": dist.onboardingStatus,
             "verificationStatus": dist.verificationStatus,
+            "onboardingFee": float(ONBOARDING_FEE),
+            "paymentMethod": "DUMMY",
             "phoneVerificationRequired": True,
             "phoneOtpSent": phone_sent,
             "message": (
-                "Application submitted. Enter the WhatsApp code sent to your mobile "
-                "before you sign in. Delivery booking unlocks after hospital verification "
-                "and branch approval."
+                "Onboarding complete. Enter the WhatsApp code sent to your mobile, "
+                "then sign in. No hospital approval is required — you can book deliveries "
+                "after you verify your phone."
             ),
         }
+
+    def _record_dummy_onboarding_fee(self, vendor_id: str) -> None:
+        wallet = self.db.query(VendorWallet).filter(VendorWallet.vendorId == vendor_id).first()
+        if not wallet:
+            wallet = VendorWallet(vendorId=vendor_id, balance=Decimal("0"))
+            self.db.add(wallet)
+            self.db.flush()
+        wallet.balance += ONBOARDING_FEE
+        self.db.add(
+            WalletTransaction(
+                walletId=wallet.id,
+                amount=ONBOARDING_FEE,
+                transactionType="CREDIT",
+                referenceType="DUMMY_PAYMENT",
+                referenceId=vendor_id,
+            )
+        )
+        wallet.balance -= ONBOARDING_FEE
+        self.db.add(
+            WalletTransaction(
+                walletId=wallet.id,
+                amount=-ONBOARDING_FEE,
+                transactionType="DEBIT",
+                referenceType="ONBOARDING_FEE",
+                referenceId=vendor_id,
+            )
+        )
 
     def _send_registration_otp(self, user: User) -> bool:
         import bcrypt
@@ -414,14 +455,13 @@ class DistributorOnboardingService:
         from app.services.messaging_service import EmailService
 
         settings_email = EmailService()
-        subject = f"Connitor — Distributor application received ({dist.vendorCode})"
+        subject = f"Connitor — Distributor onboarding complete ({dist.vendorCode})"
         text = (
             f"Hello {dist.contactPerson or dist.vendorName},\n\n"
-            f"We received your distributor application for {dist.vendorName} "
-            f"({dist.vendorCode}).\n"
-            "Hospital staff will review your details and documents. "
-            "You can sign in after you verify the WhatsApp code sent to your mobile. "
-            "Booking unlocks after hospital approval.\n\n"
+            f"Your distributor profile for {dist.vendorName} ({dist.vendorCode}) is active. "
+            "The ₹150 onboarding fee was recorded (dummy payment). "
+            "No hospital approval is required. "
+            "Verify the WhatsApp code sent to your mobile, then sign in to book deliveries.\n\n"
             "— Connitor"
         )
         html = f"<p>{text.replace(chr(10), '<br/>')}</p>"
@@ -491,9 +531,9 @@ class DistributorOnboardingService:
             subject = f"Connitor — Distributor approved ({dist.vendorCode})"
             body = (
                 f"Hello {dist.contactPerson or dist.vendorName},\n\n"
-                f"Your distributor profile {dist.vendorName} has been verified. "
-                "In delivery booking, choose a hospital to request access; "
-                "once that branch approves you, you can book deliveries.\n\n"
+                f"Your distributor profile {dist.vendorName} is approved. "
+                "No further hospital approval is required. "
+                "Sign in and book a delivery at a hospital that has allotted slots.\n\n"
                 "— Connitor"
             )
         else:
@@ -564,6 +604,9 @@ class DistributorOnboardingService:
             "dispatchPhone": dist.dispatchPhone,
             "verificationStatus": dist.verificationStatus,
             "onboardingStatus": dist.onboardingStatus,
+            "onboardingFee": float(dist.onboardingFeeAmount) if dist.onboardingFeeAmount is not None else None,
+            "onboardingPaymentMethod": dist.onboardingPaymentMethod,
+            "onboardingPaidAt": dist.onboardingPaidAt.isoformat() if dist.onboardingPaidAt else None,
             "rejectionReason": dist.rejectionReason,
             "submittedAt": dist.submittedAt.isoformat() if dist.submittedAt else None,
             "reviewedAt": dist.reviewedAt.isoformat() if dist.reviewedAt else None,

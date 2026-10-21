@@ -6,10 +6,11 @@ import { AppointmentService } from '@/lib/services/appointmentService';
 import { todayIstDateIso } from '@/lib/datetime';
 
 interface SlotCalendarProps {
-  doctorId: string;
+  doctorId?: string;
   /** Selected date as YYYY-MM-DD */
   value: string;
   onChange: (date: string) => void;
+  loadDates?: (from: string, to: string) => Promise<string[]>;
 }
 
 function toIso(date: Date): string {
@@ -25,7 +26,12 @@ function fromIso(value: string): Date {
 }
 
 /** Month calendar where days with free doctor slots are shown in green. */
-export function SlotCalendar({ doctorId, value, onChange }: SlotCalendarProps): React.ReactElement {
+export function SlotCalendar({
+  doctorId,
+  value,
+  onChange,
+  loadDates,
+}: SlotCalendarProps): React.ReactElement {
   const today = React.useMemo(() => fromIso(todayIstDateIso()), []);
   const selected = value ? fromIso(value) : undefined;
   const [month, setMonth] = React.useState<Date>(() => selected ?? today);
@@ -33,7 +39,7 @@ export function SlotCalendar({ doctorId, value, onChange }: SlotCalendarProps): 
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    if (!doctorId) return;
+    if (!doctorId && !loadDates) return;
     const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
     const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
     if (monthEnd < today) {
@@ -43,7 +49,10 @@ export function SlotCalendar({ doctorId, value, onChange }: SlotCalendarProps): 
     const from = monthStart < today ? today : monthStart;
     let cancelled = false;
     setLoading(true);
-    AppointmentService.listAvailableDates(doctorId, toIso(from), toIso(monthEnd))
+    const fetchDates = loadDates
+      ? loadDates(toIso(from), toIso(monthEnd))
+      : AppointmentService.listAvailableDates(doctorId as string, toIso(from), toIso(monthEnd));
+    fetchDates
       .then((dates) => {
         if (!cancelled) setAvailableDates(dates);
       })
@@ -56,7 +65,7 @@ export function SlotCalendar({ doctorId, value, onChange }: SlotCalendarProps): 
     return () => {
       cancelled = true;
     };
-  }, [doctorId, month, today]);
+  }, [doctorId, loadDates, month, today]);
 
   const availableDays = React.useMemo(() => availableDates.map(fromIso), [availableDates]);
 

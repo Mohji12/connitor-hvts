@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
+import { ProfileShareQr } from '@/components/profile/ProfileShareQr';
 
 export type AccountProfile = {
   id: string;
@@ -30,6 +31,8 @@ export type AccountProfile = {
   hospitalChain?: { name?: string | null } | null;
   branch?: { name?: string | null } | null;
   distributorId?: string | null;
+  profileShareToken?: string | null;
+  profileCardUrl?: string | null;
   access_token?: string;
 };
 
@@ -185,6 +188,8 @@ export function AccountProfileForm(): React.ReactElement {
           </CardContent>
         </Card>
       ) : null}
+
+      <ProfileShareQr token={profile.profileShareToken} cardUrl={profile.profileCardUrl} />
 
       <CameraAccessCard />
 

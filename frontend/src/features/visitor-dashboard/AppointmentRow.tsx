@@ -8,7 +8,7 @@ import type { VisitorAppointment } from '@/lib/services/visitorPortalService';
 import { visitorVisitPath } from '@/lib/static-export-route';
 import { cn } from '@/lib/utils';
 import { GatePassButton } from './GatePassButton';
-import { doctorLabel, hasGatePass } from './visit-filters';
+import { hasGatePass, hostLabel } from './visit-filters';
 
 function dateBlock(value: string | null): { day: string; month: string; weekday: string; time: string } | null {
   if (!value) return null;
@@ -64,7 +64,7 @@ export function AppointmentRow({ item, highlighted = false }: AppointmentRowProp
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-slate-900">
-            {doctorLabel(item.doctorName) ?? item.departmentName ?? 'Appointment'}
+            {hostLabel(item)}
           </p>
           <p className="truncate text-sm text-muted-foreground">
             {[item.departmentName, item.branchName].filter(Boolean).join(' · ') || '—'}

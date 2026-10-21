@@ -11,7 +11,7 @@ import { StatusChip } from '@/components/mobile/StatusChip';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { GatePassButton } from '@/features/visitor-dashboard/GatePassButton';
-import { doctorLabel, hasGatePass } from '@/features/visitor-dashboard/visit-filters';
+import { hasGatePass, hostLabel, passNoun } from '@/features/visitor-dashboard/visit-filters';
 import { formatIstDateTime } from '@/lib/datetime';
 import {
   VisitorPortalService,
@@ -108,7 +108,7 @@ export default function VisitorVisitDetailPage(): React.ReactElement {
           <div className="min-w-0">
             <h1 className="truncate text-lg font-semibold text-slate-900">Visit details</h1>
             <p className="hidden text-sm text-muted-foreground lg:block">
-              Status, hospital, slot, and gate pass for this booking.
+              Status, host, slot, and pass for this booking.
             </p>
           </div>
         </div>
@@ -127,17 +127,17 @@ export default function VisitorVisitDetailPage(): React.ReactElement {
             <Card className="border-[#001B71]/10 bg-white/90">
               <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <CardTitle className="min-w-0 truncate text-base">
-                  {doctorLabel(visit.doctorName) ?? visit.departmentName ?? 'Visit'}
+                  {hostLabel(visit)}
                 </CardTitle>
                 <StatusChip status={visit.status} />
               </CardHeader>
               <CardContent className="space-y-2">
                 <DetailRow
-                  label="Hospital"
+                  label={visit.hostKind === 'DISTRIBUTOR' ? 'Location' : 'Hospital'}
                   value={[visit.hospitalChainName, visit.branchName].filter(Boolean).join(' · ') || null}
                 />
                 <DetailRow
-                  label="Department"
+                  label={visit.hostKind === 'DISTRIBUTOR' ? 'Visit type' : 'Department'}
                   value={[visit.departmentName, visit.subDepartmentName].filter(Boolean).join(' · ') || null}
                 />
                 <DetailRow label="Scheduled" value={formatIstDateTime(visit.appointmentDate)} />
@@ -162,20 +162,24 @@ export default function VisitorVisitDetailPage(): React.ReactElement {
 
             <Card className="border-[#001B71]/10 bg-white/90">
               <CardHeader>
-                <CardTitle className="text-base">Gate pass</CardTitle>
+                <CardTitle className="text-base">{passNoun(visit.hostKind)}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 {hasGatePass(visit) ? (
                   <>
                     <p className="text-muted-foreground">
-                      Show this pass at the hospital gate. It is also saved on this phone.
+                      {visit.hostKind === 'DISTRIBUTOR'
+                        ? 'Show this pass at the distributor desk. It is also saved on this phone.'
+                        : 'Show this pass at the hospital gate. It is also saved on this phone.'}
                     </p>
                     <GatePassButton item={visit} className="w-full" />
                   </>
                 ) : visit.status === 'REQUEST_SENT' ? (
                   <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-amber-900">
                     <CalendarClock className="mt-0.5 h-4 w-4 shrink-0" />
-                    Waiting for the doctor. Your gate pass appears here once approved.
+                    {visit.hostKind === 'DISTRIBUTOR'
+                      ? 'Waiting for the distributor. Your meeting pass appears here once approved.'
+                      : 'Waiting for the doctor. Your gate pass appears here once approved.'}
                   </p>
                 ) : (
                   <p className="text-muted-foreground">No active gate pass on this visit.</p>

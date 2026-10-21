@@ -70,7 +70,7 @@ const securityMore: MobileNavGroup[] = [
     title: 'Gate',
     items: [
       { label: 'Visitor logs', href: '/security/dashboard?tab=logs', icon: BookOpen },
-      { label: 'On-spot visitor QR', href: '/security/dashboard?tab=on-spot', icon: QrCode },
+      { label: 'Gate QR', href: '/security/dashboard?tab=on-spot', icon: QrCode },
       { label: 'Visitor passes', href: '/security/dashboard?tab=visitor-passes', icon: IdCard },
       { label: 'All appointments', href: '/dashboard/appointments', icon: CalendarDays },
       { label: 'Offline gate', href: '/security/offline-gate', icon: ScanLine },
@@ -120,6 +120,7 @@ export const MOBILE_NAV: Record<string, MobileNavConfig> = {
         title: 'Hospital',
         items: [
           { label: 'Visitors', href: '/dashboard/visitors', icon: UserPlus },
+          { label: 'Gate QR', href: '/dashboard/gate-qr', icon: QrCode },
           { label: 'Visitor passes', href: '/dashboard/visitor-passes', icon: BadgeCheck },
           { label: 'Visit slots', href: '/dashboard/visit-slots', icon: CalendarClock },
           { label: 'Departments', href: '/dashboard/departments', icon: Layers },
@@ -155,7 +156,12 @@ export const MOBILE_NAV: Record<string, MobileNavConfig> = {
       { label: 'Users', href: '/dashboard/users', icon: Users },
     ],
     more: [
-      { items: [{ label: 'Visit slots', href: '/dashboard/visit-slots', icon: CalendarClock }] },
+      {
+        items: [
+          { label: 'Gate QR', href: '/dashboard/gate-qr', icon: QrCode },
+          { label: 'Visit slots', href: '/dashboard/visit-slots', icon: CalendarClock },
+        ],
+      },
       account,
     ],
   },
@@ -223,6 +229,15 @@ export const MOBILE_NAV: Record<string, MobileNavConfig> = {
     ],
     more: [
       {
+        title: 'Visitors',
+        items: [
+          { label: 'Visitors', href: '/vendor/visitors', icon: Users },
+          { label: 'Visit slots', href: '/vendor/visit-slots', icon: CalendarDays },
+          { label: 'Desk staff', href: '/vendor/security', icon: BadgeCheck },
+          { label: 'Desk scan', href: '/vendor/desk', icon: ScanLine },
+        ],
+      },
+      {
         title: 'Account',
         items: [
           { label: 'Company profile', href: '/vendor/profile', icon: Building2 },
@@ -230,6 +245,10 @@ export const MOBILE_NAV: Record<string, MobileNavConfig> = {
         ],
       },
     ],
+  },
+  DISTRIBUTOR_SECURITY: {
+    tabs: [{ label: 'Scan', href: '/vendor/desk', icon: ScanLine }],
+    more: [account],
   },
   PRODUCT_ADMIN: {
     tabs: [{ label: 'Logs', href: '/dashboard/product-logs', icon: ClipboardList }],
@@ -303,7 +322,12 @@ const TITLE_OVERRIDES: Record<string, string> = {
   '/vendor/deliveries/book': 'Book delivery',
   '/vendor/profile': 'Company profile',
   '/vendor/deliveries': 'Deliveries',
+  '/vendor/visitors': 'Visitors',
+  '/vendor/visit-slots': 'Visit slots',
+  '/vendor/security': 'Desk staff',
+  '/vendor/desk': 'Desk scan',
   '/dashboard/gate-offline': 'Gate offline',
+  '/dashboard/gate-qr': 'Gate QR',
   '/security/offline-gate': 'Offline gate',
 };
 
@@ -315,7 +339,7 @@ const SECURITY_TAB_TITLES: Record<string, string> = {
   'visitor-passes': 'Visitor passes',
   'delivery-scan': 'Scan at gate',
   'attendant-scan': 'Scan at gate',
-  'on-spot': 'On-spot visitor QR',
+  'on-spot': 'Gate QR',
 };
 
 export function getMobilePageTitle(

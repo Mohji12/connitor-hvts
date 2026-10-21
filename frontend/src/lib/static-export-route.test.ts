@@ -1,5 +1,8 @@
 import {
+  gateIdFromLocation,
   hospitalDeliveryIdFromLocation,
+  hospitalGatePath,
+  profileCardIdFromLocation,
   vendorDeliveryIdFromLocation,
   visitorVisitIdFromLocation,
   visitorVisitPath,
@@ -28,5 +31,18 @@ describe('static-export-route', () => {
     const id = 'cbde6f99-8532-4345-8104-ea7b7135e3e5';
     expect(visitorVisitIdFromLocation(`/visitor/visits/${id}/`, '_')).toBe(id);
     expect(visitorVisitPath(id)).toBe(`/visitor/visits/${id}/`);
+  });
+
+  it('reads a profile card token from the live URL after a static-export rewrite', () => {
+    const id = 'cbde6f99-8532-4345-8104-ea7b7135e3e5';
+    expect(profileCardIdFromLocation(`/card/${id}/`, '_')).toBe(id);
+    expect(profileCardIdFromLocation('/card/_/', '_')).toBe('');
+  });
+
+  it('reads a hospital gate branch id from the live URL after a static-export rewrite', () => {
+    const id = 'cbde6f99-8532-4345-8104-ea7b7135e3e5';
+    expect(gateIdFromLocation(`/gate/${id}/`, '_')).toBe(id);
+    expect(gateIdFromLocation('/gate/_/', '_')).toBe('');
+    expect(hospitalGatePath(id)).toBe(`/gate/${id}/`);
   });
 });

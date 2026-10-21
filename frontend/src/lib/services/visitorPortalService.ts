@@ -9,6 +9,7 @@ export { clearVisitorToken, getVisitorToken, setVisitorToken };
 
 export interface VisitorAppointment {
   bookingId: string;
+  hostKind?: 'HOSPITAL' | 'DISTRIBUTOR' | string | null;
   status: string;
   purpose: string | null;
   itemsCarrying?: string | null;

@@ -74,14 +74,16 @@ function VisitorPass() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
-        <p className="text-base font-semibold">Gate pass</p>
+        <p className="text-base font-semibold">
+          {pass?.hostKind === 'DISTRIBUTOR' ? 'Meeting pass' : 'Gate pass'}
+        </p>
       </div>
 
       {!pass ? (
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
           <p className="text-lg font-semibold">Pass not available</p>
           <p className="mt-2 text-sm text-white/80">
-            This visit has no active gate pass yet. It appears once the doctor approves.
+            This visit has no active pass yet. It appears once the host approves.
           </p>
           <Button asChild variant="secondary" className="mt-6 h-11">
             <Link href="/visitor/dashboard">Back to my visits</Link>
@@ -93,7 +95,11 @@ function VisitorPass() {
             <div className="flex items-center justify-between gap-2 text-left">
               <div className="min-w-0">
                 <p className="truncate text-base font-semibold">
-                  {pass.doctorName ? `Dr. ${pass.doctorName.replace(/^Dr\.?\s*/i, '')}` : (pass.departmentName ?? 'Appointment')}
+                  {pass.hostKind === 'DISTRIBUTOR'
+                    ? (pass.doctorName ?? pass.departmentName ?? 'Appointment')
+                    : pass.doctorName
+                      ? `Dr. ${pass.doctorName.replace(/^Dr\.?\s*/i, '')}`
+                      : (pass.departmentName ?? 'Appointment')}
                 </p>
                 <p className="m-meta truncate">
                   {[pass.departmentName, pass.branchName].filter(Boolean).join(' · ')}

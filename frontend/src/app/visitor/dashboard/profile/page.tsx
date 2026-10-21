@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { VisitorAccountApi } from '@/features/visitor-pre-registration/api/visitorAccountService';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
+import { ProfileShareQr } from '@/components/profile/ProfileShareQr';
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'response' in error) {
@@ -52,6 +53,8 @@ export default function VisitorProfileEditPage() {
   const [companyName, setCompanyName] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [shareToken, setShareToken] = useState('');
+  const [shareUrl, setShareUrl] = useState('');
 
   useEffect(() => {
     const token = getVisitorToken();
@@ -68,6 +71,8 @@ export default function VisitorProfileEditPage() {
         setCompanyName(p.companyName ?? '');
         setJobTitle(p.jobTitle ?? '');
         setLinkedinUrl(p.linkedinUrl ?? '');
+        setShareToken(p.profileShareToken ?? '');
+        setShareUrl(p.profileCardUrl ?? '');
       })
       .catch(() => {
         toast.error('Could not load your profile');
@@ -124,6 +129,8 @@ export default function VisitorProfileEditPage() {
             Update the details hospitals see when you book a visit.
           </p>
         </div>
+
+        <ProfileShareQr token={shareToken} cardUrl={shareUrl} />
 
         <CameraAccessCard className="lg:hidden" />
 

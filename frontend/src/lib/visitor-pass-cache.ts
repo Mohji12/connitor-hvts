@@ -8,6 +8,7 @@ export type CachedVisitorPass = Pick<
   | 'status'
   | 'appointmentDate'
   | 'doctorName'
+  | 'hostKind'
   | 'departmentName'
   | 'branchName'
   | 'checkInQrCode'
@@ -57,6 +58,7 @@ export function cacheVisitorPasses(appointments: VisitorAppointment[]): void {
       status: a.status,
       appointmentDate: a.appointmentDate,
       doctorName: a.doctorName,
+      hostKind: a.hostKind,
       departmentName: a.departmentName,
       branchName: a.branchName,
       checkInQrCode: a.checkInQrCode ?? next[a.bookingId]?.checkInQrCode ?? null,

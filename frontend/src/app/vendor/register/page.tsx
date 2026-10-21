@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowRight, CheckCircle2, Truck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, CreditCard, Truck } from 'lucide-react';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { DistributorOnboardingService } from '@/lib/services/distributorOnboardingService';
 import { Button } from '@/components/ui/button';
@@ -43,16 +43,7 @@ const ENTITY_TYPES = [
   'Others',
 ] as const;
 
-const SUPPLY_OPTIONS = [
-  'medicines',
-  'implants',
-  'consumables',
-  'equipment',
-  'food',
-  'linen',
-  'lab',
-  'other',
-] as const;
+const ONBOARDING_FEE = 150;
 
 const INDIAN_STATES = [
   'Andhra Pradesh',
@@ -84,20 +75,13 @@ type FormState = {
   confirmPassword: string;
   contactPerson: string;
   phone: string;
-  alternatePhone: string;
-  designation: string;
-  preferredLanguage: string;
   vendorName: string;
-  tradeName: string;
   legalEntityType: string;
   vendorType: string;
   gstNumber: string;
   gstRegistrationType: string;
   panNumber: string;
   cin: string;
-  udyamNumber: string;
-  yearEstablished: string;
-  website: string;
   addressLine1: string;
   addressLine2: string;
   city: string;
@@ -112,8 +96,6 @@ type FormState = {
   supplyCategories: string[];
   deliveryMode: 'OWN_FLEET' | 'THIRD_PARTY';
   goodsDescription: string;
-  accountsEmail: string;
-  dispatchPhone: string;
   drugLicenseNumber: string;
   acceptTerms: boolean;
   declarationTrue: boolean;
@@ -125,20 +107,13 @@ const initialForm: FormState = {
   confirmPassword: '',
   contactPerson: '',
   phone: '',
-  alternatePhone: '',
-  designation: '',
-  preferredLanguage: 'en',
   vendorName: '',
-  tradeName: '',
   legalEntityType: '',
   vendorType: '',
   gstNumber: '',
   gstRegistrationType: 'Regular',
   panNumber: '',
   cin: '',
-  udyamNumber: '',
-  yearEstablished: '',
-  website: '',
   addressLine1: '',
   addressLine2: '',
   city: '',
@@ -153,8 +128,6 @@ const initialForm: FormState = {
   supplyCategories: [],
   deliveryMode: 'OWN_FLEET',
   goodsDescription: '',
-  accountsEmail: '',
-  dispatchPhone: '',
   drugLicenseNumber: '',
   acceptTerms: false,
   declarationTrue: false,
@@ -163,9 +136,11 @@ const initialForm: FormState = {
 export default function VendorRegisterPage(): React.ReactElement {
   const router = useRouter();
   const [homeHref, setHomeHref] = React.useState('/');
+  const [mounted, setMounted] = React.useState(false);
   const [step, setStep] = React.useState(1);
 
   React.useEffect(() => {
+    setMounted(true);
     setHomeHref(appSafeHomeHref());
   }, []);
   const [form, setForm] = React.useState<FormState>(initialForm);
@@ -184,18 +159,14 @@ export default function VendorRegisterPage(): React.ReactElement {
     bankProof: null,
     drugLicense: null,
   });
+  const [payMethod, setPayMethod] = React.useState<'UPI' | 'CARD'>('UPI');
+  const [upiId, setUpiId] = React.useState('');
+  const [cardNumber, setCardNumber] = React.useState('');
+  const [cardExpiry, setCardExpiry] = React.useState('');
+  const [cardCvv, setCardCvv] = React.useState('');
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const toggleSupply = (value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      supplyCategories: prev.supplyCategories.includes(value)
-        ? prev.supplyCategories.filter((s) => s !== value)
-        : [...prev.supplyCategories, value],
-    }));
   };
 
   const validateStep = (s: number): string | null => {
@@ -219,6 +190,7 @@ export default function VendorRegisterPage(): React.ReactElement {
       if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(form.panNumber.toUpperCase())) {
         return 'Enter a valid PAN';
       }
+      if (!form.goodsDescription.trim()) return 'Describe the goods you supply';
       if (
         (form.legalEntityType === 'Pvt Ltd' || form.legalEntityType === 'Public Ltd') &&
         !form.cin.trim()
@@ -245,10 +217,16 @@ export default function VendorRegisterPage(): React.ReactElement {
       }
     }
     if (s === 5) {
-      if (form.supplyCategories.length < 1) return 'Select supply categories';
-      if (!form.goodsDescription.trim()) return 'Describe the goods you supply';
       if (!form.acceptTerms || !form.declarationTrue) {
         return 'Accept terms and declaration to continue';
+      }
+    }
+    if (s === 6) {
+      if (payMethod === 'UPI' && upiId.trim().length < 3) return 'Enter a UPI ID';
+      if (payMethod === 'CARD') {
+        if (cardNumber.replace(/\s/g, '').length < 12) return 'Enter card details';
+        if (cardExpiry.trim().length < 4) return 'Enter card expiry';
+        if (cardCvv.trim().length < 3) return 'Enter card CVV';
       }
     }
     return null;
@@ -260,13 +238,18 @@ export default function VendorRegisterPage(): React.ReactElement {
       toast.error(err);
       return;
     }
-    setStep((s) => Math.min(5, s + 1));
+    setStep((s) => Math.min(6, s + 1));
   };
 
   const submit = async () => {
-    const err = validateStep(5);
-    if (err) {
-      toast.error(err);
+    const termsErr = validateStep(5);
+    if (termsErr) {
+      toast.error(termsErr);
+      return;
+    }
+    const payErr = validateStep(6);
+    if (payErr) {
+      toast.error(payErr);
       return;
     }
     setLoading(true);
@@ -291,11 +274,7 @@ export default function VendorRegisterPage(): React.ReactElement {
           password: form.password,
           contactPerson: form.contactPerson.trim(),
           phone: form.phone.trim(),
-          alternatePhone: form.alternatePhone.trim() || undefined,
-          designation: form.designation.trim() || undefined,
-          preferredLanguage: form.preferredLanguage || undefined,
           vendorName: form.vendorName.trim(),
-          tradeName: form.tradeName.trim() || undefined,
           legalEntityType: form.legalEntityType,
           vendorType: form.vendorType,
           gstNumber:
@@ -305,9 +284,6 @@ export default function VendorRegisterPage(): React.ReactElement {
           gstRegistrationType: form.gstRegistrationType,
           panNumber: form.panNumber.trim().toUpperCase(),
           cin: form.cin.trim() || undefined,
-          udyamNumber: form.udyamNumber.trim() || undefined,
-          yearEstablished: form.yearEstablished ? Number(form.yearEstablished) : undefined,
-          website: form.website.trim() || undefined,
           addressLine1: form.addressLine1.trim(),
           addressLine2: form.addressLine2.trim() || undefined,
           city: form.city.trim(),
@@ -323,10 +299,9 @@ export default function VendorRegisterPage(): React.ReactElement {
           supplyCategories: form.supplyCategories,
           deliveryMode: form.deliveryMode,
           goodsDescription: form.goodsDescription.trim(),
-          accountsEmail: form.accountsEmail.trim() || undefined,
-          dispatchPhone: form.dispatchPhone.trim() || undefined,
           acceptTerms: form.acceptTerms,
           declarationTrue: form.declarationTrue,
+          paymentMethod: 'DUMMY',
           documents,
         },
         files,
@@ -337,7 +312,7 @@ export default function VendorRegisterPage(): React.ReactElement {
         email: form.email.trim().toLowerCase(),
       });
       setPhoneVerified(false);
-      toast.success('Application submitted');
+      toast.success('Onboarding complete');
     } catch (e: unknown) {
       const detail =
         typeof e === 'object' && e && 'response' in e
@@ -459,7 +434,7 @@ export default function VendorRegisterPage(): React.ReactElement {
             Distributor onboarding
           </h1>
           <p className="text-sm text-muted-foreground">
-            Step {step} of 5 — provide business and compliance details for Indian hospital delivery.
+            Step {step} of 6 — provide business details, then pay the ₹{ONBOARDING_FEE} onboarding fee.
           </p>
         </div>
 
@@ -470,13 +445,22 @@ export default function VendorRegisterPage(): React.ReactElement {
               {step === 2 && 'Business identity'}
               {step === 3 && 'Registered address'}
               {step === 4 && 'Compliance documents'}
-              {step === 5 && 'Operations & terms'}
+              {step === 5 && 'Terms'}
+              {step === 6 && 'Onboarding fee'}
             </CardTitle>
             <CardDescription>
-              Fields marked required must be completed before continuing.
+              {step === 6
+                ? 'Pay ₹150 to activate your distributor profile. Demo only — no real money is charged.'
+                : step === 5
+                  ? 'Accept the conditions to continue to payment.'
+                  : 'Fields marked required must be completed before continuing.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {!mounted ? (
+              <p className="text-sm text-muted-foreground">Loading form…</p>
+            ) : (
+              <>
             {step === 1 && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2 sm:col-span-2">
@@ -516,22 +500,6 @@ export default function VendorRegisterPage(): React.ReactElement {
                     placeholder="10-digit"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Alternate mobile (optional)</Label>
-                  <Input
-                    value={form.alternatePhone}
-                    onChange={(e) =>
-                      setField('alternatePhone', e.target.value.replace(/\D/g, '').slice(0, 10))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Designation (optional)</Label>
-                  <Input
-                    value={form.designation}
-                    onChange={(e) => setField('designation', e.target.value)}
-                  />
-                </div>
               </div>
             )}
 
@@ -542,13 +510,6 @@ export default function VendorRegisterPage(): React.ReactElement {
                   <Input
                     value={form.vendorName}
                     onChange={(e) => setField('vendorName', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Trade / brand name (optional)</Label>
-                  <Input
-                    value={form.tradeName}
-                    onChange={(e) => setField('tradeName', e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -605,8 +566,9 @@ export default function VendorRegisterPage(): React.ReactElement {
                 </div>
                 {form.gstRegistrationType !== 'Unregistered' && (
                   <div className="space-y-2">
-                    <Label>GSTIN</Label>
+                    <Label htmlFor="gstNumber">GSTIN</Label>
                     <Input
+                      id="gstNumber"
                       value={form.gstNumber}
                       onChange={(e) => setField('gstNumber', e.target.value.toUpperCase())}
                       maxLength={15}
@@ -614,11 +576,21 @@ export default function VendorRegisterPage(): React.ReactElement {
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label>PAN</Label>
+                  <Label htmlFor="panNumber">PAN</Label>
                   <Input
+                    id="panNumber"
                     value={form.panNumber}
                     onChange={(e) => setField('panNumber', e.target.value.toUpperCase())}
                     maxLength={10}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="goodsDescription">Primary goods</Label>
+                  <Input
+                    id="goodsDescription"
+                    value={form.goodsDescription}
+                    onChange={(e) => setField('goodsDescription', e.target.value)}
+                    placeholder="e.g. Injectable antibiotics, surgical sutures"
                   />
                 </div>
                 {(form.legalEntityType === 'Pvt Ltd' || form.legalEntityType === 'Public Ltd') && (
@@ -627,29 +599,6 @@ export default function VendorRegisterPage(): React.ReactElement {
                     <Input value={form.cin} onChange={(e) => setField('cin', e.target.value)} />
                   </div>
                 )}
-                <div className="space-y-2">
-                  <Label>MSME Udyam (optional)</Label>
-                  <Input
-                    value={form.udyamNumber}
-                    onChange={(e) => setField('udyamNumber', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Year established (optional)</Label>
-                  <Input
-                    value={form.yearEstablished}
-                    onChange={(e) =>
-                      setField('yearEstablished', e.target.value.replace(/\D/g, '').slice(0, 4))
-                    }
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Website (optional)</Label>
-                  <Input
-                    value={form.website}
-                    onChange={(e) => setField('website', e.target.value)}
-                  />
-                </div>
               </div>
             )}
 
@@ -790,84 +739,103 @@ export default function VendorRegisterPage(): React.ReactElement {
             )}
 
             {step === 5 && (
-              <div className="space-y-5">
-                <p className="rounded-lg border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                  Do not pick a hospital here. After you sign in, choose the hospital and a
-                  delivery slot that hospital has allotted when you book a trip.
-                </p>
-                <div className="space-y-2">
-                  <Label>Supply categories</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {SUPPLY_OPTIONS.map((s) => (
-                      <Button
-                        key={s}
-                        type="button"
-                        size="sm"
-                        variant={form.supplyCategories.includes(s) ? 'default' : 'outline'}
-                        onClick={() => toggleSupply(s)}
-                      >
-                        {s}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Delivery mode</Label>
-                  <Select
-                    value={form.deliveryMode}
-                    onValueChange={(v) => setField('deliveryMode', v as FormState['deliveryMode'])}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="OWN_FLEET">Own fleet</SelectItem>
-                      <SelectItem value="THIRD_PARTY">Third-party courier</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Primary goods description</Label>
-                  <Input
-                    value={form.goodsDescription}
-                    onChange={(e) => setField('goodsDescription', e.target.value)}
-                    placeholder="e.g. Injectable antibiotics, surgical sutures"
+              <div className="space-y-3 rounded-lg border border-[#001B71]/08 bg-[#4A90E2]/08 p-4">
+                <label className="flex items-start gap-2 text-sm">
+                  <Checkbox
+                    checked={form.acceptTerms}
+                    onCheckedChange={(v) => setField('acceptTerms', Boolean(v))}
                   />
+                  <span>I accept Conninter platform terms and hospital vendor policies.</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm">
+                  <Checkbox
+                    checked={form.declarationTrue}
+                    onCheckedChange={(v) => setField('declarationTrue', Boolean(v))}
+                  />
+                  <span>I declare that the information and documents provided are true.</span>
+                </label>
+              </div>
+            )}
+
+            {step === 6 && (
+              <div className="space-y-5">
+                <div className="rounded-lg border border-[#001B71]/10 bg-[#4A90E2]/08 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-[#001B71]/70">
+                    Amount due
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold text-[#001B71]">₹{ONBOARDING_FEE}.00</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    One-time Conninter distributor onboarding fee. Hospital approval is not required.
+                  </p>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Accounts email (optional)</Label>
-                    <Input
-                      type="email"
-                      value={form.accountsEmail}
-                      onChange={(e) => setField('accountsEmail', e.target.value)}
-                    />
+                <div className="space-y-3 rounded-lg border p-4">
+                  <Label>Payment method</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant={payMethod === 'UPI' ? 'default' : 'outline'}
+                      onClick={() => setPayMethod('UPI')}
+                    >
+                      UPI
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={payMethod === 'CARD' ? 'default' : 'outline'}
+                      onClick={() => setPayMethod('CARD')}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Card
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Dispatch phone (optional)</Label>
-                    <Input
-                      value={form.dispatchPhone}
-                      onChange={(e) =>
-                        setField('dispatchPhone', e.target.value.replace(/\D/g, '').slice(0, 10))
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="space-y-3 rounded-lg border border-[#001B71]/08 bg-[#4A90E2]/08 p-3">
-                  <label className="flex items-start gap-2 text-sm">
-                    <Checkbox
-                      checked={form.acceptTerms}
-                      onCheckedChange={(v) => setField('acceptTerms', Boolean(v))}
-                    />
-                    <span>I accept Conninter platform terms and hospital vendor policies.</span>
-                  </label>
-                  <label className="flex items-start gap-2 text-sm">
-                    <Checkbox
-                      checked={form.declarationTrue}
-                      onCheckedChange={(v) => setField('declarationTrue', Boolean(v))}
-                    />
-                    <span>I declare that the information and documents provided are true.</span>
-                  </label>
+                  {payMethod === 'UPI' ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="onboarding-upi">UPI ID</Label>
+                      <Input
+                        id="onboarding-upi"
+                        placeholder="name@upi"
+                        value={upiId}
+                        onChange={(e) => setUpiId(e.target.value)}
+                        autoComplete="off"
+                      />
+                      <p className="text-xs text-muted-foreground">Demo only — no real charge.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor="onboarding-card">Card number</Label>
+                        <Input
+                          id="onboarding-card"
+                          placeholder="4111 1111 1111 1111"
+                          value={cardNumber}
+                          onChange={(e) => setCardNumber(e.target.value)}
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="onboarding-expiry">Expiry</Label>
+                        <Input
+                          id="onboarding-expiry"
+                          placeholder="MM/YY"
+                          value={cardExpiry}
+                          onChange={(e) => setCardExpiry(e.target.value)}
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="onboarding-cvv">CVV</Label>
+                        <Input
+                          id="onboarding-cvv"
+                          placeholder="123"
+                          value={cardCvv}
+                          onChange={(e) => setCardCvv(e.target.value)}
+                          autoComplete="off"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground sm:col-span-2">
+                        Demo only — no real charge.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -882,7 +850,7 @@ export default function VendorRegisterPage(): React.ReactElement {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              {step < 5 ? (
+              {step < 6 ? (
                 <Button
                   type="button"
                   onClick={next}
@@ -896,10 +864,12 @@ export default function VendorRegisterPage(): React.ReactElement {
                   disabled={loading}
                   onClick={() => void submit()}
                 >
-                  {loading ? 'Submitting…' : 'Submit application'}
+                  {loading ? 'Processing…' : `Pay ₹${ONBOARDING_FEE}.00`}
                 </Button>
               )}
             </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -908,6 +878,7 @@ export default function VendorRegisterPage(): React.ReactElement {
           <button
             type="button"
             className="text-primary underline"
+            suppressHydrationWarning
             onClick={() => router.push('/delivery/login')}
           >
             Distributor login

@@ -91,6 +91,7 @@ def _valid_payload(branch_id: str, **overrides) -> dict:
         "goodsDescription": "Hospital consumables",
         "acceptTerms": True,
         "declarationTrue": True,
+        "paymentMethod": "DUMMY",
     }
     data.update(overrides)
     return data
@@ -118,28 +119,61 @@ def test_validate_apply_allows_empty_branch_ids(db):
     svc._validate_apply(_valid_payload(branch.id, branchIds=[]))
 
 
+def test_validate_apply_rejects_missing_onboarding_payment(db):
+    branch = db.query(Branch).first()
+    svc = DistributorOnboardingService(db)
+    with pytest.raises(HTTPException) as ctx:
+        svc._validate_apply(_valid_payload(branch.id, paymentMethod=None))
+    assert ctx.value.status_code == 400
+    assert "onboarding fee" in ctx.value.detail.lower()
+
+
 @pytest.mark.asyncio
-async def test_apply_creates_pending_distributor_user_wallet_mapping(db):
+async def test_apply_auto_approves_and_records_dummy_fee(db):
+    from decimal import Decimal
+
+    from app.models.delivery_entities import WalletTransaction
+
     branch = db.query(Branch).first()
     svc = DistributorOnboardingService(db)
     with patch.object(svc, "_notify_application_received"):
         result = await svc.apply(_valid_payload(branch.id), files=None)
 
     assert result["vendorCode"].startswith("VEN-")
+    assert result["verificationStatus"] == "APPROVED"
+    assert result["onboardingStatus"] == "APPROVED"
+    assert result["paymentMethod"] == "DUMMY"
+    assert result["onboardingFee"] == 150
     dist = db.query(Distributor).filter(Distributor.id == result["id"]).one()
-    assert dist.verificationStatus == "PENDING"
-    assert dist.onboardingStatus == "SUBMITTED"
+    assert dist.verificationStatus == "APPROVED"
+    assert dist.onboardingStatus == "APPROVED"
+    assert dist.onboardingPaymentMethod == "DUMMY"
+    assert float(dist.onboardingFeeAmount) == 150.0
+    assert dist.onboardingPaidAt is not None
     user = db.query(User).filter(User.email == "vendor.apply@example.com").one()
     assert user.role == "DISTRIBUTOR"
     assert user.distributorId == dist.id
     assert user.isActive is True
-    assert db.query(VendorWallet).filter(VendorWallet.vendorId == dist.id).count() == 1
+    wallet = db.query(VendorWallet).filter(VendorWallet.vendorId == dist.id).one()
+    assert float(wallet.balance) == 0.0
     mapping = (
         db.query(VendorBranchMapping)
         .filter(VendorBranchMapping.vendorId == dist.id, VendorBranchMapping.branchId == branch.id)
         .one()
     )
-    assert mapping.approvalStatus == "PENDING"
+    assert mapping.approvalStatus == "APPROVED"
+    txs = (
+        db.query(WalletTransaction)
+        .filter(WalletTransaction.walletId == wallet.id)
+        .all()
+    )
+    credit = next(t for t in txs if t.referenceType == "DUMMY_PAYMENT")
+    debit = next(t for t in txs if t.referenceType == "ONBOARDING_FEE")
+    assert credit.transactionType == "CREDIT"
+    assert float(credit.amount) == 150.0
+    assert debit.transactionType == "DEBIT"
+    assert float(debit.amount) == -150.0
+    assert Decimal(str(wallet.balance)) == Decimal("0")
 
 
 def test_book_delivery_blocked_when_profile_rejected(db):

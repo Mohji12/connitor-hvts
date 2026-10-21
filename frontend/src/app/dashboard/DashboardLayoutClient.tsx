@@ -12,6 +12,7 @@ import { useIsAppShell, useResponsive } from '@/hooks/use-mobile';
 import { TeamSwitcher } from '@/components/sidebar/team-switcher';
 import { Hospital, Maximize, Shrink } from 'lucide-react';
 import { OvumHospitalLogo } from '@/components/brand/OvumHospitalLogo';
+import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { buildDashboardTeamEntry } from '@/lib/ovum-dashboard-branding';
 import { isOvumHospitalUser } from '@/lib/constants/ovum';
 import { Button } from '@/components/ui/button';
@@ -169,6 +170,7 @@ export default function DashboardLayoutClient({
             {showOvumBrand && !isCompactHeader ? (
               <OvumHospitalLogo href="/dashboard/" size="sm" />
             ) : null}
+            <ConninterWordmark href="/" size="sm" />
             {isCompactHeader ? <TeamSwitcher teams={teamsData} /> : null}
           </div>
           <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">

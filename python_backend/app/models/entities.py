@@ -36,6 +36,7 @@ class User(Base):
     subDepartmentId: Mapped[str | None] = mapped_column(String(36), ForeignKey("SubDepartment.id"), nullable=True)
     distributorId: Mapped[str | None] = mapped_column(String(36), nullable=True)
     deliveryAgentId: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    profileShareToken: Mapped[str | None] = mapped_column(String(36), unique=True, nullable=True, index=True)
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist)
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist, onupdate=now_ist)
 
@@ -190,6 +191,8 @@ class Visit(Base):
     visitCategory: Mapped[str | None] = mapped_column(String(50), nullable=True)
     visitSubType: Mapped[str | None] = mapped_column(String(191), nullable=True)
     purpose: Mapped[str | None] = mapped_column(String(191), nullable=True)
+    relatedDocumentUrl: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relatedDocumentType: Mapped[str | None] = mapped_column(String(50), nullable=True)
     itemsCarrying: Mapped[str | None] = mapped_column(String(500), nullable=True)
     department: Mapped[str | None] = mapped_column(String(50), nullable=True)
     deliveryPlatform: Mapped[str | None] = mapped_column(String(191), nullable=True)

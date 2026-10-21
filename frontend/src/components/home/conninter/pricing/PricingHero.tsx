@@ -13,31 +13,31 @@ type Props = {
 
 export const PricingHero = ({ billing, onBillingChange, focus, onFocusChange }: Props) => {
   return (
-    <div className="relative z-[100] mx-auto max-w-[1200px] px-4 text-center lg:px-8">
+    <div className="relative z-10 mx-auto max-w-[1200px] px-4 text-center lg:px-8">
       <motion.p
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -12 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.5 }}
-        transition={{ duration: 0.5 }}
-        className="mb-3 text-[12px] font-semibold uppercase tracking-[0.15em] text-white/50"
+        transition={{ duration: 0.4 }}
+        className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#001B71]/50"
       >
         PRICING
       </motion.p>
       <motion.h2
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -12 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.5 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="text-[32px] font-extrabold leading-[1.15] tracking-[-0.02em] text-white md:text-[44px]"
+        transition={{ duration: 0.4, delay: 0.05 }}
+        className="text-[22px] font-extrabold leading-tight tracking-[-0.02em] text-[#001B71] md:text-[28px]"
       >
         Invest in smarter scheduling
       </motion.h2>
       <motion.p
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -12 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.5 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="mx-auto mt-3 max-w-[520px] text-[17px] font-normal leading-relaxed text-white/60"
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="mx-auto mt-1.5 max-w-[520px] text-center text-[13px] leading-snug text-[#64748B] md:text-sm"
       >
         {focus === "visit"
           ? "Monthly hospital plans. Annual billing is 20% less."
@@ -47,19 +47,18 @@ export const PricingHero = ({ billing, onBillingChange, focus, onFocusChange }: 
       </motion.p>
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.98 }}
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true, amount: 0.5 }}
-        transition={{ duration: 0.3, delay: 0.4 }}
-        className="relative z-[110] mx-auto mt-8 flex w-full max-w-[280px] flex-col items-center sm:max-w-none"
+        transition={{ duration: 0.3, delay: 0.15 }}
+        className="relative mx-auto mt-4 flex w-full flex-col items-center"
       >
-        <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="flex flex-col items-center justify-center gap-2 sm:flex-row">
           {focus === "visit" && (
           <>
-          <div className="relative h-12 w-[280px] shrink-0 rounded-full bg-white/[0.08] p-1 shadow-inner backdrop-blur-md">
-            {/* Thumb: width = half of inner track; x = 100% moves exactly one column (translate % is of self) */}
+          <div className="relative h-10 w-[240px] shrink-0 rounded-full bg-white p-1 shadow-[0_1px_4px_rgba(15,23,42,0.08)] ring-1 ring-[#E2E8F0]">
             <motion.div
-              className="pointer-events-none absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/2)] rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+              className="pointer-events-none absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/2)] rounded-full bg-[#001B71] shadow-sm"
               initial={false}
               animate={{ x: billing === "monthly" ? 0 : "100%" }}
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
@@ -67,16 +66,16 @@ export const PricingHero = ({ billing, onBillingChange, focus, onFocusChange }: 
             <div className="relative z-10 grid h-full grid-cols-2">
               <ClientButton
                 onClick={() => onBillingChange("monthly")}
-                className={`rounded-full text-sm transition-colors ${
-                  billing === "monthly" ? "font-semibold text-[#001B71]" : "font-normal text-white/60"
+                className={`rounded-full text-[13px] transition-colors ${
+                  billing === "monthly" ? "font-semibold text-white" : "font-medium text-[#64748B]"
                 }`}
               >
                 Monthly
               </ClientButton>
               <ClientButton
                 onClick={() => onBillingChange("annual")}
-                className={`rounded-full text-sm transition-colors ${
-                  billing === "annual" ? "font-semibold text-[#001B71]" : "font-normal text-white/60"
+                className={`rounded-full text-[13px] transition-colors ${
+                  billing === "annual" ? "font-semibold text-white" : "font-medium text-[#64748B]"
                 }`}
               >
                 Annual
@@ -90,7 +89,7 @@ export const PricingHero = ({ billing, onBillingChange, focus, onFocusChange }: 
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.2 }}
-                className="whitespace-nowrap rounded-full bg-[#16A34A] px-2.5 py-1 text-xs font-semibold text-white"
+                className="whitespace-nowrap rounded-full bg-[#16A34A] px-2 py-0.5 text-[11px] font-semibold text-white"
               >
                 Save 20%
               </motion.span>
@@ -104,8 +103,8 @@ export const PricingHero = ({ billing, onBillingChange, focus, onFocusChange }: 
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.5, duration: 0.2 }}
-          className="relative z-[120] mt-5 inline-flex h-10 items-center rounded-full border border-white/15 bg-[#001B71] p-1 shadow-[0_4px_20px_rgba(0,0,0,0.2)]"
+          transition={{ delay: 0.2, duration: 0.2 }}
+          className="relative mt-3 inline-flex h-10 items-center rounded-full bg-white p-1 shadow-[0_1px_4px_rgba(15,23,42,0.08)] ring-1 ring-[#E2E8F0]"
         >
           {(
             [
@@ -117,8 +116,8 @@ export const PricingHero = ({ billing, onBillingChange, focus, onFocusChange }: 
             <ClientButton
               key={item}
               onClick={() => onFocusChange(item)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5 ${
-                focus === item ? "bg-white text-[#001B71] shadow-sm" : "text-white/55 hover:text-white/80"
+              className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors sm:px-4 ${
+                focus === item ? "bg-[#001B71] text-white shadow-sm" : "text-[#64748B] hover:text-[#001B71]"
               }`}
             >
               {label}

@@ -40,6 +40,7 @@ class VisitorAccount(Base):
     emailVerificationAttempts: Mapped[int] = mapped_column(Integer, default=0)
     termsAcceptedAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     privacyPolicyVersion: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    profileShareToken: Mapped[str | None] = mapped_column(String(36), unique=True, nullable=True, index=True)
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist)
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=now_ist, onupdate=now_ist)
 

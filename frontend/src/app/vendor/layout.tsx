@@ -50,17 +50,25 @@ function VendorPortalShell({
   const user = useAuthSession<User>();
   const router = useRouter();
 
+  const pathname = usePathname();
+
   useEffect(() => {
-    if (user && user.role !== 'DISTRIBUTOR') {
-      router.replace(getDashboardPathForRole(user.role));
+    if (!user) return;
+    if (user.role === 'DISTRIBUTOR') return;
+    if (user.role === 'DISTRIBUTOR_SECURITY') {
+      const path = pathname ?? '';
+      const allowed = path.startsWith('/vendor/desk') || path.startsWith('/dashboard/settings');
+      if (!allowed) router.replace('/vendor/desk');
+      return;
     }
-  }, [user, router]);
+    router.replace(getDashboardPathForRole(user.role));
+  }, [user, router, pathname]);
 
   if (!user) {
     return <ConnitorLoader variant="fullscreen" message="Loading…" />;
   }
 
-  if (user.role !== 'DISTRIBUTOR') {
+  if (user.role !== 'DISTRIBUTOR' && user.role !== 'DISTRIBUTOR_SECURITY') {
     return <ConnitorLoader variant="fullscreen" message="Redirecting…" />;
   }
 

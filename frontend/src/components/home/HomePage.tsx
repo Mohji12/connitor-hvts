@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import Navbar from '@/components/home/conninter/Navbar';
 import HeroSection from '@/components/home/conninter/HeroSection';
 import StatsTickerStrip from '@/components/home/conninter/StatsTickerStrip';
-import HowItWorksSection from '@/components/home/conninter/HowItWorksSection';
 import HospitalsSection from '@/components/home/conninter/HospitalsSection';
 import PricingSection from '@/components/home/conninter/PricingSection';
+import ModuleBannersSection from '@/components/home/conninter/ModuleBannersSection';
 import Footer from '@/components/home/conninter/Footer';
 
 const INITIAL_BOOKINGS = 48_392;
@@ -26,9 +26,9 @@ export function HomePage() {
       <Navbar />
       <HeroSection bookingsCount={bookingsCount} />
       <StatsTickerStrip bookingsCount={bookingsCount} />
-      <HowItWorksSection />
       <HospitalsSection />
       <PricingSection />
+      <ModuleBannersSection />
       <Footer />
     </div>
   );

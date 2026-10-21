@@ -15,6 +15,7 @@ from app.config import get_settings, is_test_mode_enabled
 from app.models import VisitorAccount, VisitorAccountAuth, VisitorAccountAuditLog, VisitorAccountDocument
 from app.models.enums import ProfileStatus, VisitorAuthProvider, VisitorDocumentType
 from app.models.visitor_account_entities import EmailVerificationToken
+from app.services.profile_share_service import ProfileShareService
 from app.schemas.visitor_account import (
     CreateVisitorAccountBody,
     GovernmentIdBody,
@@ -411,6 +412,7 @@ class VisitorAccountService:
             "profileStatus": account.profileStatus,
             "emailVerified": account.emailVerified,
             "phoneVerified": account.phoneVerified,
+            **ProfileShareService(self.db).share_fields_for_visitor(account),
         }
 
     def get_profile_for_account(self, account_id: str, *, include_govt_id: bool = False) -> dict[str, Any]:

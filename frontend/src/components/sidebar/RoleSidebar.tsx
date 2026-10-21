@@ -32,6 +32,7 @@ import {
   Package,
   Wallet,
   UserCircle,
+  Shield,
 } from 'lucide-react';
 import { useResponsive } from '@/hooks/use-mobile';
 import { MobileBottomNav } from './mobile-bottom-nav';
@@ -53,6 +54,7 @@ const iconMap = {
   package: Package,
   wallet: Wallet,
   'user-circle': UserCircle,
+  shield: Shield,
 };
 
 // Define User Profile structure from API

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import type { Branch, User } from '@/lib/schema/schema';
 import { useOverviewSessionUser } from '@/hooks/useOverviewSessionUser';
 import { BranchService } from '@/lib/services/branchService';
@@ -15,12 +16,6 @@ import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TrendPeriodFilter, useTrendFilter } from '@/components/filters/TrendPeriodFilter';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
@@ -77,8 +72,6 @@ export default function ChainAdminOverview() {
   const { period: trendPeriod, range: trendRange, onPeriodChange, onRangeApply } = useTrendFilter('weekly');
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const chainId = user?.hospitalChainId;
 
@@ -416,13 +409,15 @@ export default function ChainAdminOverview() {
                         </td>
                         <td className="p-3 text-right">
                           <Button
+                            asChild
                             variant="ghost"
                             size="sm"
-                            onClick={() => { setSelectedBranch(branch); setIsDialogOpen(true); }}
                             className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 cursor-pointer"
                           >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
+                            <Link href={`/dashboard/branches/${branch.id}/`}>
+                              <Eye className="h-4 w-4 mr-1" />
+                              Dashboard
+                            </Link>
                           </Button>
                         </td>
                       </tr>
@@ -434,47 +429,6 @@ export default function ChainAdminOverview() {
           </CardContent>
         </Card>
       </section>
-
-      {/* Branch Details Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-indigo-500" />
-              {selectedBranch?.name}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedBranch && (
-            <div className="space-y-4 pt-2">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="bg-slate-50 p-3 rounded-lg">
-                  <p className="text-slate-500 text-xs">City</p>
-                  <p className="font-medium text-slate-900">{selectedBranch.city}</p>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-lg">
-                  <p className="text-slate-500 text-xs">Phone</p>
-                  <p className="font-medium text-slate-900">{selectedBranch.phone}</p>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-lg">
-                  <p className="text-slate-500 text-xs">Email</p>
-                  <p className="font-medium text-slate-900 text-xs">{selectedBranch.email}</p>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-lg">
-                  <p className="text-slate-500 text-xs">Staff</p>
-                  <p className="font-medium text-slate-900">{getBranchStaffCount(selectedBranch.id)}</p>
-                </div>
-              </div>
-              <Button 
-                variant="outline" 
-                className="w-full cursor-pointer" 
-                onClick={() => setIsDialogOpen(false)}
-              >
-                Close
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

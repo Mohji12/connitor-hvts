@@ -272,6 +272,9 @@ class AuthService:
         data["branchName"] = user.branch.name if user.branch else None
         data["departmentName"] = user.dept.name if user.dept else None
         data["subDepartmentName"] = user.subDept.name if user.subDept else None
+        from app.services.profile_share_service import ProfileShareService
+
+        data.update(ProfileShareService(self.db).share_fields_for_user(user))
         return data
 
     def update_own_profile(self, user_id: str, data: dict) -> dict:

@@ -47,6 +47,15 @@ export function vendorDeliveryIdFromLocation(
   ]);
 }
 
+export function chainBranchReportIdFromLocation(
+  pathname: string,
+  param?: string | string[] | null,
+): string {
+  return resolveStaticExportParam(pathname, '/dashboard/branches', param, [
+    STATIC_EXPORT_PLACEHOLDER,
+  ]);
+}
+
 export function hospitalDeliveryIdFromLocation(
   pathname: string,
   param?: string | string[] | null,
@@ -66,4 +75,22 @@ export function visitorVisitIdFromLocation(
 
 export function visitorVisitPath(bookingId: string): string {
   return `/visitor/visits/${encodeURIComponent(bookingId)}/`;
+}
+
+export function profileCardIdFromLocation(
+  pathname: string,
+  param?: string | string[] | null,
+): string {
+  return resolveStaticExportParam(pathname, '/card', param, [STATIC_EXPORT_PLACEHOLDER]);
+}
+
+export function hospitalGatePath(branchId: string): string {
+  return `/gate/${encodeURIComponent(branchId)}/`;
+}
+
+export function gateIdFromLocation(
+  pathname: string,
+  param?: string | string[] | null,
+): string {
+  return resolveStaticExportParam(pathname, '/gate', param, [STATIC_EXPORT_PLACEHOLDER]);
 }

@@ -11,6 +11,7 @@ export const ROLE_DASHBOARD_PATHS: Record<string, string> = {
   RECEIVING: '/dashboard/receiving',
   PURCHASE: '/dashboard/delivery',
   DISTRIBUTOR: '/vendor/deliveries',
+  DISTRIBUTOR_SECURITY: '/vendor/desk',
   WARD_ADMIN: '/dashboard/ams',
   PRODUCT_ADMIN: '/dashboard/product-logs',
 };

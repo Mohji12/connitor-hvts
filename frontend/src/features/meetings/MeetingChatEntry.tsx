@@ -16,7 +16,9 @@ export function MeetingChatEntry({ entry }: MeetingChatEntryProps): React.ReactE
 
   const time = new Date(entry.timestamp);
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-IN';
-  const name = entry.from?.name?.trim() || entry.from?.identity || 'Participant';
+  const isLocal = Boolean(entry.from?.isLocal);
+  const remoteName = entry.from?.name?.trim();
+  const name = isLocal ? 'You' : remoteName || 'Visitor';
   const timeLabel = time.toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',
@@ -29,7 +31,7 @@ export function MeetingChatEntry({ entry }: MeetingChatEntryProps): React.ReactE
     <li
       className="lk-chat-entry conninter-chat-entry"
       title={time.toLocaleString(locale)}
-      data-lk-message-origin={entry.from?.isLocal ? 'local' : 'remote'}
+      data-lk-message-origin={isLocal ? 'local' : 'remote'}
       data-testid="meeting-chat-entry"
     >
       <span className="lk-message-body">{formatChatMessageLinks(entry.message)}</span>

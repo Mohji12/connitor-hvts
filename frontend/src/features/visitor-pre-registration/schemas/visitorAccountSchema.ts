@@ -59,4 +59,6 @@ export interface VisitorPreviewData {
   emailVerified?: boolean;
   phoneVerified?: boolean;
   profileStatus?: string;
+  profileShareToken?: string | null;
+  profileCardUrl?: string | null;
 }

@@ -47,6 +47,7 @@ export type DistributorOnboardingPayload = {
   dispatchPhone?: string;
   acceptTerms: boolean;
   declarationTrue: boolean;
+  paymentMethod: 'DUMMY';
   documents?: Array<{
     documentType: string;
     documentNumber?: string;
@@ -69,6 +70,9 @@ export const DistributorOnboardingService = {
     id: string;
     vendorCode: string;
     message: string;
+    onboardingFee?: number;
+    paymentMethod?: string;
+    verificationStatus?: string;
   }> {
     const form = new FormData();
     form.append('payload', JSON.stringify(payload));

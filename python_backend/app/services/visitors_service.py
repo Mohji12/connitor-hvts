@@ -70,9 +70,13 @@ class VisitorsService:
             .order_by(User.name)
             .all()
         )
+        chain = branch.hospitalChain
         return {
             "id": branch.id,
             "name": branch.name,
+            "city": branch.city,
+            "slug": branch.slug,
+            "hospitalChainName": chain.name if chain else None,
             "users": [
                 {"id": s.id, "name": s.name, "email": s.email, "phone": s.phone, "department": s.department}
                 for s in staff

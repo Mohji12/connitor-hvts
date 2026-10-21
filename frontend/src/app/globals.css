@@ -205,14 +205,6 @@
     text-wrap: balance;
   }
 
-  .bg-how-it-works {
-    background-color: #f7f9fc;
-    background-image:
-      linear-gradient(to bottom, #ffffff 0%, #f7f9fc 100%),
-      radial-gradient(rgba(0, 27, 113, 0.03) 1px, transparent 1px);
-    background-size: auto, 28px 28px;
-  }
-
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -223,21 +215,6 @@
 
   .animate-pulse-dot {
     animation: pulse_dot 2s ease-in-out infinite;
-  }
-  .animate-flow-dot-x {
-    animation: flow_dot_x 2s linear infinite;
-  }
-  .animate-flow-dot-y {
-    animation: flow_dot_y 2s linear infinite;
-  }
-  .animate-junction-pulse {
-    animation: junction_pulse 1.4s ease-in-out infinite;
-  }
-  .animate-pipeline-ring {
-    animation: pipeline_ring 1.5s ease-out infinite;
-  }
-  .animate-source-dot {
-    animation: source_dot 2s ease-in-out infinite;
   }
   .animate-ticker-scroll {
     animation: ticker_scroll 45s linear infinite;
@@ -281,56 +258,6 @@
   }
   50% {
     opacity: 0.4;
-  }
-}
-@keyframes flow_dot_x {
-  0% {
-    left: 0;
-    transform: translateY(-50%);
-  }
-  100% {
-    left: calc(100% - 6px);
-    transform: translateY(-50%);
-  }
-}
-@keyframes flow_dot_y {
-  0% {
-    top: 0;
-    transform: translateX(-50%);
-  }
-  100% {
-    top: calc(100% - 6px);
-    transform: translateX(-50%);
-  }
-}
-@keyframes junction_pulse {
-  0%,
-  100% {
-    opacity: 0.45;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.35);
-  }
-}
-@keyframes pipeline_ring {
-  0% {
-    box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.45);
-  }
-  100% {
-    box-shadow: 0 0 0 10px rgba(74, 144, 226, 0);
-  }
-}
-@keyframes source_dot {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.55;
-    transform: scale(0.92);
   }
 }
 @keyframes ticker_scroll {

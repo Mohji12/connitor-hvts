@@ -59,6 +59,56 @@ export interface BranchStats {
   todayVisits: number;
 }
 
+export interface ChainBranchReport {
+  generatedAt: string;
+  chainName: string | null;
+  branch: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    street: string;
+    city: string;
+    state: string;
+    pinCode: string;
+    country: string;
+    slug: string | null;
+  };
+  stats: BranchStats;
+  roleCounts: Record<string, number>;
+  hospitalAdmins: Array<{
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    isActive: boolean;
+  }>;
+  departments: Array<{
+    departmentId: string;
+    departmentName: string;
+    subDepartmentCount: number;
+    staffCount: number;
+    todayAppointments: number;
+    pendingAppointments: number;
+    activeVisits: number;
+    completedAppointments: number;
+  }>;
+  attendants: {
+    patientsAdmitted: number;
+    attendantsRegistered: number;
+    currentlyInside: number;
+    pendingApproval: number;
+  };
+  recentVisits: Array<{
+    id: string;
+    visitor: string;
+    purpose: string;
+    staffName: string | null;
+    status: string;
+    when: string | null;
+  }>;
+}
+
 export interface GrowthDataPoint {
   label: string;
   count: number;
@@ -228,6 +278,13 @@ export const AnalyticsService = {
     const response = await apiClient.get('/api/analytics/chain-admin/branches/stats', {
       params: { chainId },
     });
+    return response.data;
+  },
+
+  async getChainBranchReport(branchId: string): Promise<ChainBranchReport> {
+    const response = await apiClient.get(
+      `/api/analytics/chain-admin/branches/${encodeURIComponent(branchId)}/report`,
+    );
     return response.data;
   },
 

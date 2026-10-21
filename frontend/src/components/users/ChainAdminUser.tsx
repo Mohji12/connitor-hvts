@@ -76,6 +76,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ArrowRight, MoreHorizontal, Plus, UserPlus, Users } from 'lucide-react';
+import { PasswordInput } from '@/components/ui/password-input';
 
 type ChainAdminUser = {
   hospitalChainId: string;
@@ -130,6 +131,16 @@ const AddEditUserDialog = ({
 
     if (isEditMode && userToEdit) {
       switch (userToEdit.role) {
+        case 'HOSPITAL_ADMIN':
+          form.reset({
+            role: 'HOSPITAL_ADMIN',
+            name: userToEdit.name,
+            email: userToEdit.email,
+            phone: userToEdit.phone,
+            hospitalChainId: loggedInUser.hospitalChainId,
+            branchId: userToEdit.branchId!,
+          });
+          break;
         case 'BRANCH_ADMIN':
           form.reset({
             role: 'BRANCH_ADMIN',
@@ -195,6 +206,10 @@ const AddEditUserDialog = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userToEdit, open, isEditMode, loggedInUser.hospitalChainId]);
   const onSubmit = async (data: z.infer<typeof UserFormSchema>) => {
+    if (!isEditMode && (!data.password || data.password.length < 8)) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
     toast.promise(
       async () => {
         if (isEditMode && userToEdit) {
@@ -274,6 +289,25 @@ const AddEditUserDialog = ({
                   )}
                 />
               </div>
+              {!isEditMode && (
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <PasswordInput
+                          autoComplete="new-password"
+                          placeholder="Min. 8 characters — sent to their email"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -292,6 +326,9 @@ const AddEditUserDialog = ({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="HOSPITAL_ADMIN">
+                            Hospital Admin
+                          </SelectItem>
                           <SelectItem value="BRANCH_ADMIN">
                             Branch Admin
                           </SelectItem>
@@ -713,7 +750,7 @@ const UsersTable = ({
 // MAIN PAGE COMPONENT                                            //
 //================================================================//
 export function ChainAdminUser({ user }: { user: ChainAdminUser }) {
-  const [activeTab, setActiveTab] = useState('admins');
+  const [activeTab, setActiveTab] = useState('hospital');
   const [searchQuery, setSearchQuery] = useState('');
   const [branchFilter, setBranchFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -778,7 +815,7 @@ export function ChainAdminUser({ user }: { user: ChainAdminUser }) {
   };
 
   const filteredUsers = useMemo(() => {
-    if (!users) return { branchAdmins: [], otherUsers: [] };
+    if (!users) return { hospitalAdmins: [], branchAdmins: [], otherUsers: [] };
     let filtered = users;
     if (searchQuery) {
       filtered = filtered.filter(
@@ -793,6 +830,7 @@ export function ChainAdminUser({ user }: { user: ChainAdminUser }) {
     if (roleFilter !== 'all') {
       filtered = filtered.filter((u) => u.role === roleFilter);
     }
+    const hospitalAdmins = filtered.filter((u) => u.role === 'HOSPITAL_ADMIN');
     const branchAdmins = filtered.filter((u) => u.role === 'BRANCH_ADMIN');
     const otherUsers = filtered.filter(
       (u) =>
@@ -800,7 +838,7 @@ export function ChainAdminUser({ user }: { user: ChainAdminUser }) {
         u.role === 'SECURITY' ||
         u.role === 'SECURITY_SUPERVISOR',
     );
-    return { branchAdmins, otherUsers };
+    return { hospitalAdmins, branchAdmins, otherUsers };
   }, [users, searchQuery, branchFilter, roleFilter]);
 
   return (
@@ -852,6 +890,7 @@ export function ChainAdminUser({ user }: { user: ChainAdminUser }) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Roles</SelectItem>
+              <SelectItem value="HOSPITAL_ADMIN">Hospital Admin</SelectItem>
               <SelectItem value="BRANCH_ADMIN">Branch Admin</SelectItem>
               <SelectItem value="STAFF">Staff</SelectItem>
               <SelectItem value="SECURITY_SUPERVISOR">
@@ -868,13 +907,26 @@ export function ChainAdminUser({ user }: { user: ChainAdminUser }) {
           defaultValue="admins"
         >
           <TabsList>
+            <TabsTrigger value="hospital" className="cursor-pointer">
+              Hospital Admins
+            </TabsTrigger>
             <TabsTrigger value="admins" className="cursor-pointer">
-              Manage Branch Admins
+              Branch Admins
             </TabsTrigger>
             <TabsTrigger value="staff" className="cursor-pointer">
               Manage Staff & Security
             </TabsTrigger>
           </TabsList>
+          <TabsContent value="hospital" className="mt-4">
+            <UsersTable
+              users={filteredUsers.hospitalAdmins}
+              isLoading={isLoadingUsers}
+              onEdit={handleEdit}
+              onDeactivate={handleDeactivateRequest}
+              userType="admins"
+              branches={branches}
+            />
+          </TabsContent>
           <TabsContent value="admins" className="mt-4">
             <UsersTable
               users={filteredUsers.branchAdmins}

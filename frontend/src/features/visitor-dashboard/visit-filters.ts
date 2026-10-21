@@ -63,7 +63,16 @@ export function hasGatePass(item: VisitorAppointment): boolean {
   return (item.status === 'APPROVED' || item.status === 'CHECKED_IN') && Boolean(item.checkInQrCode);
 }
 
-export function doctorLabel(name: string | null): string | null {
+export function doctorLabel(name: string | null, hostKind?: string | null): string | null {
   if (!name) return null;
+  if (hostKind === 'DISTRIBUTOR') return name;
   return `Dr. ${name.replace(/^Dr\.?\s*/i, '')}`;
+}
+
+export function hostLabel(item: Pick<VisitorAppointment, 'doctorName' | 'hostKind' | 'departmentName'>): string {
+  return doctorLabel(item.doctorName, item.hostKind) ?? item.departmentName ?? 'Appointment';
+}
+
+export function passNoun(hostKind?: string | null): string {
+  return hostKind === 'DISTRIBUTOR' ? 'Meeting pass' : 'Gate pass';
 }

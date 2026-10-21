@@ -4,6 +4,7 @@
 .env.*.local
 *.pem
 google-credentials.json
+ovum_hospital_logins.txt
 
 # Python
 __pycache__/

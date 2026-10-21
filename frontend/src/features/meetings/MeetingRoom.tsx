@@ -218,7 +218,7 @@ function VisitHeader({ access }: { access: MeetingAccess }) {
         </div>
       </div>
       <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium">
-        {role === 'host' ? 'Doctor (host)' : 'Patient'}
+        {role === 'host' ? 'Doctor (host)' : 'Visitor'}
       </span>
     </header>
   );

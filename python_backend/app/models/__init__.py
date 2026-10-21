@@ -49,6 +49,10 @@ from app.models.slot_waitlist_entities import SlotWaitlist  # noqa: F401 — reg
 from app.models.slot_request_entities import SlotRequest  # noqa: F401 — register ORM table
 from app.models.permission_entities import Permission, RolePermission
 from app.models.app_log import AppLog  # noqa: F401 — register ORM table
+from app.models.distributor_visit_entities import (  # noqa: F401 — register ORM tables
+    DistributorAvailabilitySlot,
+    DistributorVisit,
+)
 from app.models.delivery_entities import (  # noqa: F401 — register ORM tables
     BranchDeliverySettings,
     DeliveryGate,
@@ -113,6 +117,8 @@ __all__ = [
     "VisitorAccountDocument",
     "EmailVerificationToken",
     "VisitorAccountAuditLog",
+    "DistributorAvailabilitySlot",
+    "DistributorVisit",
     "Role",
     "MeetingStatus",
     "VisitCategory",

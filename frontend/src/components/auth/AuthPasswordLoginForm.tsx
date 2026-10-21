@@ -80,6 +80,11 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const returnTo = (() => {
+    const raw = searchParams.get('returnTo');
+    if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null;
+    return raw;
+  })();
   const roleParam = forcedRole ?? searchParams.get('role');
   const rolePortal = isPortalRole(roleParam) ? findRolePortal(roleParam) : undefined;
   const deliveryPortal = !rolePortal ? findDeliveryPortal(roleParam) : undefined;
@@ -99,11 +104,11 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
       const decodedUser = jwtDecode<DecodedUser>(existing);
       if (!decodedUser.role) return;
       const resume = isNativeApp() ? resolveNativeResumePath() : null;
-      router.replace(resume ?? getDashboardPathForRole(decodedUser.role));
+      router.replace(returnTo ?? resume ?? getDashboardPathForRole(decodedUser.role));
     } catch {
       // Stale token — stay on the sign-in form.
     }
-  }, [router]);
+  }, [returnTo, router]);
 
   useEffect(() => {
     router.prefetch(getDashboardPrefetchPath(roleParam));
@@ -139,9 +144,13 @@ export function AuthPasswordLoginForm({ forcedRole }: AuthPasswordLoginFormProps
 
       const decodedUser = jwtDecode<DecodedUser>(accessToken);
       if (isNativeApp()) {
-        setLastNativePersona(decodedUser.role === 'DISTRIBUTOR' ? 'distributor' : 'staff');
+        setLastNativePersona(
+          decodedUser.role === 'DISTRIBUTOR' || decodedUser.role === 'DISTRIBUTOR_SECURITY'
+            ? 'distributor'
+            : 'staff',
+        );
       }
-      const dashboardPath = getDashboardPathForRole(decodedUser.role);
+      const dashboardPath = returnTo ?? getDashboardPathForRole(decodedUser.role);
       router.prefetch(getDashboardPrefetchPath(decodedUser.role));
       router.push(dashboardPath);
       toast.success('Login successful');

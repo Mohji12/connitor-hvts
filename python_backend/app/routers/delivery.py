@@ -18,6 +18,7 @@ from app.delivery.gate_service import DeliveryGateService
 from app.delivery.inbound_delivery_service import InboundDeliveryService
 from app.delivery.receiving_service import ReceivingService
 from app.delivery.wallet_service import WalletService
+from app.delivery.distributor_visit_service import DistributorVisitService
 
 router = APIRouter()
 
@@ -612,3 +613,159 @@ def approve_vendor_mapping(
     db: Annotated[Session, Depends(get_db)],
 ):
     return DistributorService(db).approve_vendor_branch(mapping_id, user)
+
+
+class DistributorVisitSlotBody(BaseModel):
+    date: str
+    startTime: str
+    endTime: str
+    slotMinutes: int | None = None
+
+
+class DistributorVisitRejectBody(BaseModel):
+    reason: str | None = None
+
+
+@router.get("/distributor-visit-slots")
+def list_distributor_visit_slots(
+    user: Annotated[dict, Depends(require_permission("VIEW_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+    from_date: str = Query(..., alias="from"),
+    to_date: str = Query(..., alias="to"),
+):
+    return DistributorVisitService(db).list_vendor_slots(user, from_date, to_date)
+
+
+@router.post("/distributor-visit-slots", status_code=201)
+def create_distributor_visit_slots(
+    body: DistributorVisitSlotBody,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    minutes = body.slotMinutes
+    if minutes is None:
+        start_h, start_m = DistributorVisitService(db)._parse_time(body.startTime)
+        end_h, end_m = DistributorVisitService(db)._parse_time(body.endTime)
+        minutes = max((end_h * 60 + end_m) - (start_h * 60 + start_m), 5)
+    return DistributorVisitService(db).create_slots(
+        user,
+        date=body.date,
+        start_time=body.startTime,
+        end_time=body.endTime,
+        slot_minutes=minutes,
+    )
+
+
+@router.delete("/distributor-visit-slots/{slot_id}")
+def delete_distributor_visit_slot(
+    slot_id: str,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorVisitService(db).delete_slot(user, slot_id)
+
+
+@router.get("/distributor-visits")
+def list_distributor_visits(
+    user: Annotated[dict, Depends(require_permission("VIEW_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+    status: str | None = Query(default=None),
+):
+    return DistributorVisitService(db).list_vendor_visits(user, status)
+
+
+@router.get("/distributor-visits/{visit_id}")
+def get_distributor_visit(
+    visit_id: str,
+    user: Annotated[dict, Depends(require_permission("VIEW_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorVisitService(db).get_vendor_visit(user, visit_id)
+
+
+@router.post("/distributor-visits/{visit_id}/approve")
+def approve_distributor_visit(
+    visit_id: str,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorVisitService(db).approve(user, visit_id)
+
+
+@router.post("/distributor-visits/{visit_id}/reject")
+def reject_distributor_visit(
+    visit_id: str,
+    body: DistributorVisitRejectBody,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorVisitService(db).reject(user, visit_id, body.reason)
+
+
+class DistributorDeskScanBody(BaseModel):
+    payload: str = Field(min_length=1)
+
+
+class DistributorSecurityStaffBody(BaseModel):
+    name: str
+    email: str
+    phone: str
+    password: str
+
+
+class DistributorSecurityActiveBody(BaseModel):
+    isActive: bool
+
+
+@router.get("/distributor-security")
+def list_distributor_security(
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorVisitService(db).list_security_staff(user)
+
+
+@router.post("/distributor-security", status_code=201)
+def create_distributor_security(
+    body: DistributorSecurityStaffBody,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorVisitService(db).create_security_staff(user, body.model_dump())
+
+
+@router.post("/distributor-security/{staff_id}/active")
+def set_distributor_security_active(
+    staff_id: str,
+    body: DistributorSecurityActiveBody,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorVisitService(db).set_security_staff_active(user, staff_id, body.isActive)
+
+
+@router.post("/distributor-visits/scan")
+def scan_distributor_visit(
+    body: DistributorDeskScanBody,
+    user: Annotated[dict, Depends(require_permission("SCAN_QR", "VIEW_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorVisitService(db).scan_pass(user, body.payload)
+
+
+@router.post("/distributor-visits/{visit_id}/check-in")
+def check_in_distributor_visit(
+    visit_id: str,
+    user: Annotated[dict, Depends(require_permission("SCAN_QR", "VIEW_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorVisitService(db).check_in(user, visit_id)
+
+
+@router.post("/distributor-visits/{visit_id}/check-out")
+def check_out_distributor_visit(
+    visit_id: str,
+    user: Annotated[dict, Depends(require_permission("SCAN_QR", "VIEW_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return DistributorVisitService(db).check_out(user, visit_id)

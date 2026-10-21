@@ -14,7 +14,7 @@ import {
 import { formatIstDateTime } from '@/lib/datetime';
 import type { VisitorAppointment } from '@/lib/services/visitorPortalService';
 import { cn } from '@/lib/utils';
-import { doctorLabel } from './visit-filters';
+import { doctorLabel, passNoun } from './visit-filters';
 
 interface GatePassButtonProps {
   item: VisitorAppointment;
@@ -34,21 +34,23 @@ export function GatePassButton({ item, className, size = 'default' }: GatePassBu
       <Button asChild className={cn(buttonClass, 'lg:hidden')}>
         <Link href={`/visitor/pass?id=${encodeURIComponent(item.bookingId)}`}>
           <QrCode className="mr-2 h-4 w-4" />
-          Show gate pass
+          Show {passNoun(item.hostKind).toLowerCase()}
         </Link>
       </Button>
       <Dialog>
         <DialogTrigger asChild>
           <Button className={cn(buttonClass, 'max-lg:hidden')}>
             <QrCode className="mr-2 h-4 w-4" />
-            Show gate pass
+            Show {passNoun(item.hostKind).toLowerCase()}
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Gate pass</DialogTitle>
+            <DialogTitle>{passNoun(item.hostKind)}</DialogTitle>
             <DialogDescription>
-              {[doctorLabel(item.doctorName), formatIstDateTime(item.appointmentDate)].filter(Boolean).join(' · ')}
+              {[doctorLabel(item.doctorName, item.hostKind), formatIstDateTime(item.appointmentDate)]
+                .filter(Boolean)
+                .join(' · ')}
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-center">
@@ -60,7 +62,11 @@ export function GatePassButton({ item, className, size = 'default' }: GatePassBu
                 className="mx-auto aspect-square w-full max-w-60 object-contain"
               />
             ) : null}
-            <p className="mt-3 text-sm font-medium text-emerald-900">Show this QR at hospital security</p>
+            <p className="mt-3 text-sm font-medium text-emerald-900">
+              {item.hostKind === 'DISTRIBUTOR'
+                ? 'Show this QR at the distributor desk'
+                : 'Show this QR at hospital security'}
+            </p>
             {item.checkInOtp ? (
               <p className="mt-2 text-xs text-emerald-800">
                 Backup OTP <span className="font-mono text-sm font-semibold tracking-widest">{item.checkInOtp}</span>

@@ -230,6 +230,13 @@ export function DeliveryBookingWizard(): React.ReactElement {
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('resume') === '1') return;
+    const preset = params.get('branchId')?.trim();
+    if (preset) setBranchId(preset);
+  }, []);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
     if (params.get('resume') !== '1') return;
     window.history.replaceState(null, '', DELIVERY_BOOK_PATH);
     const draft = loadDeliveryDraft();

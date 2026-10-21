@@ -77,7 +77,19 @@ def delete_branch(
     return BranchesService(db).remove(chain_id, branch_id, user)
 
 
-@router.post("/{branch_id}/generate-qr", dependencies=[Depends(require_roles(Role.SUPER_ADMIN.value, Role.CHAIN_ADMIN.value))])
+@router.post(
+    "/{branch_id}/generate-qr",
+    dependencies=[
+        Depends(
+            require_roles(
+                Role.SUPER_ADMIN.value,
+                Role.CHAIN_ADMIN.value,
+                Role.HOSPITAL_ADMIN.value,
+                Role.BRANCH_ADMIN.value,
+            )
+        )
+    ],
+)
 def generate_qr(
     chain_id: str, branch_id: str, user: Annotated[dict, Depends(get_current_user)], db: Annotated[Session, Depends(get_db)]
 ):

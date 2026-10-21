@@ -66,8 +66,8 @@ import {
   Hospital,
   GitBranch,
 } from 'lucide-react';
-import Image from 'next/image';
 import { BranchPublicLinkField } from '@/components/branches/BranchPublicLinkField';
+import { BranchGateQr } from '@/components/branches/BranchGateQr';
 
 const CreateBranchWithAdminSchema = BranchSchema.extend({
   hospitalChainId: z.string().min(1, 'Hospital chain is required.'),
@@ -309,35 +309,14 @@ const ManageBranchDialog = ({
                   </div>
                 </div>
                 <BranchPublicLinkField branch={branch} onSaved={onBranchUpdated} />
-                {/* QR Code Section */}
-                {branch.qrCode && (
-                  <div className="flex flex-col items-center gap-2 mt-6">
-                    <p className="font-semibold text-slate-500 text-xs mb-1">
-                      Branch QR Code
-                    </p>
-                    <div className="w-45 h-45 border rounded bg-white relative">
-                      <Image
-                        src={branch.qrCode}
-                        alt="Branch QR Code"
-                        width={180}
-                        height={180}
-                        className="object-contain"
-                      />
-                    </div>
-                    <Button
-                      variant="default"
-                      className="mt-2 cursor-pointer"
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = branch.qrCode!;
-                        link.download = `${branch.name}-qrcode.png`;
-                        link.click();
-                      }}
-                    >
-                      Download QR Code
-                    </Button>
-                  </div>
-                )}
+                <div className="mt-6">
+                  <BranchGateQr
+                    branchId={branch.id}
+                    branchName={branch.name}
+                    chainId={branch.hospitalChainId}
+                    canRefresh
+                  />
+                </div>
                 <DialogFooter className="pt-4">
                   <Button variant="outline" className="cursor-pointer">
                     <Pencil className="mr-2 h-4 w-4" /> Edit Details

@@ -19,7 +19,7 @@ class UserCreateHierarchyTests(unittest.TestCase):
         self.assertIn(Role.HOSPITAL_ADMIN.value, CREATABLE_ROLES)
         self.assertIn(Role.DEPARTMENT_ADMIN.value, CREATABLE_ROLES)
         self.assertIn(Role.SUB_DEPARTMENT_ADMIN.value, CREATABLE_ROLES)
-        self.assertNotIn(
+        self.assertIn(
             Role.HOSPITAL_ADMIN.value,
             CREATABLE_ROLES[Role.CHAIN_ADMIN.value],
         )
@@ -30,6 +30,28 @@ class UserCreateHierarchyTests(unittest.TestCase):
             {"hospitalChainId": "chain-1", "branchId": "branch-1"},
             {"role": Role.SUPER_ADMIN.value},
         )
+
+    def test_chain_admin_can_create_hospital_admin_for_own_branch(self) -> None:
+        branch = MagicMock()
+        branch.hospitalChainId = "chain-1"
+        self.db.get.return_value = branch
+        self.service._validate_create_permissions(
+            Role.HOSPITAL_ADMIN.value,
+            {"hospitalChainId": "chain-1", "branchId": "branch-1"},
+            {"role": Role.CHAIN_ADMIN.value, "hospitalChainId": "chain-1"},
+        )
+
+    def test_chain_admin_cannot_create_hospital_admin_outside_chain(self) -> None:
+        branch = MagicMock()
+        branch.hospitalChainId = "other-chain"
+        self.db.get.return_value = branch
+        with self.assertRaises(HTTPException) as ctx:
+            self.service._validate_create_permissions(
+                Role.HOSPITAL_ADMIN.value,
+                {"hospitalChainId": "chain-1", "branchId": "branch-9"},
+                {"role": Role.CHAIN_ADMIN.value, "hospitalChainId": "chain-1"},
+            )
+        self.assertEqual(ctx.exception.status_code, 403)
 
     def test_hospital_admin_can_create_department_admin(self) -> None:
         self.service._validate_create_permissions(

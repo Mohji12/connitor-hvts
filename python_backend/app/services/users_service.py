@@ -32,6 +32,7 @@ CREATABLE_ROLES: dict[str, frozenset[str]] = {
     ),
     Role.CHAIN_ADMIN.value: frozenset(
         {
+            Role.HOSPITAL_ADMIN.value,
             Role.BRANCH_ADMIN.value,
             Role.STAFF.value,
             Role.SECURITY.value,
@@ -208,6 +209,13 @@ class UsersService:
             "hospitalChainId"
         ):
             raise HTTPException(status_code=403, detail="You can only create users in your own chain.")
+        if creator == Role.CHAIN_ADMIN.value and data.get("branchId"):
+            branch = self.db.get(Branch, data["branchId"])
+            if not branch or branch.hospitalChainId != req_user.get("hospitalChainId"):
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can only create users for a branch in your hospital.",
+                )
         if creator in (Role.BRANCH_ADMIN.value, Role.HOSPITAL_ADMIN.value) and data.get(
             "branchId"
         ) != req_user.get("branchId"):

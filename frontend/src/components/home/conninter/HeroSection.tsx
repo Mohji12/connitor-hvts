@@ -18,8 +18,16 @@ const cardMotion = (delay: number) => ({
   transition: { duration: 0.5, delay },
 });
 
+const VISITOR_HERO_IMAGE = '/images/Meeting Success Team Cutout.png';
+const DELIVERY_HERO_IMAGE = '/images/Delivered Successfully Cutout.png';
+
+const heroImageAlt = (moduleKey: ShowcaseModule): string =>
+  moduleKey === 'delivery'
+    ? 'Hospital security and delivery partner'
+    : 'Hospital staff, doctor, and security team';
+
 const heroImageSrc = (moduleKey: ShowcaseModule): string =>
-  moduleKey === 'delivery' ? '/images/hero-delivery.png' : '/images/hero-meeting.png';
+  moduleKey === 'delivery' ? DELIVERY_HERO_IMAGE : VISITOR_HERO_IMAGE;
 
 const HeroArtworkDesktop = ({
   moduleKey,
@@ -34,11 +42,11 @@ const HeroArtworkDesktop = ({
     <Image
       key={moduleKey}
       src={heroImageSrc(moduleKey)}
-      alt=""
+      alt={heroImageAlt(moduleKey)}
       fill
       priority
       sizes="(min-width: 1024px) 40vw, 90vw"
-      className="object-contain"
+      className="object-contain object-bottom"
     />
     <div className="absolute left-0 top-0 z-10 -translate-x-[30%] -translate-y-[30%] scale-[0.7]">
       <ScoreCard delay={0.2} data={mod.score} />
@@ -81,11 +89,11 @@ const HeroArtworkMobile = ({
       <Image
         key={moduleKey}
         src={heroImageSrc(moduleKey)}
-        alt=""
+        alt={heroImageAlt(moduleKey)}
         fill
         priority
         sizes="(max-width: 1024px) 100vw, 0px"
-        className="object-contain p-2"
+        className="object-contain object-bottom p-2"
       />
     </div>
     <div className="grid grid-cols-3 gap-2">

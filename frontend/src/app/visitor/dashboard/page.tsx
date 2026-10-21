@@ -50,7 +50,7 @@ const FILTER_TABS: { value: VisitFilter; label: string }[] = [
 
 const EMPTY_TEXT: Record<VisitFilter, string> = {
   upcoming: 'No upcoming visits.',
-  pending: 'Nothing is waiting for a doctor right now.',
+  pending: 'Nothing is waiting for approval right now.',
   past: 'No past visits yet.',
   all: 'No visits yet.',
 };
@@ -82,8 +82,8 @@ function BookedBanner({ item, onDismiss }: { item: VisitorAppointment | undefine
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-semibold">Your visit is booked</p>
         <p className="mt-0.5 text-emerald-900/80">
-          Status: <span className="font-medium">{label}</span>. This page updates automatically, and your gate pass
-          appears here once the doctor approves.
+          Status: <span className="font-medium">{label}</span>. This page updates automatically, and your pass
+          appears here once the host approves.
         </p>
       </div>
       <button
@@ -235,12 +235,17 @@ export default function VisitorDashboardPage() {
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">Your visits, gate passes and wallet in one place.</p>
           </div>
-          <Button asChild className="h-10 max-sm:hidden">
-            <Link href="/book-appointment">
-              <CalendarPlus className="mr-2 h-4 w-4" />
-              Book new visit
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2 max-sm:hidden">
+            <Button asChild className="h-10">
+              <Link href="/book-appointment">
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                Book hospital visit
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-10">
+              <Link href="/book-distributor-visit">Meet a distributor</Link>
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -253,7 +258,7 @@ export default function VisitorDashboardPage() {
             onClick={() => showFilter('upcoming')}
           />
           <StatTile
-            label="Awaiting doctor"
+            label="Awaiting approval"
             value={counts.pending}
             icon={Hourglass}
             tone="bg-amber-100 text-amber-700"
@@ -321,12 +326,17 @@ export default function VisitorDashboardPage() {
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-10 text-center">
                   <p className="text-sm text-muted-foreground">{EMPTY_TEXT[filter]}</p>
                   {filter !== 'past' ? (
-                    <Button asChild variant="outline" size="sm" className="mt-4">
-                      <Link href="/book-appointment">
-                        <CalendarPlus className="mr-2 h-4 w-4" />
-                        Book a visit
-                      </Link>
-                    </Button>
+                    <div className="mt-4 flex flex-wrap justify-center gap-2">
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/book-appointment">
+                          <CalendarPlus className="mr-2 h-4 w-4" />
+                          Book a hospital visit
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/book-distributor-visit">Meet a distributor</Link>
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
               )}
