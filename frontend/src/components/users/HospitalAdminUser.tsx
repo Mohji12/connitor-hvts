@@ -92,7 +92,7 @@ function AddEditUserDialog({
         userType: asUserType(userToEdit.userType),
         department: asDepartment(userToEdit.department),
         location: userToEdit.location ?? '',
-      } as z.infer<typeof UserFormSchema>);
+      } as unknown as z.infer<typeof UserFormSchema>);
       return;
     }
     form.reset({

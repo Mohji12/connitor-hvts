@@ -248,7 +248,7 @@ const AddEditUserDialog = ({
             email: userToEdit.email,
             phone: userToEdit.phone,
             role: userToEdit.role,
-          } as z.infer<typeof UserFormSchema>);
+          } as unknown as z.infer<typeof UserFormSchema>);
       }
     } else if (!isEditMode && open) {
       form.reset({
