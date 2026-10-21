@@ -242,6 +242,18 @@
   .animate-ticker-scroll {
     animation: ticker_scroll 45s linear infinite;
   }
+  .animate-hospital-marquee {
+    animation: hospital_marquee 45s linear infinite;
+  }
+  .animate-hospital-marquee.hospital-marquee-paused,
+  .group:hover .animate-hospital-marquee {
+    animation-play-state: paused;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-hospital-marquee {
+      animation: none;
+    }
+  }
   .animate-pulse-ring {
     animation: pulse_ring 2s ease-in-out infinite;
   }
@@ -327,6 +339,14 @@
   }
   100% {
     transform: translateX(-33.333%);
+  }
+}
+@keyframes hospital_marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
   }
 }
 @keyframes pulse_ring {
