@@ -223,14 +223,14 @@ export default function VisitorDashboardPage() {
         </Button>
       }
     >
-      <main className="mx-auto w-full min-w-0 max-w-6xl space-y-5 px-3 py-5 sm:space-y-6 sm:px-6 sm:py-8">
+      <main className="mx-auto w-full min-w-0 max-w-6xl space-y-5 px-4 py-4 lg:space-y-6 lg:px-6 lg:py-8">
         {bookedId && <BookedBanner item={bookedItem} onDismiss={() => setBookedId(null)} />}
         <CameraAccessCard className="lg:hidden" alwaysShow />
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <p className="text-sm text-muted-foreground">{greeting()},</p>
-            <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900 lg:text-3xl">
               {firstName || 'Welcome back'}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">Your visits, gate passes and wallet in one place.</p>

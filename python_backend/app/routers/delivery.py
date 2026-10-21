@@ -250,6 +250,16 @@ def create_agent(
     return AgentVehicleService(db).create_agent(user, body.model_dump())
 
 
+@router.patch("/agents/{agent_id}")
+def update_agent(
+    agent_id: str,
+    body: AgentCreateBody,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return AgentVehicleService(db).update_agent(user, agent_id, body.model_dump(exclude_unset=True))
+
+
 @router.post("/agents/{agent_id}/photo")
 async def upload_agent_photo(
     agent_id: str,
@@ -278,6 +288,16 @@ def create_vehicle(
     db: Annotated[Session, Depends(get_db)],
 ):
     return AgentVehicleService(db).create_vehicle(user, body.model_dump())
+
+
+@router.patch("/vehicles/{vehicle_id}")
+def update_vehicle(
+    vehicle_id: str,
+    body: VehicleCreateBody,
+    user: Annotated[dict, Depends(require_permission("CREATE_DELIVERY"))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return AgentVehicleService(db).update_vehicle(user, vehicle_id, body.model_dump(exclude_unset=True))
 
 
 @router.get("/branches/{branch_id}/slots")

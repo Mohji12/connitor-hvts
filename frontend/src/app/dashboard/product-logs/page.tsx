@@ -53,7 +53,7 @@ export default function ProductLogsPage() {
   }
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
+    <div className="w-full min-w-0 space-y-4 p-4 lg:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Logs</h1>

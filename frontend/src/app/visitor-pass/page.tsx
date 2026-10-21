@@ -30,7 +30,7 @@ export default function VisitorPassPage() {
 
   return (
     <VisitorPortalShell>
-      <div className="mx-auto flex max-w-lg flex-col p-4 py-10">
+      <div className="mx-auto flex w-full min-w-0 max-w-lg flex-col p-4 py-4 lg:py-10">
       <Card className="w-full border-[#001B71]/08 shadow-xl">
         <CardHeader className="space-y-2 text-center">
           <CardTitle className="text-3xl font-bold">Visitor pass</CardTitle>

@@ -10,6 +10,7 @@ import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { AppointmentService, type SlotRequestRecord } from '@/lib/services/appointmentService';
 import { getVisitorToken } from '@/lib/services/visitorPortalService';
 import { branchSlug } from '@/lib/branch-slug';
+import { useRegisterTopBar } from '@/lib/app-back';
 
 type ResolvedBranch =
   | { status: 'loading' }
@@ -222,8 +223,9 @@ function BookingWizardForBranch() {
 }
 
 export default function BookAppointmentPage() {
+  useRegisterTopBar();
   return (
-    <div className="pt-safe min-h-screen bg-[#F7F9FC] p-4 md:p-8">
+    <div className="pt-safe min-h-dvh w-full min-w-0 bg-[#F7F9FC] p-4 lg:p-8">
       <div className="mx-auto max-w-4xl">
         <Suspense fallback={<ConnitorLoader variant="section" className="min-h-[70vh]" />}>
           <BookAppointmentContent />

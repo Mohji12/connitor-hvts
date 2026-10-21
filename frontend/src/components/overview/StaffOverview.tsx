@@ -425,7 +425,7 @@ export default function StaffOverview() {
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 pb-4 lg:pb-8 min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="p-4 pb-4 lg:p-8 lg:pb-8 min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
       {/* Header */}
       <header className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-3">

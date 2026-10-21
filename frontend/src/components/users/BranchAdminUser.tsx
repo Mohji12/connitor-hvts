@@ -751,7 +751,7 @@ export function BranchAdminUser({ user }: BranchAdminUserProps) {
 
   return (
     <>
-      <div className="space-y-6 p-4 md:p-6 lg:p-8 pb-4 lg:pb-8 min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+      <div className="space-y-6 p-4 pb-4 lg:p-8 lg:pb-8 min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>

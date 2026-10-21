@@ -30,7 +30,7 @@ export default function OnlineSessionPage() {
 
   return (
     <VisitorPortalShell>
-      <div className="mx-auto flex max-w-lg flex-col p-4 py-10">
+      <div className="mx-auto flex w-full min-w-0 max-w-lg flex-col p-4 py-4 lg:py-10">
         <Card className="w-full border-[#001B71]/08 shadow-xl">
           <CardHeader className="space-y-2 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#4A90E2]/15 text-primary">

@@ -52,7 +52,7 @@ export default function AppointmentsPage() {
   );
 
   return (
-    <div className="space-y-4 p-4 md:p-6 lg:space-y-6">
+    <div className="w-full min-w-0 space-y-4 p-4 lg:space-y-6 lg:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="max-lg:hidden">
           <h1 className="text-2xl font-bold flex items-center gap-2">

@@ -125,7 +125,7 @@ export default function VisitorPassesPage(): React.ReactElement {
   ) : null;
 
   return (
-    <div className="space-y-4 p-4 md:p-6 lg:space-y-6">
+    <div className="w-full min-w-0 space-y-4 p-4 lg:space-y-6 lg:p-6">
       <div className="max-lg:hidden">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Ticket className="h-6 w-6 text-teal-700" />

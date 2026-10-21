@@ -78,7 +78,7 @@ function BookingStatusContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] p-4 md:p-8">
+    <div className="pt-safe min-h-dvh w-full min-w-0 bg-[#F7F9FC] p-4 lg:p-8">
       <div className="mx-auto max-w-lg space-y-4">
         <Card className="relative overflow-hidden">
           {loading && (

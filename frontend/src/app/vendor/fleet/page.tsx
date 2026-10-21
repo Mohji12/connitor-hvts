@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
+import { getApiErrorMessage } from '@/lib/api-errors';
 import { useIsAppShell } from '@/hooks/use-mobile';
 import { ResponsiveDialog } from '@/components/mobile/ResponsiveDialog';
 import { SegmentedControl } from '@/components/mobile/SegmentedControl';
@@ -35,6 +36,9 @@ export default function VendorFleetPage(): React.ReactElement {
   const [vBreadth, setVBreadth] = React.useState('');
   const [vHeight, setVHeight] = React.useState('');
   const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [editingAgentId, setEditingAgentId] = React.useState<string | null>(null);
+  const [editingVehicleId, setEditingVehicleId] = React.useState<string | null>(null);
+  const [existingPhoto, setExistingPhoto] = React.useState<string | null>(null);
   const appShell = useIsAppShell();
 
   const load = React.useCallback(async () => {
@@ -68,36 +72,93 @@ export default function VendorFleetPage(): React.ReactElement {
     });
   };
 
+  const resetDriverForm = () => {
+    setEditingAgentId(null);
+    setName('');
+    setEmail('');
+    setPhone('');
+    setExistingPhoto(null);
+    clearPhoto();
+  };
+
+  const resetVehicleForm = () => {
+    setEditingVehicleId(null);
+    setReg('');
+    setVType('');
+    setVLength('');
+    setVBreadth('');
+    setVHeight('');
+  };
+
+  const openAdd = () => {
+    if (tab === 'drivers') resetDriverForm();
+    else resetVehicleForm();
+    setSheetOpen(true);
+  };
+
+  const openEditDriver = (agent: DeliveryAgent) => {
+    setTab('drivers');
+    setEditingVehicleId(null);
+    setEditingAgentId(agent.id);
+    setName(agent.name);
+    setEmail(agent.email ?? '');
+    setPhone(agent.phone ?? '');
+    setExistingPhoto(agent.photoUrl ?? null);
+    clearPhoto();
+    if (appShell) setSheetOpen(true);
+  };
+
+  const openEditVehicle = (vehicle: DeliveryVehicle) => {
+    setTab('vehicles');
+    setEditingAgentId(null);
+    setEditingVehicleId(vehicle.id);
+    setReg(vehicle.registrationNumber);
+    setVType(vehicle.vehicleType ?? '');
+    setVLength(vehicle.lengthCm != null ? String(vehicle.lengthCm) : '');
+    setVBreadth(vehicle.breadthCm != null ? String(vehicle.breadthCm) : '');
+    setVHeight(vehicle.heightCm != null ? String(vehicle.heightCm) : '');
+    if (appShell) setSheetOpen(true);
+  };
+
   const addDriver = async (): Promise<boolean> => {
     if (!name.trim() || !email.trim()) {
       toast.error('Name and email required');
       return false;
     }
     setSavingDriver(true);
+    const payload = {
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim() || undefined,
+    };
     try {
-      const created = await DistributorDeliveryService.createAgent({
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim() || undefined,
-      });
+      const saved = editingAgentId
+        ? await DistributorDeliveryService.updateAgent(editingAgentId, payload)
+        : await DistributorDeliveryService.createAgent(payload);
       let photoFailed = false;
       if (photo) {
         try {
-          await DistributorDeliveryService.uploadAgentPhoto(created.id, photo.file);
+          await DistributorDeliveryService.uploadAgentPhoto(saved.id, photo.file);
         } catch {
           photoFailed = true;
         }
       }
-      if (photoFailed) toast.warning('Driver added, but the photo could not be uploaded');
-      else toast.success('Driver added');
-      setName('');
-      setEmail('');
-      setPhone('');
-      clearPhoto();
+      if (photoFailed) {
+        toast.warning(
+          editingAgentId
+            ? 'Driver updated, but the photo could not be uploaded'
+            : 'Driver added, but the photo could not be uploaded',
+        );
+      } else {
+        toast.success(editingAgentId ? 'Driver updated' : 'Driver added');
+      }
+      resetDriverForm();
       await load();
       return true;
-    } catch {
-      toast.error('Failed to add driver');
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, editingAgentId ? 'Failed to update driver' : 'Failed to add driver'),
+      );
       return false;
     } finally {
       setSavingDriver(false);
@@ -117,23 +178,30 @@ export default function VendorFleetPage(): React.ReactElement {
       return false;
     }
     try {
-      await DistributorDeliveryService.createVehicle({
+      const payload = {
         registrationNumber: reg.trim(),
         vehicleType: vType.trim() || undefined,
         lengthCm,
         breadthCm,
         heightCm,
-      });
-      toast.success('Vehicle added');
-      setReg('');
-      setVType('');
-      setVLength('');
-      setVBreadth('');
-      setVHeight('');
+      };
+      if (editingVehicleId) {
+        await DistributorDeliveryService.updateVehicle(editingVehicleId, payload);
+        toast.success('Vehicle updated');
+      } else {
+        await DistributorDeliveryService.createVehicle(payload);
+        toast.success('Vehicle added');
+      }
+      resetVehicleForm();
       await load();
       return true;
-    } catch {
-      toast.error('Failed to add vehicle');
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(
+          error,
+          editingVehicleId ? 'Failed to update vehicle' : 'Failed to add vehicle',
+        ),
+      );
       return false;
     }
   };
@@ -155,9 +223,16 @@ export default function VendorFleetPage(): React.ReactElement {
       <div>
         <Label>Driver photo (optional)</Label>
         <DriverPhotoField
-          previewUrl={photo?.preview ?? null}
+          previewUrl={photo?.preview ?? existingPhoto}
           onPhoto={rememberPhoto}
-          onClear={photo ? clearPhoto : undefined}
+          onClear={
+            photo || existingPhoto
+              ? () => {
+                  clearPhoto();
+                  setExistingPhoto(null);
+                }
+              : undefined
+          }
         />
       </div>
     </div>
@@ -212,7 +287,7 @@ export default function VendorFleetPage(): React.ReactElement {
               { value: 'vehicles', label: 'Vehicles', count: vehicles.length },
             ]}
           />
-          <Button className="h-10 shrink-0" onClick={() => setSheetOpen(true)}>
+          <Button className="h-10 shrink-0" onClick={openAdd}>
             <Plus className="mr-1 h-4 w-4" />
             Add
           </Button>
@@ -223,7 +298,15 @@ export default function VendorFleetPage(): React.ReactElement {
         <ResponsiveDialog
           open={sheetOpen}
           onOpenChange={setSheetOpen}
-          title={tab === 'drivers' ? 'Add driver' : 'Add vehicle'}
+          title={
+            tab === 'drivers'
+              ? editingAgentId
+                ? 'Edit driver'
+                : 'Add driver'
+              : editingVehicleId
+                ? 'Edit vehicle'
+                : 'Add vehicle'
+          }
           description={
             tab === 'drivers'
               ? 'The driver receives the gate QR by email for each booking.'
@@ -235,7 +318,13 @@ export default function VendorFleetPage(): React.ReactElement {
               disabled={tab === 'drivers' && savingDriver}
               onClick={() => void saveFromSheet()}
             >
-              {tab === 'drivers' ? 'Save driver' : 'Save vehicle'}
+              {tab === 'drivers'
+                ? editingAgentId
+                  ? 'Update driver'
+                  : 'Save driver'
+                : editingVehicleId
+                  ? 'Update vehicle'
+                  : 'Save vehicle'}
             </Button>
           }
         >
@@ -264,13 +353,20 @@ export default function VendorFleetPage(): React.ReactElement {
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="border-[#001B71]/08 bg-white/90 max-lg:hidden">
             <CardHeader>
-              <CardTitle>Add driver</CardTitle>
+              <CardTitle>{editingAgentId ? 'Edit driver' : 'Add driver'}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {driverFields}
-              <Button disabled={savingDriver} onClick={() => void addDriver()}>
-                {savingDriver ? 'Saving…' : 'Save driver'}
-              </Button>
+              <div className="flex gap-2">
+                <Button disabled={savingDriver} onClick={() => void addDriver()}>
+                  {savingDriver ? 'Saving…' : editingAgentId ? 'Update driver' : 'Save driver'}
+                </Button>
+                {editingAgentId ? (
+                  <Button type="button" variant="outline" onClick={resetDriverForm}>
+                    Cancel
+                  </Button>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
           <Card className="border-[#001B71]/08 bg-white/90">
@@ -296,13 +392,23 @@ export default function VendorFleetPage(): React.ReactElement {
                           {a.name.slice(0, 1).toUpperCase()}
                         </span>
                       )}
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-medium">{a.name}</p>
                         <p className="truncate text-muted-foreground">
                           {a.email}
                           {a.phone ? ` · ${a.phone}` : ''}
                         </p>
                       </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => openEditDriver(a)}
+                      >
+                        <Pencil className="mr-1 h-3.5 w-3.5" />
+                        Edit
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -314,13 +420,20 @@ export default function VendorFleetPage(): React.ReactElement {
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="border-[#001B71]/08 bg-white/90 max-lg:hidden">
             <CardHeader>
-              <CardTitle>Add vehicle</CardTitle>
+              <CardTitle>{editingVehicleId ? 'Edit vehicle' : 'Add vehicle'}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {vehicleFields}
-              <Button onClick={() => void addVehicle()}>
-                Save vehicle
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => void addVehicle()}>
+                  {editingVehicleId ? 'Update vehicle' : 'Save vehicle'}
+                </Button>
+                {editingVehicleId ? (
+                  <Button type="button" variant="outline" onClick={resetVehicleForm}>
+                    Cancel
+                  </Button>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
           <Card className="border-[#001B71]/08 bg-white/90">
@@ -333,17 +446,29 @@ export default function VendorFleetPage(): React.ReactElement {
               ) : (
                 <ul className="space-y-2 text-sm">
                   {vehicles.map((v) => (
-                    <li key={v.id} className="rounded-lg border p-3">
-                      <p className="font-medium">{v.registrationNumber}</p>
-                      <p className="text-muted-foreground">{v.vehicleType ?? '—'}</p>
-                      {v.volumeCm3 != null && (
-                        <p className="text-xs text-muted-foreground">
-                          Volume {v.volumeCm3.toLocaleString()} cm³
-                          {v.lengthCm != null
-                            ? ` (${v.lengthCm}×${v.breadthCm}×${v.heightCm} cm)`
-                            : ''}
-                        </p>
-                      )}
+                    <li key={v.id} className="flex items-start gap-3 rounded-lg border p-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{v.registrationNumber}</p>
+                        <p className="text-muted-foreground">{v.vehicleType ?? '—'}</p>
+                        {v.volumeCm3 != null && (
+                          <p className="text-xs text-muted-foreground">
+                            Volume {v.volumeCm3.toLocaleString()} cm³
+                            {v.lengthCm != null
+                              ? ` (${v.lengthCm}×${v.breadthCm}×${v.heightCm} cm)`
+                              : ''}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => openEditVehicle(v)}
+                      >
+                        <Pencil className="mr-1 h-3.5 w-3.5" />
+                        Edit
+                      </Button>
                     </li>
                   ))}
                 </ul>

@@ -98,7 +98,7 @@ export default function VisitorWalletPage() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground"
+          className="h-10 px-2 text-muted-foreground"
           onClick={() => {
             clearVisitorToken();
             clearVisitorPassCache();
@@ -109,7 +109,7 @@ export default function VisitorWalletPage() {
         </Button>
       }
     >
-      <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 lg:space-y-6 lg:py-8">
+      <main className="mx-auto w-full min-w-0 max-w-4xl space-y-4 p-4 lg:space-y-6 lg:p-6 lg:py-8">
         <Button asChild variant="ghost" size="sm" className="px-0 text-[#001B71] max-lg:hidden">
           <Link href="/visitor/dashboard">
             <ArrowLeft className="mr-1 h-4 w-4" />

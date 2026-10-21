@@ -16,7 +16,7 @@ export function DeliveryPageShell({
 }): React.ReactElement {
   return (
     <div className={cn('min-h-full bg-[#F7F9FC]', className)}>
-      <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6 lg:space-y-6">
+      <div className="mx-auto w-full min-w-0 max-w-6xl space-y-4 p-4 lg:space-y-6 lg:p-6">
         <div
           className={cn(
             'flex flex-wrap items-start justify-between gap-4 border-b border-[#001B71]/08 pb-4 max-lg:border-0 max-lg:pb-0',

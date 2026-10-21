@@ -767,7 +767,7 @@ export function BookAppointmentWizard({
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex min-w-0 items-center justify-between gap-2">
         {noSlotsOnDate ? (
           <Button variant="ghost" size="sm" disabled={exiting} onClick={() => void exitAndNotify()}>
             <LogOut className="mr-1 h-4 w-4" /> {exiting ? 'Exiting…' : 'Exit'}
@@ -786,7 +786,7 @@ export function BookAppointmentWizard({
           <span />
         )}
         {showHeaderLinks && hasAccount && (
-          <Button variant="link" size="sm" asChild>
+          <Button variant="link" size="sm" asChild className="h-auto shrink px-1 text-right">
             <Link href="/visitor/dashboard">Check booking status</Link>
           </Button>
         )}

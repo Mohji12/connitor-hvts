@@ -531,7 +531,7 @@ export function ChainAdminBranches({ user }: { user: ChainAdminUser }) {
 
   return (
     <>
-      <div className="space-y-6 p-4 md:p-6 lg:p-8 pb-4 lg:pb-8 w-full min-h-screen max-w-full overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-slate-50">
+      <div className="space-y-6 p-4 pb-4 lg:p-8 lg:pb-8 w-full min-h-screen max-w-full overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-slate-50">
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2 flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">

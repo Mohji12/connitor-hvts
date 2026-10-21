@@ -9,7 +9,7 @@ import { QrCheckInScanner } from '@/components/security/QrCheckInScanner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { APP_HOME_PATH } from '@/lib/app-back';
+import { APP_HOME_PATH, useRegisterTopBar } from '@/lib/app-back';
 import { parseAttendantQr } from '@/lib/parse-attendant-qr';
 
 /**
@@ -18,6 +18,7 @@ import { parseAttendantQr } from '@/lib/parse-attendant-qr';
  */
 export default function AttendantScanPage(): React.ReactElement {
   const router = useRouter();
+  useRegisterTopBar();
   const [error, setError] = React.useState<string | null>(null);
   const [manualSlug, setManualSlug] = React.useState('');
   const locked = React.useRef(false);

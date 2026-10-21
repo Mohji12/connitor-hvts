@@ -179,7 +179,7 @@ function SecurityDashboard(): React.ReactElement {
   );
 
   return (
-      <div className="max-w-7xl mx-auto space-y-6 p-4 md:p-6">
+      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6 p-4 lg:p-6">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Security Dashboard</h1>

@@ -322,6 +322,14 @@ export const DistributorDeliveryService = {
     return res.data;
   },
 
+  async updateAgent(
+    agentId: string,
+    data: { name: string; email: string; phone?: string },
+  ): Promise<DeliveryAgent> {
+    const res = await apiClient.patch<DeliveryAgent>(`/api/delivery/agents/${agentId}`, data);
+    return res.data;
+  },
+
   async uploadAgentPhoto(agentId: string, file: File): Promise<DeliveryAgent> {
     const body = new FormData();
     body.append('file', file);
@@ -342,6 +350,20 @@ export const DistributorDeliveryService = {
     heightCm?: number;
   }): Promise<DeliveryVehicle> {
     const res = await apiClient.post('/api/delivery/vehicles', data);
+    return res.data;
+  },
+
+  async updateVehicle(
+    vehicleId: string,
+    data: {
+      registrationNumber: string;
+      vehicleType?: string;
+      lengthCm?: number;
+      breadthCm?: number;
+      heightCm?: number;
+    },
+  ): Promise<DeliveryVehicle> {
+    const res = await apiClient.patch<DeliveryVehicle>(`/api/delivery/vehicles/${vehicleId}`, data);
     return res.data;
   },
 

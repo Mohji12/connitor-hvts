@@ -220,6 +220,38 @@ class AgentVehicleService:
         self.db.refresh(agent)
         return self._serialize_agent(agent)
 
+    def update_agent(self, user: dict, agent_id: str, data: dict) -> dict:
+        dist_id = self._distributor_id(user)
+        agent = self.db.get(DeliveryAgent, agent_id)
+        if not agent or agent.distributorId != dist_id or not agent.isActive:
+            raise bad_request("Invalid driver")
+        name = (data.get("name") or "").strip()
+        if not name:
+            raise bad_request("Driver name is required")
+        phone = (data.get("phone") or "").strip() or None
+        raw_email = (data.get("email") or "").strip()
+        if not raw_email:
+            raise bad_request("Driver email is required")
+        email = AuthService.normalize_email(raw_email)
+        email_clash = (
+            self.db.query(DeliveryAgent)
+            .filter(DeliveryAgent.email == email, DeliveryAgent.id != agent.id)
+            .first()
+        )
+        if email_clash:
+            raise bad_request("That email is already used by another driver")
+        phone_clash = self._find_agent_by_phone(dist_id, phone)
+        if phone_clash and phone_clash.id != agent.id:
+            raise bad_request("That phone is already used by another driver")
+        agent.name = name
+        agent.email = email
+        agent.phone = phone
+        if "licenseNumber" in data:
+            agent.licenseNumber = (data.get("licenseNumber") or "").strip() or None
+        self.db.commit()
+        self.db.refresh(agent)
+        return self._serialize_agent(agent)
+
     def save_agent_photo(self, user: dict, agent_id: str, content: bytes, mime: str) -> dict:
         dist_id = self._distributor_id(user)
         agent = self.db.get(DeliveryAgent, agent_id)
@@ -266,6 +298,42 @@ class AgentVehicleService:
             isActive=True,
         )
         self.db.add(vehicle)
+        self.db.commit()
+        self.db.refresh(vehicle)
+        return self._serialize_vehicle(vehicle)
+
+    def update_vehicle(self, user: dict, vehicle_id: str, data: dict) -> dict:
+        dist_id = self._distributor_id(user)
+        vehicle = self.db.get(DeliveryVehicle, vehicle_id)
+        if not vehicle or vehicle.distributorId != dist_id or not vehicle.isActive:
+            raise bad_request("Invalid vehicle")
+        reg = (data.get("registrationNumber") or "").strip().upper()
+        if not reg:
+            raise bad_request("Registration number is required")
+        clash = (
+            self.db.query(DeliveryVehicle)
+            .filter(
+                DeliveryVehicle.registrationNumber == reg,
+                DeliveryVehicle.id != vehicle.id,
+            )
+            .first()
+        )
+        if clash:
+            raise bad_request("Vehicle registration already exists")
+        from app.delivery.delivery_pricing import vehicle_volume_from_dims
+
+        length = data.get("lengthCm")
+        breadth = data.get("breadthCm")
+        height = data.get("heightCm")
+        volume = vehicle_volume_from_dims(length, breadth, height)
+        if volume is None:
+            raise bad_request("Enter vehicle length, breadth, and height")
+        vehicle.registrationNumber = reg
+        vehicle.vehicleType = (data.get("vehicleType") or "").strip() or None
+        vehicle.lengthCm = length
+        vehicle.breadthCm = breadth
+        vehicle.heightCm = height
+        vehicle.volumeCm3 = volume
         self.db.commit()
         self.db.refresh(vehicle)
         return self._serialize_vehicle(vehicle)

@@ -438,11 +438,16 @@ export default function VendorRegisterPage(): React.ReactElement {
 
   return (
     <main className="min-h-screen bg-[#F7F9FC]">
-      <header className="border-b border-[#001B71]/08 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <ConninterWordmark size="md" />
-          <Button asChild variant="ghost" size="sm" className="text-primary">
-            <Link href="/delivery/login">Already registered? Sign in</Link>
+      <header className="pt-safe border-b border-[#001B71]/08 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <span className="lg:hidden">
+            <ConninterWordmark size="sm" />
+          </span>
+          <span className="hidden lg:inline-flex">
+            <ConninterWordmark size="md" />
+          </span>
+          <Button asChild variant="ghost" size="sm" className="h-10 shrink-0 px-2 text-primary">
+            <Link href="/delivery/login">Sign in</Link>
           </Button>
         </div>
       </header>

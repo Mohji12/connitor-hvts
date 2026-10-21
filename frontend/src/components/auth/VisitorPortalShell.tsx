@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ArrowLeft, CalendarPlus, Home, LayoutGrid, UserRound, Wallet } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ArrowLeft, CalendarPlus, ChevronLeft, Home, LayoutGrid, UserRound, Wallet } from 'lucide-react';
 
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { BottomTabBar, type MobileTab } from '@/components/mobile/BottomTabBar';
 import { Button } from '@/components/ui/button';
+import { goBackInApp, useRegisterTopBar } from '@/lib/app-back';
 import { appSafeHomeHref } from '@/lib/native-home-guard';
 import { cn } from '@/lib/utils';
 
@@ -37,7 +38,9 @@ export function VisitorPortalShell({
   appTabs = false,
 }: VisitorPortalShellProps) {
   const pathname = normalize(usePathname() ?? '');
+  const router = useRouter();
   const [homeHref, setHomeHref] = useState('/');
+  useRegisterTopBar();
 
   useEffect(() => {
     setHomeHref(appSafeHomeHref());
@@ -50,37 +53,44 @@ export function VisitorPortalShell({
         <div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-[#001B71]/08 blur-3xl" />
       </div>
 
-      <header className="pt-safe relative z-10 sticky top-0 border-b border-[#001B71]/08 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex w-full min-w-0 max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:gap-3 sm:px-6 sm:py-4">
-          <ConninterWordmark size="md" className="min-w-0 shrink" />
-          <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+      <header className="pt-safe relative z-10 sticky top-0 border-b border-[#001B71]/08 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex h-14 w-full min-w-0 max-w-6xl items-center gap-1 px-2 lg:h-auto lg:gap-3 lg:px-6 lg:py-4">
+          <button
+            type="button"
+            aria-label="Back"
+            onClick={() => goBackInApp(router)}
+            className="-ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary active:bg-primary/10 lg:hidden"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <span className="min-w-0 lg:hidden">
+            <ConninterWordmark size="sm" href={homeHref} />
+          </span>
+          <span className="hidden min-w-0 lg:inline-flex">
+            <ConninterWordmark size="md" href={homeHref} />
+          </span>
+          <div className="ml-auto flex shrink-0 items-center gap-0.5 lg:gap-2">
             {headerExtra}
             <Button
               asChild
               variant="ghost"
               size="sm"
-              className={cn(
-                'h-9 w-9 p-0 text-primary sm:h-9 sm:w-auto sm:px-3',
-                appTabs && 'max-lg:hidden',
-              )}
+              className="hidden h-9 text-primary lg:inline-flex"
             >
               <Link href="/portal" aria-label="Portals">
-                <LayoutGrid className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Portals</span>
+                <LayoutGrid className="mr-2 h-4 w-4" />
+                Portals
               </Link>
             </Button>
             <Button
               asChild
               variant="ghost"
               size="sm"
-              className={cn(
-                'h-9 w-9 p-0 text-muted-foreground sm:h-9 sm:w-auto sm:px-3',
-                appTabs && 'max-lg:hidden',
-              )}
+              className="hidden h-9 text-muted-foreground lg:inline-flex"
             >
               <Link href={homeHref} aria-label="Home">
-                <ArrowLeft className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Home</span>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Home
               </Link>
             </Button>
           </div>

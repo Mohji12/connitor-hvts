@@ -32,7 +32,7 @@ export function AuthPageShell({ children }: { children: React.ReactNode }) {
           'pt-safe',
         )}
       >
-        <div className="mx-auto flex h-12 min-w-0 max-w-6xl items-center justify-end gap-2 px-3 lg:h-auto lg:justify-between lg:px-6 lg:py-4">
+        <div className="mx-auto flex h-12 min-w-0 max-w-6xl items-center justify-start gap-2 px-2 lg:h-auto lg:justify-between lg:px-6 lg:py-4">
           {/* Phone: skip the wordmark — the sign-in card already has the logo. */}
           <div className="min-w-0 max-lg:hidden">
             <ConninterWordmark size="md" href={homeHref} />

@@ -5,7 +5,7 @@ import { QrCode } from 'lucide-react';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { APP_HOME_PATH } from '@/lib/app-back';
+import { APP_HOME_PATH, useRegisterTopBar } from '@/lib/app-back';
 import { isNativeApp } from '@/lib/platform';
 
 /**
@@ -13,8 +13,9 @@ import { isNativeApp } from '@/lib/platform';
  * Secondary visitors reach apply by scanning the branch QR at reception or the security gate.
  */
 export default function AttendantPassLandingPage(): React.ReactElement {
+  useRegisterTopBar();
   return (
-    <main className="min-h-screen bg-[#F7F9FC] p-4 md:p-8">
+    <main className="pt-safe min-h-dvh w-full min-w-0 bg-[#F7F9FC] p-4 lg:p-8">
       <div className="mx-auto max-w-xl space-y-6">
         <ConninterWordmark size="md" />
         <Card>

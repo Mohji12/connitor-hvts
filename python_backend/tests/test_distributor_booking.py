@@ -228,6 +228,51 @@ def test_create_agent_handles_shared_synthetic_email(db):
     assert result["phone"] == "7983982875"
 
 
+def test_distributor_can_edit_driver_and_vehicle(db):
+    branch = db.query(Branch).first()
+    dist, user = _seed_vendor(db, branch.id)
+    user_dict = {"id": user.id, "role": "DISTRIBUTOR", "distributorId": dist.id}
+    service = AgentVehicleService(db)
+    agent = service.create_agent(
+        user_dict,
+        {"name": "Driver Two", "email": "driver2@test.com", "phone": "9333333333"},
+    )
+    vehicle = service.create_vehicle(
+        user_dict,
+        {
+            "registrationNumber": "ka01edit",
+            "vehicleType": "Auto",
+            "lengthCm": 100,
+            "breadthCm": 80,
+            "heightCm": 70,
+        },
+    )
+
+    updated_agent = service.update_agent(
+        user_dict,
+        agent["id"],
+        {"name": "Driver Two Updated", "email": "driver2-new@test.com", "phone": "9444444444"},
+    )
+    updated_vehicle = service.update_vehicle(
+        user_dict,
+        vehicle["id"],
+        {
+            "registrationNumber": "ka01new",
+            "vehicleType": "SCV",
+            "lengthCm": 200,
+            "breadthCm": 150,
+            "heightCm": 120,
+        },
+    )
+
+    assert updated_agent["name"] == "Driver Two Updated"
+    assert updated_agent["email"] == "driver2-new@test.com"
+    assert updated_agent["phone"] == "9444444444"
+    assert updated_vehicle["registrationNumber"] == "KA01NEW"
+    assert updated_vehicle["vehicleType"] == "SCV"
+    assert updated_vehicle["volumeCm3"] == 200 * 150 * 120
+
+
 def test_book_delivery_sends_driver_assignment_email(db):
     branch = db.query(Branch).first()
     dist, user = _seed_vendor(db, branch.id)

@@ -979,7 +979,7 @@ export default function SuperAdminUser() {
   return (
     <>
       {/* ✨ MOBILE UI FIX: Added padding-bottom to prevent content being hidden by a bottom nav bar */}
-      <div className="space-y-6 p-4 md:p-6 lg:p-8 pb-4 lg:pb-8 min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+      <div className="space-y-6 p-4 pb-4 lg:p-8 lg:pb-8 min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2 flex items-center gap-3">

@@ -261,7 +261,7 @@ export default function ChainAdminOverview() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 p-4 md:p-6 pb-4 lg:pb-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 p-4 pb-4 lg:p-6 lg:pb-8">
       {/* Header */}
       <header className="mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
