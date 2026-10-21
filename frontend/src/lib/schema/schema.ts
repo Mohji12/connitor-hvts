@@ -131,6 +131,12 @@ export const Roles = [
   'SECURITY_SUPERVISOR',
   'SECURITY',
   'STAFF',
+  'WARD_ADMIN',
+  'RECEIVING',
+  'PURCHASE',
+  'DISTRIBUTOR',
+  'DELIVERY_AGENT',
+  'PRODUCT_ADMIN',
 ] as const;
 
 export const VisitStatuses = [
@@ -360,19 +366,21 @@ export const UserUpdateSchema = UserBaseSchema.extend({
   isActive: z.boolean().optional(),
 }).partial();
 
-export const UserResponseSchema = UserBaseSchema.extend({
+export const UserResponseSchema = z.object({
   id: z.string(),
-  phone: z.string().min(1),
+  name: z.string().nullish().transform((value) => value ?? ''),
+  phone: z.string().nullish().transform((value) => value ?? ''),
+  email: z.string().nullish().transform((value) => value ?? ''),
   role: z.enum(Roles),
   isActive: z.boolean(),
-  hospitalChainId: z.string().nullable(),
-  branchId: z.string().nullable(),
-  departmentId: z.string().nullable(),
-  subDepartmentId: z.string().nullable(),
-  userType: z.string().nullable().optional(),
-  department: z.string().nullable().optional(),
-  location: z.string().nullable(),
-  createdAt: ApiDateTimeSchema,
+  hospitalChainId: z.string().nullish().transform((value) => value ?? null),
+  branchId: z.string().nullish().transform((value) => value ?? null),
+  departmentId: z.string().nullish().transform((value) => value ?? null),
+  subDepartmentId: z.string().nullish().transform((value) => value ?? null),
+  userType: z.string().nullish().optional(),
+  department: z.string().nullish().optional(),
+  location: z.string().nullish().transform((value) => value ?? null),
+  createdAt: ApiDateTimeSchema.optional().default(''),
 });
 
 export const AppointmentBookingSchema = z.object({

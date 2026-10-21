@@ -36,6 +36,13 @@ describe('native session restore', () => {
     expect(isResumableInAppPath('/vendor/deliveries')).toBe(true);
   });
 
+  it('treats visitor pass and online session as the visitor persona', () => {
+    rememberInAppPath('/visitor-pass');
+    expect(getLastInAppPath('visitor')).toBe('/visitor-pass');
+    rememberInAppPath('/online-session');
+    expect(getLastInAppPath('visitor')).toBe('/online-session');
+  });
+
   it('remembers the last in-app path per role', () => {
     rememberInAppPath('/dashboard/visitors/visitors-logs');
     rememberInAppPath('/visitor/dashboard/profile');

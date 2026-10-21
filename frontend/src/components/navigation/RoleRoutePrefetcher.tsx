@@ -4,6 +4,17 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { sidebarConfig } from '@/lib/sidebar-config';
 
+function prefetchQuietly(
+  router: { prefetch: (href: string) => void | Promise<unknown> },
+  href: string,
+): void {
+  try {
+    void Promise.resolve(router.prefetch(href)).catch(() => undefined);
+  } catch {
+    // Prefetch is best-effort — a failed RSC fetch must not overlay the page.
+  }
+}
+
 /** Prefer trailing slash to match next.config trailingSlash: true. */
 function prefetchPath(href: string): string {
   const path = href.split('?')[0] || '/';
@@ -38,11 +49,7 @@ export function RoleRoutePrefetcher({ role }: { role: string }) {
 
     const run = () => {
       if (cancelled || index >= paths.length) return;
-      try {
-        router.prefetch(paths[index]);
-      } catch {
-        // Prefetch is best-effort.
-      }
+      prefetchQuietly(router, paths[index]);
       index += 1;
       timeoutId = setTimeout(run, 100);
     };
@@ -69,11 +76,7 @@ export function PublicRoutePrefetcher() {
 
     const run = () => {
       if (cancelled || index >= PUBLIC_WARM_ROUTES.length) return;
-      try {
-        router.prefetch(PUBLIC_WARM_ROUTES[index]);
-      } catch {
-        // Prefetch is best-effort.
-      }
+      prefetchQuietly(router, PUBLIC_WARM_ROUTES[index]);
       index += 1;
       timeoutId = setTimeout(run, 120);
     };

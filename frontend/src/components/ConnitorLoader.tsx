@@ -65,6 +65,7 @@ export function ConnitorLoader({
               'text-muted-foreground',
               variant === 'inline' ? 'text-xs' : 'text-sm mt-0.5',
             )}
+            suppressHydrationWarning
           >
             {message}
           </p>

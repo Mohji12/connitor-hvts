@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { APP_HOME_PATH } from '@/lib/app-back';
 import {
   isMarketingHomePath,
@@ -15,15 +15,14 @@ import { isNativeApp } from '@/lib/platform';
  */
 export function NativeMarketingHomeBlock(): null {
   const pathname = usePathname();
-  const router = useRouter();
 
   useEffect(() => {
     if (!isNativeApp()) return;
 
     if (isMarketingHomePath(pathname)) {
-      router.replace(APP_HOME_PATH);
+      window.location.replace(APP_HOME_PATH);
     }
-  }, [pathname, router]);
+  }, [pathname]);
 
   useEffect(() => {
     if (!isNativeApp()) return;
@@ -41,12 +40,12 @@ export function NativeMarketingHomeBlock(): null {
 
       event.preventDefault();
       event.stopPropagation();
-      router.replace(APP_HOME_PATH);
+      window.location.replace(APP_HOME_PATH);
     };
 
     const blockPopState = () => {
       if (isMarketingHomePath(window.location.pathname)) {
-        router.replace(APP_HOME_PATH);
+        window.location.replace(APP_HOME_PATH);
       }
     };
 
@@ -56,7 +55,7 @@ export function NativeMarketingHomeBlock(): null {
       document.removeEventListener('click', blockClick, true);
       window.removeEventListener('popstate', blockPopState);
     };
-  }, [router]);
+  }, []);
 
   return null;
 }

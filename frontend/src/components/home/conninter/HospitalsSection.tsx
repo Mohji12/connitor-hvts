@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Star, Bed, Calendar, ChevronRight, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Star, Bed, Calendar, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ClientButton } from '@/components/home/conninter/ClientButton';
@@ -142,19 +141,61 @@ const hospitals: Hospital[] = [
 const cities = ['All', 'Chennai', 'Bengaluru', 'Mumbai', 'Delhi', 'Hyderabad', 'Gurugram'];
 
 export default function HospitalsSection() {
-  const router = useRouter();
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const [activeCity, setActiveCity] = useState('All');
   const [expandedSlots, setExpandedSlots] = useState<string | null>(null);
   const [selectedSlots, setSelectedSlots] = useState<Record<string, string>>({});
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const filtered = activeCity === 'All' ? hospitals : hospitals.filter((h) => h.city === activeCity);
+
+  const updateScrollEdges = () => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 8);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8);
+  };
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    updateScrollEdges();
+    el.scrollTo({ left: 0 });
+    const onScroll = () => updateScrollEdges();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [activeCity, filtered.length]);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      if (el.scrollWidth <= el.clientWidth) return;
+      event.preventDefault();
+      el.scrollBy({ left: event.deltaY, behavior: 'auto' });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  const scrollByCard = (direction: -1 | 1) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * 336, behavior: 'smooth' });
+  };
 
   const handleSlotSelect = (hospitalName: string, slot: string) => {
     setSelectedSlots((prev) => ({ ...prev, [hospitalName]: slot }));
   };
 
   const goBook = (href?: string) => {
-    router.push(href ?? '/book-appointment/');
+    window.location.assign(href ?? '/book-appointment/');
   };
 
   return (
@@ -191,7 +232,32 @@ export default function HospitalsSection() {
           ))}
         </div>
 
-        <div className="scrollbar-hide flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4">
+        <div className="relative">
+          {canScrollLeft ? (
+            <button
+              type="button"
+              aria-label="Scroll hospitals left"
+              onClick={() => scrollByCard(-1)}
+              className="absolute left-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-white text-primary shadow-md md:-left-2 md:h-11 md:w-11"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          ) : null}
+          {canScrollRight ? (
+            <button
+              type="button"
+              aria-label="Scroll hospitals right"
+              onClick={() => scrollByCard(1)}
+              className="absolute right-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-white text-primary shadow-md md:-right-2 md:h-11 md:w-11"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          ) : null}
+
+          <div
+            ref={scrollerRef}
+            className="flex w-full min-w-0 snap-x snap-mandatory gap-6 overflow-x-auto overscroll-x-contain pb-3 touch-pan-x [scrollbar-color:rgba(0,27,113,0.35)_transparent] [scrollbar-width:thin]"
+          >
           {filtered.map((h) => (
             <motion.div
               key={h.name}
@@ -352,6 +418,7 @@ export default function HospitalsSection() {
               </div>
             </motion.div>
           ))}
+          </div>
         </div>
       </div>
     </section>

@@ -79,6 +79,7 @@ export function inferNativePersona(pathWithSearch: string): NativePersonaId | nu
     path.startsWith('/visitor') ||
     path.startsWith('/book-appointment') ||
     path.startsWith('/visitor-pass') ||
+    path.startsWith('/online-session') ||
     path.startsWith('/visitor-registration')
   ) {
     return 'visitor';

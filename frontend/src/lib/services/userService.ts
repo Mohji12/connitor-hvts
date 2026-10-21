@@ -8,6 +8,18 @@ import {
 } from '@/lib/schema/schema';
 import z from 'zod';
 
+function parseUserList(data: unknown): z.infer<typeof UserResponseSchema>[] {
+  const all = z.array(UserResponseSchema).safeParse(data);
+  if (all.success) return all.data;
+  if (!Array.isArray(data)) {
+    throw new Error('Failed to load users.');
+  }
+  return data.flatMap((row) => {
+    const parsed = UserResponseSchema.safeParse(row);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
 function getApiErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error) && error.response?.data) {
     const data = error.response.data as { message?: string; detail?: string };
@@ -73,7 +85,7 @@ export const UserService = {
       queryParams.chainId = params.chainId;
     }
     const response = await apiClient.get('/api/users', { params: queryParams });
-    return z.array(UserResponseSchema).parse(response.data);
+    return parseUserList(response.data);
   },
 
   async getStaffByBranch(branchId: string) {

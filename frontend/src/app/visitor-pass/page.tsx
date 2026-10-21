@@ -1,16 +1,33 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { LogIn, UserPlus } from 'lucide-react';
 
 import { VisitorPortalShell } from '@/components/auth/VisitorPortalShell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { getVisitorToken } from '@/lib/services/visitorPortalService';
+import { VisitorAuthService } from '@/lib/services/visitorAuthService';
 
 /** In-person visits only — video consults are under Online session. */
 const RETURN_TO = '/book-appointment/?mode=offline';
 
 export default function VisitorPassPage() {
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (!getVisitorToken()) return;
+    let cancelled = false;
+    void VisitorAuthService.hasValidSession().then((valid) => {
+      if (valid && !cancelled) router.replace(RETURN_TO);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
   return (
     <VisitorPortalShell>
       <div className="mx-auto flex max-w-lg flex-col p-4 py-10">

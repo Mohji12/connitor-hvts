@@ -247,9 +247,9 @@ export function HospitalAdminUser({ user }: Props) {
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
 
-  const { data: users, isLoading, mutate } = useSWR<User[]>(
-    `/api/users/branch-${user.branchId}`,
-    () => UserService.getAll({ branchId: user.branchId }),
+  const { data: users, error, isLoading, mutate } = useSWR<User[]>(
+    'hospital-admin-users',
+    () => UserService.getAll(),
   );
   const { data: departments } = useSWR<Department[]>(
     `/api/departments/branch-${user.branchId}`,
@@ -269,7 +269,12 @@ export function HospitalAdminUser({ user }: Props) {
     [users],
   );
   const staff = useMemo(
-    () => users?.filter((u) => ['STAFF', 'SECURITY', 'SECURITY_SUPERVISOR'].includes(u.role)) ?? [],
+    () =>
+      users?.filter((u) =>
+        ['STAFF', 'SECURITY', 'SECURITY_SUPERVISOR', 'WARD_ADMIN', 'RECEIVING', 'PURCHASE'].includes(
+          u.role,
+        ),
+      ) ?? [],
     [users],
   );
 
@@ -284,6 +289,12 @@ export function HospitalAdminUser({ user }: Props) {
         </div>
         <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> Add User</Button>
       </div>
+
+      {error ? (
+        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          Could not load hospital staff. Refresh and try again.
+        </p>
+      ) : null}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
