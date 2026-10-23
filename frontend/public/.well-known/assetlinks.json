@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.conninter.hvts",
+      "sha256_cert_fingerprints": [
+        "A6:CE:CF:11:E8:00:25:7B:F2:C8:D8:08:EC:25:43:FB:12:6B:45:EA:62:95:87:62:A0:36:65:44:9A:4C:4C:C4"
+      ]
+    }
+  }
+]

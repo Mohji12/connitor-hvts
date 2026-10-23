@@ -7,8 +7,7 @@ import { Copy, Download, RefreshCw, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BranchService } from '@/lib/services/branchService';
-import { hospitalGatePath } from '@/lib/static-export-route';
-import { androidGateIntent, iosGateDeepLink, gateWebUrl } from '@/lib/gate-deeplink';
+import { gateWebUrl } from '@/lib/gate-deeplink';
 
 const DOWNLOAD_SIZE = 720;
 
@@ -27,12 +26,11 @@ export function BranchGateQr({
   const [refreshing, setRefreshing] = React.useState(false);
   const href = React.useMemo(() => {
     if (!branchId || typeof window === 'undefined') return '';
-    const web = gateWebUrl(branchId, window.location.origin);
-    // Use Android intent URL — Chrome on Android opens the app directly;
-    // iOS Safari ignores intent:// but handles conninter:// custom scheme.
-    // The QR value is always the Android intent because it has a built-in
-    // browser_fallback_url for users who do not have the app installed.
-    return androidGateIntent(branchId, web);
+    // Plain https URL: every camera/QR scanner can open it. Android App Links
+    // (verified via /.well-known/assetlinks.json) route it straight into the
+    // Conninter app when installed; otherwise the gate page auto-attempts the
+    // conninter:// deep link and shows an "Open in app" prompt.
+    return gateWebUrl(branchId, window.location.origin);
   }, [branchId]);
 
   if (!branchId || !href) return null;
