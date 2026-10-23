@@ -22,6 +22,8 @@ def mysql_type(col) -> str:
     if isinstance(t, Text):
         return "TEXT"
     name = type(t).__name__.upper()
+    if "NUMERIC" in name or "DECIMAL" in name:
+        return "DECIMAL(14, 2)"
     if "BOOL" in name:
         return "TINYINT(1)"
     if "INT" in name:
@@ -42,6 +44,8 @@ def main() -> None:
         "Branch",
         "VisitorPass",
         "BranchVisitorPassPolicy",
+        "VisitorAccount",
+        "Distributor",
     ]
     with engine.begin() as conn:
         for table_name in tables:
