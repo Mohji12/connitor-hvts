@@ -17,20 +17,25 @@ ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets"
 BLANK_PASS_PATH = ASSETS_DIR / "meeting_pass_blank.png"
 HOSPITAL_LOGO_DIR = ASSETS_DIR / "hospital-logos"
 
-# Coordinates match meeting_pass_blank.png at 525x1024.
+# Coordinates match meeting_pass_blank.png at 525x1024 (flat centred design).
 _BASE_WIDTH = 525
 _BASE_HEIGHT = 1024
-_PHOTO_CENTER = (124, 236)
-_PHOTO_RADIUS = 68
-_IDENTITY_BOX = (258, 192, 504, 268)
-# Value lines sit on the printed underlines and stop at the end of each line.
-_LEFT_VALUE = (108, 130)
-_RIGHT_VALUE = (354, 128)
-# Open band between the date card and "Valid for today only" (text starts ~y=677).
-# Divider is the printed line at x=262. QR is centered in the left frame.
-_QR_FRAME = (36, 540, 250, 668)
-_QR_SIZE = 128
-_DIVIDER_X = 262
+_PHOTO_CENTER = (263, 167)
+_PHOTO_RADIUS = 56
+# Centred identity lines under the photo ring.
+_NAME_Y = 222
+_TITLE_Y = 258
+_ROLE_Y = 282
+# Values sit just above the printed underlines inside each box (lines at ~y351/426).
+_LEFT_VALUE = (117, 128)
+_RIGHT_VALUE = (358, 124)
+_ROW1_Y = 336
+_ROW2_Y = 410
+# Open white band (~y453-780) above "Valid for today only".
+# Big QR is centred first; the hospital logo sits smaller, lower, centred.
+_QR_SIZE = 300
+_QR_TOP = 452
+_LOGO_BOX = (115, 752, 410, 783)
 _NAVY = (16, 32, 84)
 _BLACK = (20, 28, 48)
 _BLUE = (0, 112, 214)
@@ -53,6 +58,7 @@ class MeetingPassContent:
     department: str
     date_text: str
     time_text: str
+    visit_code: str = ""
     qr_png: bytes | None = None
     photo_png: bytes | None = None
     logo_png: bytes | None = None
@@ -119,6 +125,23 @@ def _fit_text(
             trimmed = trimmed[:-1].rstrip()
         cleaned = (trimmed or "—") + "…"
     draw.text(origin, cleaned, font=font, fill=fill)
+
+
+def _center_text(
+    draw: ImageDraw.ImageDraw,
+    y: int,
+    text: str,
+    *,
+    size: int,
+    fill: tuple[int, int, int],
+    bold: bool = True,
+) -> None:
+    cleaned = " ".join((text or "").split())
+    if not cleaned:
+        return
+    font = _load_font(size, bold=bold)
+    width = draw.textlength(cleaned, font=font)
+    draw.text(((_BASE_WIDTH - width) / 2, y), cleaned, font=font, fill=fill)
 
 
 def _paste_circle(base: Image.Image, photo_png: bytes, center: tuple[int, int], radius: int) -> None:
@@ -430,6 +453,9 @@ def assemble_meeting_pass(db, visit) -> MeetingPassContent:
         department=_department_label(db, visit),
         date_text=_date_and_time(visit)[0],
         time_text=_date_and_time(visit)[1],
+        visit_code=str(
+            getattr(visit, "visitCode", None) or getattr(visit, "checkInOtp", None) or ""
+        ),
         qr_png=check_in_qr_png(visit),
         photo_png=_visitor_photo_bytes(db, visit),
         logo_png=logo_png,
@@ -451,36 +477,27 @@ def render_meeting_pass(content: MeetingPassContent) -> bytes:
             pass
 
     draw = ImageDraw.Draw(base)
-    draw.rounded_rectangle(_IDENTITY_BOX, radius=18, fill=_CARD)
 
-    _fit_text(draw, (268, 196), content.visitor_name, max_width=224, size=18, fill=_NAVY)
-    _fit_text(draw, (268, 218), content.role_label, max_width=224, size=13, fill=_BLACK)
-    next_y = 234
+    _center_text(draw, _NAME_Y, content.visitor_name, size=26, fill=_NAVY)
+    _center_text(draw, _TITLE_Y, "Visitor Pass", size=16, fill=_NAVY)
+    role_line = content.role_label
     if content.company_name:
-        _fit_text(draw, (268, next_y), content.company_name, max_width=224, size=12, fill=_BLUE)
-        next_y = 250
-    _fit_text(draw, (268, next_y), "Professional Meeting", max_width=224, size=13, fill=_BLUE)
+        role_line = f"{role_line} · {content.company_name}"
+    _center_text(draw, _ROLE_Y, role_line, size=13, fill=_BLACK, bold=False)
 
     left_x, left_width = _LEFT_VALUE
     right_x, right_width = _RIGHT_VALUE
-    _fit_text(draw, (left_x, 396), content.doctor_name, max_width=left_width, size=12, fill=_NAVY)
-    _fit_text(draw, (right_x, 396), content.department, max_width=right_width, size=12, fill=_NAVY)
-    _fit_text(draw, (left_x, 482), content.date_text, max_width=left_width, size=12, fill=_NAVY)
-    _fit_text(draw, (right_x, 482), content.time_text, max_width=right_width, size=12, fill=_NAVY)
+    _fit_text(draw, (left_x, _ROW1_Y), content.doctor_name, max_width=left_width, size=12, fill=_NAVY)
+    _fit_text(draw, (right_x, _ROW1_Y), content.department, max_width=right_width, size=12, fill=_NAVY)
+    _fit_text(draw, (left_x, _ROW2_Y), content.date_text, max_width=left_width, size=12, fill=_NAVY)
+    _fit_text(draw, (right_x, _ROW2_Y), content.time_text, max_width=right_width, size=12, fill=_NAVY)
 
-    qr_left = _QR_FRAME[0] + (_QR_FRAME[2] - _QR_FRAME[0] - _QR_SIZE) // 2
-    qr_top = _QR_FRAME[1] + (_QR_FRAME[3] - _QR_FRAME[1] - _QR_SIZE) // 2
     try:
-        paste_aligned_qr_and_logo(
-            base,
-            qr_png=content.qr_png,
-            logo_png=content.logo_png,
-            qr_left=qr_left,
-            row_top=qr_top,
-            side=_QR_SIZE,
-            logo_left=_DIVIDER_X + 14,
-            logo_right=508,
-        )
+        if content.qr_png:
+            qr_left = (_BASE_WIDTH - _QR_SIZE) // 2
+            paste_crisp_qr(base, content.qr_png, qr_left, _QR_TOP, _QR_SIZE)
+        if content.logo_png:
+            _paste_logo(base, content.logo_png, _LOGO_BOX, plate=True, pad=3)
     except Exception:
         pass
 

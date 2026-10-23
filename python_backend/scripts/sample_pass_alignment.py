@@ -25,8 +25,8 @@ from app.services.meeting_pass_image import (  # noqa: E402
 )
 
 
-def _plates_aligned(png: bytes, row_top: int, side: int) -> bool:
-    """True when left (QR) and right (logo) white plates share top and bottom rows."""
+def _plates_aligned(png: bytes, qr_top: int, qr_side: int) -> bool:
+    """True when the centered QR plate sits above the centered logo plate."""
     im = Image.open(io.BytesIO(png)).convert("RGB")
     mid = im.width // 2
 
@@ -34,12 +34,9 @@ def _plates_aligned(png: bytes, row_top: int, side: int) -> bool:
         r, g, b = im.getpixel((x, y))
         return r > 240 and g > 240 and b > 240
 
-    # Probe inside each plate
-    left_x = mid // 2
-    right_x = mid + mid // 2
-    top_ok = is_white(left_x, row_top + 2) and is_white(right_x, row_top + 2)
-    bottom_ok = is_white(left_x, row_top + side - 3) and is_white(right_x, row_top + side - 3)
-    return top_ok and bottom_ok
+    qr_ok = is_white(mid, qr_top + 2) and is_white(mid, qr_top + qr_side - 3)
+    logo_ok = is_white(mid, 760) and is_white(mid, 782)
+    return qr_ok and logo_ok
 
 
 def main() -> int:
@@ -64,6 +61,7 @@ def main() -> int:
             department="OBG",
             date_text="08 Oct 2026",
             time_text="10:00 AM - 10:10 AM",
+            visit_code="5678",
             qr_png=qr,
             logo_png=logo,
         )
@@ -105,8 +103,8 @@ def main() -> int:
     (out_dir / "sample-delivery-pass.png").write_bytes(delivery)
     (out_dir / "sample-attendant-pass.png").write_bytes(attendant)
 
-    # Meeting QR band uses frame centering → top 540, size 128
-    ok = _plates_aligned(meeting, 540, 128)
+    # Meeting pass: QR centred in the band, hospital logo centred below it.
+    ok = _plates_aligned(meeting, 452, 300)
     print(f"meeting_plates_aligned={ok}")
     print(f"wrote {out_dir / 'sample-meeting-pass.png'}")
     print(f"wrote {out_dir / 'sample-delivery-pass.png'}")
