@@ -30,8 +30,7 @@ export function gateWebUrl(branchId: string, origin: string): string {
  */
 export function androidGateIntent(branchId: string, fallbackUrl: string): string {
   return [
-    `intent://gate/${encodeURIComponent(branchId)}`,
-    '#Intent',
+    `intent://gate/${encodeURIComponent(branchId)}#Intent`,
     `scheme=${CONNINTER_APP_SCHEME}`,
     `package=${CONNINTER_APP_ID}`,
     `S.browser_fallback_url=${encodeURIComponent(fallbackUrl)}`,
