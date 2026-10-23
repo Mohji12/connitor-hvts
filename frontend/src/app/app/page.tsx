@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  Building2,
   CalendarCheck,
   ChevronLeft,
   ChevronRight,
@@ -87,6 +88,13 @@ const VISITOR_JOURNEYS: LaunchChoice[] = [
     href: '/online-session',
     icon: Video,
     tint: 'bg-[#001B71]/10 text-[#001B71]',
+  },
+  {
+    title: 'Meet a distributor',
+    description: 'Book an office visit — the distributor approves and sends your meeting pass',
+    href: '/book-distributor-visit',
+    icon: Building2,
+    tint: 'bg-amber-100 text-amber-800',
   },
 ];
 
@@ -215,7 +223,7 @@ export default function AppLaunchPage(): React.ReactElement {
           </h1>
           <p className="m-meta mt-1 text-sm">
             {visitorChoice
-              ? 'Choose Visitor pass or Online session.'
+              ? 'Visitor pass, Online session, or a distributor visit.'
               : 'Choose how you use Conninter.'}
           </p>
         </div>

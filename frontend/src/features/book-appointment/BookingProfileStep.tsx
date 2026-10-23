@@ -302,8 +302,8 @@ export function BookingProfileStep({ onVerified }: BookingProfileStepProps): Rea
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-      <div className="order-2 space-y-4 lg:order-1">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="order-2 min-w-0 space-y-4 lg:order-1">
         <div>
           <p className="text-sm font-semibold text-[#001B71]">Create your visitor profile</p>
           <p className="text-xs text-muted-foreground">
@@ -609,7 +609,7 @@ export function BookingProfileStep({ onVerified }: BookingProfileStepProps): Rea
         )}
       </div>
 
-      <div className="order-1 lg:order-2">
+      <div className="order-1 min-w-0 lg:order-2">
         <div className="lg:sticky lg:top-24">
           <VisitorProfilePreviewCard data={preview} />
         </div>

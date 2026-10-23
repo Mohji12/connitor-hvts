@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CalendarCheck, Video } from 'lucide-react';
+import { Building2, CalendarCheck, Video } from 'lucide-react';
 
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 const PORTAL_ACTIONS = [
   { label: 'Visitor pass', href: '/visitor-pass', icon: CalendarCheck },
   { label: 'Online session', href: '/online-session', icon: Video },
+  { label: 'Meet a distributor', href: '/book-distributor-visit', icon: Building2 },
 ] as const;
 
 function PortalContent() {
@@ -34,8 +35,9 @@ function PortalContent() {
             Choose how to continue
           </h1>
           <p className="mt-3 text-muted-foreground leading-relaxed">
-            Book an in-person visit, or start an online video session with a doctor. Family visit
-            passes for admitted patients start by scanning the hospital QR at reception or the gate.
+            Book an in-person visit, start an online video session with a doctor, or meet a
+            distributor at their office. Family visit passes for admitted patients start by
+            scanning the hospital QR at reception or the gate.
           </p>
         </div>
 

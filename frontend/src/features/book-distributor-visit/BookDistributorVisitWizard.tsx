@@ -140,7 +140,12 @@ export function BookDistributorVisitWizard(): React.ReactElement {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-4 px-3 py-5 lg:px-0 lg:py-8">
+    <div
+      className={cn(
+        'mx-auto w-full max-w-2xl space-y-4 px-3 py-5 transition-[max-width] lg:px-0 lg:py-8',
+        step === 2 && 'lg:max-w-4xl',
+      )}
+    >
       <div className="flex items-center gap-2">
         <Button type="button" variant="ghost" size="icon" className="h-11 w-11" onClick={back}>
           <ChevronLeft className="h-5 w-5" />

@@ -17,6 +17,7 @@ const navLinks = [
 const accessLinks = [
   { label: 'Visitor pass', href: '/visitor-pass' },
   { label: 'Online session', href: '/online-session' },
+  { label: 'Meet a distributor', href: '/book-distributor-visit' },
 ];
 
 export default function Navbar() {
