@@ -51,5 +51,19 @@
 	<string>Conninter needs the microphone for online doctor meetings when you join a video visit.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Conninter may use your photo library when you upload ID or profile images during registration.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.conninter.hvts</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>conninter</string>
+				<string>com.conninter.hvts</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

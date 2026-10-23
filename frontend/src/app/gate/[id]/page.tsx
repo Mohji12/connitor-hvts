@@ -4,13 +4,14 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { jwtDecode } from 'jwt-decode';
-import { HeartHandshake, Package, UserRound } from 'lucide-react';
+import { HeartHandshake, Package, Smartphone, UserRound } from 'lucide-react';
 import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { attendantApplyPath } from '@/lib/attendant-pass-url';
 import { getStoredAuthToken } from '@/lib/auth-storage';
 import { gateIdFromLocation } from '@/lib/static-export-route';
+import { gateDeepLink, gateWebUrl, tryOpenNativeGateApp } from '@/lib/gate-deeplink';
 
 type BranchInfo = {
   id: string;
@@ -51,10 +52,19 @@ export default function HospitalGatePage(): React.ReactElement {
   const [info, setInfo] = React.useState<BranchInfo | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [missing, setMissing] = React.useState(false);
+  const [appPrompted, setAppPrompted] = React.useState(false);
 
   React.useEffect(() => {
     setBranchId(gateIdFromLocation(window.location.pathname, params.id));
   }, [params.id]);
+
+  // On mobile browsers: auto-redirect to native app (once per session).
+  React.useEffect(() => {
+    if (!branchId || typeof window === 'undefined') return;
+    const web = gateWebUrl(branchId, window.location.origin);
+    const prompted = tryOpenNativeGateApp(branchId, web);
+    if (prompted) setAppPrompted(true);
+  }, [branchId]);
 
   React.useEffect(() => {
     if (!branchId) {
@@ -97,6 +107,35 @@ export default function HospitalGatePage(): React.ReactElement {
   return (
     <main className="mx-auto min-h-dvh w-full max-w-md space-y-4 px-4 py-8">
       <p className="text-center text-xs font-semibold uppercase tracking-wide text-primary/70">Conninter</p>
+
+      {/* Mobile browser → offer to open in app */}
+      {appPrompted && branchId ? (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-primary">Open in the Conninter app</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Get the best experience — no login needed for attendant passes.
+              </p>
+              <div className="mt-2 flex gap-3">
+                <a
+                  href={gateDeepLink(branchId, gateWebUrl(branchId, typeof window !== 'undefined' ? window.location.origin : ''))}
+                  className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                >
+                  Open app
+                </a>
+                <a
+                  href={`?stay=1`}
+                  className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                >
+                  Continue in browser
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle className="text-center text-xl">{missing ? 'Desk code not active' : title}</CardTitle>

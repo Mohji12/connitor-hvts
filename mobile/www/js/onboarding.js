@@ -142,5 +142,22 @@
         else finish();
       },
     };
+
+    // If a gate QR is scanned while on onboarding, complete onboarding and route directly to the gate
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+      try {
+        window.Capacitor.Plugins.App.addListener('appUrlOpen', (data) => {
+          if (data && data.url && window.ConninterStorage) {
+            const target = window.ConninterStorage.parseDeepLink(data.url);
+            if (target) {
+              window.ConninterStorage.setHasCompletedOnboarding(true);
+              window.location.replace(target);
+            }
+          }
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
   });
 })();

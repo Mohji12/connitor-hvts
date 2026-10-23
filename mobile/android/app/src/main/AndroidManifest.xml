@@ -18,6 +18,33 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Custom URL Scheme: conninter://gate/<branchId> -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="conninter" />
+            </intent-filter>
+
+            <!-- Custom URL Scheme: com.conninter.hvts://gate/<branchId> -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.conninter.hvts" />
+            </intent-filter>
+
+            <!-- Android App Links: https://www.conninter.com/gate/* and https://conninter.com/gate/* -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="conninter.com" android:pathPrefix="/gate" />
+                <data android:scheme="https" android:host="www.conninter.com" android:pathPrefix="/gate" />
+                <data android:scheme="http" android:host="conninter.com" android:pathPrefix="/gate" />
+                <data android:scheme="http" android:host="www.conninter.com" android:pathPrefix="/gate" />
+            </intent-filter>
         </activity>
 
         <provider

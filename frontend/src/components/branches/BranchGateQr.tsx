@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BranchService } from '@/lib/services/branchService';
 import { hospitalGatePath } from '@/lib/static-export-route';
+import { androidGateIntent, iosGateDeepLink, gateWebUrl } from '@/lib/gate-deeplink';
 
 const DOWNLOAD_SIZE = 720;
 
@@ -26,7 +27,12 @@ export function BranchGateQr({
   const [refreshing, setRefreshing] = React.useState(false);
   const href = React.useMemo(() => {
     if (!branchId || typeof window === 'undefined') return '';
-    return `${window.location.origin}${hospitalGatePath(branchId)}`;
+    const web = gateWebUrl(branchId, window.location.origin);
+    // Use Android intent URL — Chrome on Android opens the app directly;
+    // iOS Safari ignores intent:// but handles conninter:// custom scheme.
+    // The QR value is always the Android intent because it has a built-in
+    // browser_fallback_url for users who do not have the app installed.
+    return androidGateIntent(branchId, web);
   }, [branchId]);
 
   if (!branchId || !href) return null;

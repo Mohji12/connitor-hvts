@@ -30,7 +30,43 @@
     }
   }
 
-  function goNext() {
+  // Intercept deep link events while splash is mounting
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+    try {
+      window.Capacitor.Plugins.App.addListener('appUrlOpen', (data) => {
+        if (data && data.url && window.ConninterStorage) {
+          const target = window.ConninterStorage.parseDeepLink(data.url);
+          if (target) {
+            sessionStorage.setItem('conninter.gate.deeplink', target);
+            window.location.replace(target);
+          }
+        }
+      });
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  async function goNext() {
+    // Priority: if opened via QR deep link, navigate directly to that gate page.
+    let target = sessionStorage.getItem('conninter.gate.deeplink');
+    if (!target && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+      try {
+        const launch = await window.Capacitor.Plugins.App.getLaunchUrl();
+        if (launch && launch.url && window.ConninterStorage) {
+          target = window.ConninterStorage.parseDeepLink(launch.url);
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    if (target) {
+      sessionStorage.removeItem('conninter.gate.deeplink');
+      window.location.replace(target);
+      return;
+    }
+
     const done = window.ConninterStorage.getHasCompletedOnboarding();
     // Website is unreachable: use the bundled offline gate, not www.conninter.com.
     if (done && typeof navigator !== 'undefined' && navigator.onLine === false) {

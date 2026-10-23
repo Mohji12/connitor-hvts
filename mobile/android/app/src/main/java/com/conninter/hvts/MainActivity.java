@@ -1,5 +1,6 @@
 package com.conninter.hvts;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -15,6 +16,8 @@ import com.getcapacitor.BridgeWebViewClient;
  * Capacitor shell: phone Back walks WebView history.
  * Live marketing homepage {@code https://www.conninter.com/} is rewritten to Welcome
  * {@code /app/}. Local Capacitor pages ({@code localhost} splash/onboarding) are never rewritten.
+ * Hospital gate QR codes (conninter://gate/<branchId>, com.conninter.hvts://gate/<branchId>,
+ * and https://www.conninter.com/gate/<branchId>) open directly in the in-app gate view.
  */
 public class MainActivity extends BridgeActivity {
 
@@ -61,6 +64,78 @@ public class MainActivity extends BridgeActivity {
                 }
             });
         }
+
+        handleDeepLinkIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleDeepLinkIntent(intent);
+    }
+
+    private void handleDeepLinkIntent(Intent intent) {
+        if (intent == null) return;
+        Uri uri = intent.getData();
+        if (uri == null) return;
+
+        String targetUrl = resolveDeepLinkUrl(uri);
+        if (targetUrl != null) {
+            WebView webView = bridgeWebView();
+            if (webView != null) {
+                webView.post(() -> webView.loadUrl(targetUrl));
+            }
+        }
+    }
+
+    /**
+     * Resolves an incoming QR deep link (intent, custom scheme, or https) into the
+     * full in-app URL with ?native=1 so the gate screen loads directly inside the shell.
+     */
+    private String resolveDeepLinkUrl(Uri uri) {
+        if (uri == null) return null;
+        String scheme = uri.getScheme();
+        if (scheme == null) return null;
+        scheme = scheme.toLowerCase();
+
+        // 1. Custom URL scheme: conninter://gate/<branchId> or com.conninter.hvts://gate/<branchId>
+        if ("conninter".equals(scheme) || "com.conninter.hvts".equals(scheme)) {
+            String host = uri.getHost();
+            if ("gate".equalsIgnoreCase(host)) {
+                String path = uri.getPath();
+                if (path != null && !path.isEmpty()) {
+                    String branchId = path.startsWith("/") ? path.substring(1) : path;
+                    if (!branchId.isEmpty()) {
+                        return "https://www.conninter.com/gate/" + branchId + "/?native=1&_cb=" + System.currentTimeMillis();
+                    }
+                }
+            } else if (host != null && !host.isEmpty()) {
+                String path = uri.getPath() != null ? uri.getPath() : "";
+                return "https://www.conninter.com/" + host + path + "?native=1&_cb=" + System.currentTimeMillis();
+            }
+        }
+
+        // 2. HTTPS/HTTP App Links: https://www.conninter.com/gate/<branchId>/
+        if ("https".equals(scheme) || "http".equals(scheme)) {
+            String host = uri.getHost();
+            if (host != null) {
+                String h = host.toLowerCase();
+                if (h.startsWith("www.")) h = h.substring(4);
+                if ("conninter.com".equals(h) || h.endsWith(".vercel.app")) {
+                    String path = uri.getPath();
+                    if (path != null && path.startsWith("/gate")) {
+                        Uri.Builder builder = uri.buildUpon().scheme("https").authority("www.conninter.com");
+                        if (uri.getQueryParameter("native") == null) {
+                            builder.appendQueryParameter("native", "1");
+                        }
+                        builder.appendQueryParameter("_cb", String.valueOf(System.currentTimeMillis()));
+                        return builder.build().toString();
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     @Override
