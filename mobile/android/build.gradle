@@ -7,7 +7,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:9.2.1'
+        classpath 'com.android.tools.build:gradle:8.7.3'
         classpath 'com.google.gms:google-services:4.4.2'
 
         // NOTE: Do not place your application dependencies here; they belong
@@ -26,4 +26,23 @@ allprojects {
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+}
+
+// Capacitor 7.6.x libraries compile with Java 21, but EAS Build images only
+// provide JDK 17. Force Java 17 source/target on every Android module.
+subprojects { subproject ->
+    subproject.afterEvaluate {
+        def androidExt = subproject.extensions.findByName("android")
+        if (androidExt != null && androidExt.hasProperty("compileOptions")) {
+            androidExt.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+        subproject.tasks.configureEach { task ->
+            if (task.class.name.startsWith("org.jetbrains.kotlin.gradle.tasks.Kotlin")) {
+                task.kotlinOptions.jvmTarget = "17"
+            }
+        }
+    }
 }
