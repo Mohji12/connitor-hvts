@@ -28,6 +28,8 @@ from app.services.wapblaster_client import (
     send_wapblaster_appointment_approval,
     send_wapblaster_attendant_approval_request,
     send_wapblaster_delivery_pass,
+    send_wapblaster_distributor_visit_approval,
+    send_wapblaster_distributor_visit_pass,
     send_wapblaster_meeting_pass,
     send_wapblaster_attendant_pass,
     send_wapblaster_order_delivered,
@@ -1911,6 +1913,86 @@ class WhatsAppService:
             vehicle_text=vehicle_text,
             date_text=date_text,
             time_text=time_text,
+            image_url=image_url,
+        )
+        return True
+
+    def send_distributor_visit_approval(
+        self,
+        phone: str,
+        *,
+        distributor_name: str,
+        visitor_name: str,
+        company: str,
+        visit_date: str,
+        visit_time: str,
+        purpose: str,
+        visit_id: str,
+    ) -> bool:
+        """Send conninter_distributor_visit_approval to the distributor owner."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_distributor_visit_approval or "").strip()
+        if not template:
+            return False
+        if not (is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster"):
+            logger.warning("Distributor visit approval template is set but WapBlaster is not the WhatsApp provider")
+            return False
+        if is_test_mode_enabled(settings):
+            logger.info(
+                "[HVTS_TEST_MODE] Distributor visit approval %s to %s for %s",
+                template,
+                phone,
+                visitor_name,
+            )
+            return True
+        send_wapblaster_distributor_visit_approval(
+            phone,
+            template_name=template,
+            template_language=settings.whatsapp_template_distributor_visit_approval_language or "en_US",
+            distributor_name=distributor_name,
+            visitor_name=visitor_name,
+            company=company,
+            visit_date=visit_date,
+            visit_time=visit_time,
+            purpose=purpose,
+            visit_id=visit_id,
+        )
+        return True
+
+    def send_distributor_visit_pass(
+        self,
+        phone: str,
+        *,
+        visitor_name: str,
+        vendor_name: str,
+        visit_date: str,
+        visit_time: str,
+        image_url: str,
+    ) -> bool:
+        """Send conninter_distributor_visit_pass_confirmed with the composed pass image."""
+        settings = get_settings()
+        template = (settings.whatsapp_template_distributor_visit_pass or "").strip()
+        if not template:
+            return False
+        if not (is_wapblaster_configured(settings) and settings.whatsapp_provider == "wapblaster"):
+            logger.warning("Distributor visit pass template is set but WapBlaster is not the WhatsApp provider")
+            return False
+        if is_test_mode_enabled(settings):
+            logger.info(
+                "[HVTS_TEST_MODE] Distributor visit pass %s to %s for %s",
+                template,
+                phone,
+                visitor_name,
+            )
+            return True
+        send_wapblaster_distributor_visit_pass(
+            phone,
+            template_name=template,
+            template_language=settings.whatsapp_template_distributor_visit_pass_language or "en_US",
+            visitor_name=visitor_name,
+            vendor_name=vendor_name,
+            visit_date=visit_date,
+            visit_time=visit_time,
             image_url=image_url,
         )
         return True

@@ -673,6 +673,106 @@ def send_wapblaster_delivery_pass(
     )
 
 
+def send_wapblaster_distributor_visit_approval(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    distributor_name: str,
+    visitor_name: str,
+    company: str,
+    visit_date: str,
+    visit_time: str,
+    purpose: str,
+    visit_id: str,
+    brand_name: str = "Conninter",
+) -> None:
+    """New office-visit request to the distributor owner.
+
+    Body order matches the approved conninter_distributor_visit_approval:
+    {{1}} recipient, {{2}} visitor, {{3}} company, {{4}} visit date,
+    {{5}} visit time, {{6}} purpose. Confirm is button_0 (dvok_{visit id});
+    Reject is button_1 (dvno_{visit id}).
+    """
+    vid = (visit_id or "").strip()
+    fields = [
+        distributor_name or "Partner",
+        visitor_name or "Visitor",
+        company or "—",
+        visit_date or "—",
+        visit_time or "—",
+        purpose or "—",
+    ]
+    extra = {
+        "button_0": f"dvok_{vid}" if vid else "confirm",
+        "button_1": f"dvno_{vid}" if vid else "reject",
+    }
+    try:
+        send_wapblaster_template(
+            phone,
+            template_name=template_name,
+            template_language=template_language,
+            fields=fields,
+            extra=extra,
+        )
+    except Exception as exc:
+        logger.warning(
+            "WapBlaster distributor approval template %s failed, using plain text: %s",
+            template_name,
+            exc,
+        )
+        fallback = (
+            f"{brand_name}: New office visit request\n"
+            f"{truncate_utility_param(visitor_name, 40)} "
+            f"({truncate_utility_param(company, 30)})\n"
+            f"{truncate_utility_param(visit_date, 40)} {truncate_utility_param(visit_time, 20)}\n"
+            f"Open My Visitors to approve or reject. Ref: {vid}"
+        )
+        send_wapblaster_text(phone, fallback)
+
+
+def send_wapblaster_distributor_visit_pass(
+    phone: str,
+    *,
+    template_name: str,
+    template_language: str,
+    visitor_name: str,
+    vendor_name: str,
+    visit_date: str,
+    visit_time: str,
+    image_url: str,
+) -> None:
+    """Confirmed distributor visit pass with the composed card as header image.
+
+    Body order matches conninter_distributor_visit_pass_confirmed:
+    {{1}} visitor name, {{2}} host/distributor name, {{3}} visit date,
+    {{4}} visit time, {{5}} host/distributor.
+    """
+    fields = [
+        visitor_name or "Visitor",
+        vendor_name or "Host",
+        visit_date or "—",
+        visit_time or "—",
+        vendor_name or "Host",
+    ]
+    media = (image_url or "").strip()
+    extra = None
+    if media.startswith("http"):
+        extra = {
+            "header_image": media,
+            "header_image_url": media,
+            "header_media_url": media,
+            "media_url": media,
+        }
+    send_wapblaster_template(
+        phone,
+        template_name=template_name,
+        template_language=template_language,
+        fields=fields,
+        extra=extra,
+    )
+
+
 def send_wapblaster_order_delivered(
     phone: str,
     *,

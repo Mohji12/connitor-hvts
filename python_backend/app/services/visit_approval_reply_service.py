@@ -23,6 +23,7 @@ REPLY_PATTERN = re.compile(r"^(YES|NO|Y|N|CONFIRM)\s*(\d{6})$", re.IGNORECASE)
 ACTION_ONLY_PATTERN = re.compile(r"^(YES|NO|Y|N|CONFIRM)$", re.IGNORECASE)
 BUTTON_ID_PATTERN = re.compile(r"^(yes|no|confirm|reject)_(\d{6})$", re.IGNORECASE)
 SLOT_BUTTON_PATTERN = re.compile(r"^slot(ok|no)_(\d{6})$", re.IGNORECASE)
+DVISIT_BUTTON_PATTERN = re.compile(r"^dv(ok|no)_([0-9a-fA-F-]{8,40})$", re.IGNORECASE)
 RESCHEDULE_BUTTON_PATTERN = re.compile(r"^reschedule_(\d{6})$", re.IGNORECASE)
 RESCHEDULE_TEXT_PATTERN = re.compile(r"^RESCHEDULE\s*(\d{6})$", re.IGNORECASE)
 BUTTON_LABEL_PATTERN = re.compile(
@@ -70,6 +71,11 @@ def _slot_request_is_newer(request, visit) -> bool:
 def parse_button_reply(button_id: str) -> tuple[str, str | None] | None:
     """Parse button id or label: confirm_482901, Confirm, Reschedule, yes_482901."""
     stripped = button_id.strip()
+    match = DVISIT_BUTTON_PATTERN.match(stripped)
+    if match:
+        action = "dvisit_approve" if match.group(1).lower() == "ok" else "dvisit_reject"
+        return action, match.group(2)
+
     match = SLOT_BUTTON_PATTERN.match(stripped)
     if match:
         action = "slot_approve" if match.group(1).lower() == "ok" else "slot_reject"
@@ -165,6 +171,11 @@ class VisitApprovalReplyService:
         action: str,
         code: str | None,
     ) -> str:
+        if action in ("dvisit_approve", "dvisit_reject"):
+            return self._process_distributor_visit_reply(
+                from_phone=from_phone, action=action, visit_id=code
+            )
+
         doctor = self._find_doctor_by_phone(from_phone)
         if not doctor:
             logger.warning("Approval reply from unknown phone: %s", from_phone)
@@ -227,6 +238,51 @@ class VisitApprovalReplyService:
         except Exception:
             logger.exception("Approval reply unexpected error for visit %s", visit.id)
             return "Something went wrong. Please try again or use My Visitors."
+
+    def _find_distributor_owner_by_phone(self, from_phone: str) -> User | None:
+        normalized_from = normalize_phone(strip_channel_prefix(from_phone))
+        candidates = (
+            self.db.query(User)
+            .filter(
+                User.role == Role.DISTRIBUTOR.value,
+                User.isActive == True,  # noqa: E712
+                User.phone.isnot(None),
+            )
+            .all()
+        )
+        for user in candidates:
+            if user.phone and phones_match(user.phone, normalized_from):
+                return user
+        return None
+
+    def _process_distributor_visit_reply(
+        self, *, from_phone: str, action: str, visit_id: str | None
+    ) -> str:
+        from app.delivery.distributor_visit_service import DistributorVisitService
+        from app.models.distributor_visit_entities import DistributorVisit
+
+        owner = self._find_distributor_owner_by_phone(from_phone)
+        if not owner:
+            return "This number is not registered as a distributor in Connitor."
+        visit = self.db.get(DistributorVisit, visit_id or "")
+        if not visit or visit.distributorId != owner.distributorId:
+            return "This visit request was already processed or could not be found."
+        if visit.status != "REQUEST_SENT":
+            return "This visit request was already processed."
+        service = DistributorVisitService(self.db)
+        pseudo_user = {"distributorId": visit.distributorId, "role": Role.DISTRIBUTOR.value}
+        try:
+            if action == "dvisit_approve":
+                service.approve(pseudo_user, visit.id)
+                return "Approved. The visitor has been notified with the visit pass."
+            service.reject(pseudo_user, visit.id, REJECT_REASON)
+            return "Rejected. The visitor has been notified."
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, str) else ""
+            return detail or "This visit request was already processed."
+        except Exception:
+            logger.exception("Distributor visit reply failed for visit %s", visit.id)
+            return "Something went wrong. Please use My Visitors in the app."
 
     def handle_button_reply(self, *, from_phone: str, button_id: str) -> str:
         parsed = parse_button_reply(button_id)

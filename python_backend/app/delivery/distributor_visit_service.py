@@ -231,6 +231,7 @@ class DistributorVisitService:
         slot.visitId = visit.id
         self.db.commit()
         self.db.refresh(visit)
+        self._notify_distributor_new_request(visit, dist, account)
         return self._serialize_visit(visit)
 
     def list_vendor_slots(self, user: dict, from_date: str, to_date: str) -> dict:
@@ -343,6 +344,7 @@ class DistributorVisitService:
         self.db.commit()
         self.db.refresh(visit)
         self._notify_approved(visit)
+        self._send_visit_pass_whatsapp(visit)
         return self._serialize_visit(visit, include_pass=True)
 
     def reject(self, user: dict, visit_id: str, reason: str | None = None) -> dict:
@@ -544,3 +546,104 @@ class DistributorVisitService:
             )
         except Exception as exc:
             logger.error("Distributor visit approval email failed for %s: %s", visit.id, exc)
+
+    def _owner_phone_and_name(self, dist: Distributor) -> tuple[str | None, str]:
+        owner = (
+            self.db.query(User)
+            .filter(
+                User.distributorId == dist.id,
+                User.role == Role.DISTRIBUTOR.value,
+                User.isActive == True,  # noqa: E712
+                User.phone.isnot(None),
+            )
+            .first()
+        )
+        phone = (getattr(owner, "phone", None) or dist.phone or "").strip() or None
+        name = (getattr(owner, "name", None) or dist.contactPerson or dist.vendorName or "Partner").strip()
+        return phone, name
+
+    def _visit_date_time(self, visit: DistributorVisit) -> tuple[str, str]:
+        slot = self.db.get(DistributorAvailabilitySlot, visit.slotId) if visit.slotId else None
+        start = slot.slotStart if slot else visit.appointmentDate
+        end = slot.slotEnd if slot else None
+        if not start:
+            return "—", "—"
+        date_text = start.strftime("%d %b %Y")
+        start_text = start.strftime("%I:%M %p").lstrip("0")
+        if end:
+            end_text = end.strftime("%I:%M %p").lstrip("0")
+            if end_text != start_text:
+                return date_text, f"{start_text} - {end_text}"
+        return date_text, start_text
+
+    def _notify_distributor_new_request(
+        self, visit: DistributorVisit, dist: Distributor, account: VisitorAccount
+    ) -> None:
+        phone, owner_name = self._owner_phone_and_name(dist)
+        if not phone:
+            return
+        visitor_name = " ".join(
+            p for p in [account.firstName, account.lastName] if p
+        ).strip() or "Visitor"
+        date_text, time_text = self._visit_date_time(visit)
+        try:
+            from app.services.messaging_service import WhatsAppService
+
+            WhatsAppService().send_distributor_visit_approval(
+                phone,
+                distributor_name=owner_name,
+                visitor_name=visitor_name,
+                company=account.companyName or "—",
+                visit_date=date_text,
+                visit_time=time_text,
+                purpose=visit.purpose or "—",
+                visit_id=visit.id,
+            )
+        except Exception as exc:
+            logger.error("Distributor visit approval WhatsApp failed for %s: %s", visit.id, exc)
+
+    def _send_visit_pass_whatsapp(self, visit: DistributorVisit) -> None:
+        account = self.db.get(VisitorAccount, visit.visitorAccountId)
+        dist = self.db.get(Distributor, visit.distributorId)
+        if not account or not account.phone:
+            return
+        visitor_name = " ".join(
+            p for p in [account.firstName, account.lastName] if p
+        ).strip() or "Visitor"
+        date_text, time_text = self._visit_date_time(visit)
+        vendor_name = dist.vendorName if dist else "Distributor"
+        try:
+            from app.services.distributor_visit_pass_image import (
+                DistributorVisitPassContent,
+                render_distributor_visit_pass,
+            )
+            from app.services.meeting_pass_image import decode_image_source, hospital_logo_bytes
+            from app.services.messaging_service import WhatsAppService
+            from app.services.s3_storage_service import S3StorageService
+
+            png = render_distributor_visit_pass(
+                DistributorVisitPassContent(
+                    visitor_name=visitor_name,
+                    vendor_name=vendor_name,
+                    date_text=date_text,
+                    time_text=time_text,
+                    visit_code=visit.visitCode or "",
+                    qr_png=decode_image_source(visit.visitQRCode),
+                    photo_png=decode_image_source(getattr(account, "photoStorageKey", None)),
+                    logo_png=hospital_logo_bytes(getattr(dist, "hospitalChainId", None) if dist else None),
+                ),
+                scale=2,
+            )
+            image_url = S3StorageService().publish_gate_pass_png(visit.id, png)
+            if not image_url:
+                return
+            WhatsAppService().send_distributor_visit_pass(
+                account.phone,
+                visitor_name=visitor_name,
+                vendor_name=vendor_name,
+                visit_date=date_text,
+                visit_time=time_text,
+                image_url=image_url,
+            )
+        except Exception as exc:
+            logger.error("Distributor visit pass WhatsApp failed for %s: %s", visit.id, exc)

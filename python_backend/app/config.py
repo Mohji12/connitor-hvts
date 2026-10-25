@@ -294,6 +294,26 @@ class Settings(BaseSettings):
         validation_alias="WHATSAPP_TEMPLATE_ONLINE_MEETING_VISITOR_LANGUAGE",
         description="conninter_online_meeting_visitor language. Match the approved template (English US).",
     )
+    whatsapp_template_distributor_visit_approval: str = Field(
+        default="conninter_distributor_visit_approval",
+        validation_alias="WHATSAPP_TEMPLATE_DISTRIBUTOR_VISIT_APPROVAL",
+        description="New office visit request sent to the distributor owner when a visitor books.",
+    )
+    whatsapp_template_distributor_visit_approval_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_DISTRIBUTOR_VISIT_APPROVAL_LANGUAGE",
+        description="conninter_distributor_visit_approval language. Match the approved template.",
+    )
+    whatsapp_template_distributor_visit_pass: str = Field(
+        default="conninter_distributor_visit_pass_confirmed",
+        validation_alias="WHATSAPP_TEMPLATE_DISTRIBUTOR_VISIT_PASS",
+        description="Image header plus body sent to the visitor when the distributor approves the visit.",
+    )
+    whatsapp_template_distributor_visit_pass_language: str = Field(
+        default="en_US",
+        validation_alias="WHATSAPP_TEMPLATE_DISTRIBUTOR_VISIT_PASS_LANGUAGE",
+        description="conninter_distributor_visit_pass_confirmed language.",
+    )
     whatsapp_template_delivery_pass: str = Field(
         default="conninter_delivery_pass",
         validation_alias="WHATSAPP_TEMPLATE_DELIVERY_PASS",
