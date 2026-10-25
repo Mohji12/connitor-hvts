@@ -65,7 +65,7 @@ export default function AmsActivePage(): React.ReactElement {
 
   return (
     <AmsPageShell title="Active Attendants" subtitle="Currently inside the hospital.">
-      <div className="flex flex-wrap gap-2 max-lg:-mx-4 max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:px-4 max-lg:[scrollbar-width:none]">
+      <div className="flex flex-wrap gap-2 max-lg:w-full max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:[scrollbar-width:none]">
         {WARDS.map((w) => (
           <Button
             key={w}

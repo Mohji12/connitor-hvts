@@ -147,7 +147,7 @@ export default function ReceivingDashboardPage(): React.ReactElement {
       title="Receiving board"
       subtitle="Move deliveries from gate to dock, then generate GRN. Security marks exit after receiving."
     >
-      <div className="flex flex-wrap gap-2 max-lg:-mx-4 max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:px-4 max-lg:[scrollbar-width:none] max-lg:[&>*]:shrink-0">
+      <div className="flex flex-wrap gap-2 max-lg:w-full max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:[scrollbar-width:none] max-lg:[&>*]:shrink-0">
         {docks.map((d) => {
           const occupied = deliveries.some(
             (x) => x.dockId === d.id && x.status === 'IN_PROGRESS',

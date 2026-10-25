@@ -54,7 +54,6 @@ export const sidebarConfig = {
     { label: 'Users', href: '/dashboard/users', icon: 'users' },
     { label: 'Appointments', href: '/dashboard/appointments', icon: 'calendar' },
     { label: 'Delivery', href: '/dashboard/delivery', icon: 'truck' },
-    { label: 'Delivery Slots', href: '/dashboard/delivery-slots', icon: 'calendar' },
     { label: 'Vendors', href: '/dashboard/delivery/vendors', icon: 'users' },
     { label: 'Gate offline', href: '/dashboard/gate-offline', icon: 'book' },
     { label: 'Profile', href: '/dashboard/settings', icon: 'settings' },

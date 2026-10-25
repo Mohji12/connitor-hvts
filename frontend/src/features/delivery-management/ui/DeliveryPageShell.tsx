@@ -31,7 +31,7 @@ export function DeliveryPageShell({
             {subtitle ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{subtitle}</p> : null}
           </div>
           {actions ? (
-            <div className="flex flex-wrap items-center gap-2 max-lg:-mx-4 max-lg:w-[calc(100%+2rem)] max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:px-4 max-lg:[scrollbar-width:none] max-lg:[&_*]:shrink-0">
+            <div className="flex flex-wrap items-center gap-2 max-lg:w-full max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:[scrollbar-width:none] max-lg:[&_*]:shrink-0">
               {actions}
             </div>
           ) : null}

@@ -73,7 +73,7 @@ export function VisitorJourneyPicker() {
         </div>
       ) : (
       <Tabs defaultValue="pre-register">
-        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="w-full overflow-x-auto">
           <TabsList className="mb-6 inline-flex h-auto min-w-full w-max gap-1 bg-teal-50/80 p-1.5 sm:w-full sm:flex-wrap sm:justify-start">
             {VISITOR_JOURNEYS.map((j) => {
               const Icon = j.icon;

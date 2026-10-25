@@ -101,7 +101,6 @@ export const MOBILE_NAV: Record<string, MobileNavConfig> = {
       {
         title: 'Delivery',
         items: [
-          { label: 'Delivery slots', href: '/dashboard/delivery-slots', icon: CalendarClock },
           { label: 'Vendors', href: '/dashboard/delivery/vendors', icon: Store },
         ],
       },

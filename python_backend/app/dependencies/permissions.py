@@ -46,6 +46,10 @@ ROLE_PERMISSION_DEFAULTS: dict[str, set[str]] = {
 }
 
 
+# Permissions the wildcard never grants — slot creation belongs to hospital staff only.
+SUPER_ADMIN_EXCLUDED: set[str] = {"MANAGE_DELIVERY_SLOTS"}
+
+
 @lru_cache(maxsize=256)
 def _role_has_permission_db(role: str, code: str, role_perm_key: str) -> bool:
   # placeholder — actual check uses DB session in has_permission
@@ -53,6 +57,8 @@ def _role_has_permission_db(role: str, code: str, role_perm_key: str) -> bool:
 
 
 def has_permission(db: Session, role: str, code: str) -> bool:
+    if code in SUPER_ADMIN_EXCLUDED and role == "SUPER_ADMIN":
+        return False
     defaults = ROLE_PERMISSION_DEFAULTS.get(role, set())
     if "*" in defaults or code in defaults:
         return True
@@ -80,7 +86,7 @@ def require_permission(*codes: str):
 def list_permissions_for_role(db: Session, role: str) -> list[str]:
     defaults = ROLE_PERMISSION_DEFAULTS.get(role, set())
     if "*" in defaults:
-        return [p.code for p in db.query(Permission).all()]
+        return [p.code for p in db.query(Permission).all() if p.code not in SUPER_ADMIN_EXCLUDED]
     db_codes = [
         r.permissionCode for r in db.query(RolePermission).filter(RolePermission.role == role).all()
     ]
