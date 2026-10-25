@@ -9,6 +9,7 @@ import { ConnitorLoader } from '@/components/ConnitorLoader';
 import { branchSlug } from '@/lib/branch-slug';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { cn } from '@/lib/utils';
 
 function locationLabel(name: string): string {
@@ -70,15 +71,19 @@ export function ChainBranchPicker({
           </Button>
         )}
         {logoSrc ? (
-          <div className="relative h-14 w-[14rem]">
-            <Image
-              src={logoSrc}
-              alt={displayName}
-              fill
-              className="object-contain object-left"
-              sizes="224px"
-              priority
-            />
+          <div className="flex items-center gap-3">
+            <div className="relative h-14 w-[14rem]">
+              <Image
+                src={logoSrc}
+                alt={displayName}
+                fill
+                className="object-contain object-left"
+                sizes="224px"
+                priority
+              />
+            </div>
+            <span className="h-8 w-px bg-slate-200" aria-hidden />
+            <ConninterWordmark href={null} size="sm" />
           </div>
         ) : (
           <h2 className="text-xl font-bold text-foreground">{displayName}</h2>

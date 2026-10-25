@@ -283,6 +283,17 @@ function HospitalCard({
           <span className="text-xs font-semibold uppercase tracking-wider text-secondary">
             {h.city}
           </span>
+          {h.logoImage ? (
+            <span className="mt-1 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+              Powered by
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/conninter-logo.png"
+                alt="Conninter"
+                className="h-3.5 w-auto object-contain"
+              />
+            </span>
+          ) : null}
         </div>
 
         <p className="text-xs text-muted-foreground">{h.specialties.join(' · ')}</p>

@@ -150,6 +150,18 @@ export function HospitalChainPicker({ onSelectChain, hospitals: preloaded }: Hos
                         ? ` · ${chain.branchCount} centre${chain.branchCount === 1 ? '' : 's'}`
                         : ''}
                     </p>
+                    {chain.logoSrc ? (
+                      <div className="mt-1 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                        Powered by
+                        <Image
+                          src="/images/conninter-logo.png"
+                          alt="Conninter"
+                          width={320}
+                          height={112}
+                          className="h-3.5 w-auto object-contain"
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <Button
