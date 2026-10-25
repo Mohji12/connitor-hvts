@@ -9,43 +9,40 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 from app.services.meeting_pass_image import (
+    _BLUE,
+    _NAVY as _MEETING_NAVY,
+    _BLACK,
+    _center_text,
     _fit_text,
     _paste_circle,
-    paste_aligned_qr_and_logo,
+    _paste_logo,
+    paste_crisp_qr,
 )
 
 BLANK_PASS_PATH = Path(__file__).resolve().parents[1] / "assets" / "attendant_pass_blank.png"
 
-# Coordinates match attendant_pass_blank.png at 525x1024.
+# Coordinates match attendant_pass_blank.png at 525x1024 (flat centred design).
 _BASE_WIDTH = 525
 _BASE_HEIGHT = 1024
-_PHOTO_CENTER = (128, 198)
-_PHOTO_RADIUS = 62
-_BAR_X = 268
-_BAR_WIDTH = 214
-_BAR_YS = (150, 192, 230)
-_ISSUED_X = 372
-_ISSUED_Y = 266
-_ISSUED_WIDTH = 112
-_VALUE_X = 232
-_VALUE_WIDTH = 252
-_VALUE_YS = (350, 400, 450, 496)
-# Outer corner-bracket frame on the blank artwork.
-# Inner edge of the printed corner brackets; both panels span y 545-697.
-_QR_FRAME = (57, 560, 219, 682)
-_QR_SIZE = 108
-# Same top/height as the QR square, centred in the right panel (x 261-492).
-_LOGO_LEFT = 276
-_LOGO_RIGHT = 477
-_PHONE_X = 262
-_PHONE_Y = 952
-_PHONE_WIDTH = 210
-_NAVY = (16, 32, 84)
-
-
-def _centered_origin(frame: tuple[int, int, int, int], size: int) -> tuple[int, int]:
-    left, top, right, bottom = frame
-    return left + (right - left - size) // 2, top + (bottom - top - size) // 2
+_PHOTO_CENTER = (263, 152)
+_PHOTO_RADIUS = 56
+# Centred identity lines under the photo ring.
+_NAME_Y = 222
+_TITLE_Y = 258
+_ROLE_Y = 282
+# Values sit above the printed underlines inside each box.
+_LEFT_VALUE = (106, 139)
+_RIGHT_VALUE = (347, 138)
+_ROW1_Y = 350
+_ROW2_Y = 415
+# Open white band (~y450-783) above "Valid for today only".
+_QR_TOP = 465
+_QR_SIZE = 230
+_LOGO_BOX = (130, 700, 395, 772)
+_PHONE_X = 330
+_PHONE_Y = 950
+_PHONE_WIDTH = 130
+_NAVY = _MEETING_NAVY
 
 
 @dataclass
@@ -80,26 +77,28 @@ def render_attendant_pass(content: AttendantPassContent, *, scale: int = 1) -> b
             pass
 
     draw = ImageDraw.Draw(base)
-    _fit_text(draw, (_BAR_X, _BAR_YS[0]), content.attendant_name, max_width=_BAR_WIDTH, size=15, fill=_NAVY)
-    _fit_text(draw, (_BAR_X, _BAR_YS[1]), content.attendant_phone, max_width=_BAR_WIDTH, size=13, fill=_NAVY)
-    _fit_text(draw, (_BAR_X, _BAR_YS[2]), content.pass_number, max_width=_BAR_WIDTH, size=13, fill=_NAVY)
-    _fit_text(draw, (_ISSUED_X, _ISSUED_Y), content.issued_on, max_width=_ISSUED_WIDTH, size=11, fill=_NAVY)
-    _fit_text(draw, (_VALUE_X, _VALUE_YS[0]), content.patient_name, max_width=_VALUE_WIDTH, size=14, fill=_NAVY)
-    _fit_text(draw, (_VALUE_X, _VALUE_YS[1]), content.patient_id, max_width=_VALUE_WIDTH, size=14, fill=_NAVY)
-    _fit_text(draw, (_VALUE_X, _VALUE_YS[2]), content.relationship, max_width=_VALUE_WIDTH, size=14, fill=_NAVY)
-    _fit_text(draw, (_VALUE_X, _VALUE_YS[3]), content.validity, max_width=_VALUE_WIDTH, size=13, fill=_NAVY)
 
-    qr_left, qr_top = _centered_origin(_QR_FRAME, _QR_SIZE)
+    _center_text(draw, _NAME_Y, content.attendant_name, size=26, fill=_NAVY)
+    _center_text(draw, _TITLE_Y, "Attendant Pass", size=16, fill=_NAVY)
+    _center_text(draw, _ROLE_Y, "Attendant", size=13, fill=_BLACK, bold=False)
 
-    if not content.logo_png and content.hospital_name:
-        _fit_text(
-            draw,
-            (_LOGO_LEFT, qr_top + 48),
-            content.hospital_name,
-            max_width=_LOGO_RIGHT - _LOGO_LEFT - 8,
-            size=14,
-            fill=_NAVY,
-        )
+    left_x, left_width = _LEFT_VALUE
+    right_x, right_width = _RIGHT_VALUE
+    _fit_text(draw, (left_x, _ROW1_Y), content.attendant_name, max_width=left_width, size=12, fill=_NAVY)
+    _fit_text(draw, (right_x, _ROW1_Y), content.pass_number, max_width=right_width, size=12, fill=_NAVY)
+    _fit_text(draw, (left_x, _ROW2_Y), content.issued_on, max_width=left_width, size=12, fill=_NAVY)
+    _fit_text(draw, (right_x, _ROW2_Y), content.validity, max_width=right_width, size=12, fill=_NAVY)
+
+    try:
+        if content.qr_png:
+            qr_left = (_BASE_WIDTH - _QR_SIZE) // 2
+            paste_crisp_qr(base, content.qr_png, qr_left, _QR_TOP, _QR_SIZE)
+        if content.logo_png:
+            _paste_logo(base, content.logo_png, _LOGO_BOX, plate=True, pad=6)
+        elif content.hospital_name:
+            _center_text(draw, _LOGO_BOX[1] + 14, content.hospital_name, size=14, fill=_NAVY)
+    except Exception:
+        pass
 
     if content.security_phone:
         _fit_text(
@@ -117,20 +116,26 @@ def render_attendant_pass(content: AttendantPassContent, *, scale: int = 1) -> b
             (base.width * output_scale, base.height * output_scale),
             Image.Resampling.LANCZOS,
         )
-
-    try:
-        paste_aligned_qr_and_logo(
-            base,
-            qr_png=content.qr_png,
-            logo_png=content.logo_png,
-            qr_left=qr_left * output_scale,
-            row_top=qr_top * output_scale,
-            side=_QR_SIZE * output_scale,
-            logo_left=_LOGO_LEFT * output_scale,
-            logo_right=_LOGO_RIGHT * output_scale,
-        )
-    except Exception:
-        pass
+        try:
+            if content.qr_png:
+                qr_left = (base.width - _QR_SIZE * output_scale) // 2
+                paste_crisp_qr(
+                    base,
+                    content.qr_png,
+                    qr_left,
+                    _QR_TOP * output_scale,
+                    _QR_SIZE * output_scale,
+                )
+            if content.logo_png:
+                _paste_logo(
+                    base,
+                    content.logo_png,
+                    tuple(v * output_scale for v in _LOGO_BOX),
+                    plate=True,
+                    pad=6 * output_scale,
+                )
+        except Exception:
+            pass
 
     flat = base.convert("RGB")
     buffer = io.BytesIO()

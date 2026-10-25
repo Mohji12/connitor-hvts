@@ -20,39 +20,34 @@ from app.services.meeting_pass_image import (
     _BLUE,
     _NAVY,
     _BLACK,
+    _center_text,
     _fit_text,
     _paste_circle,
+    _paste_logo,
     _qr_module_image,
     hospital_logo_bytes,
-    paste_aligned_qr_and_logo,
+    paste_crisp_qr,
 )
 
 BLANK_PASS_PATH = Path(__file__).resolve().parents[1] / "assets" / "delivery_pass_blank.png"
 
-# Coordinates match delivery_pass_blank.png at 525x1024.
-# The approved ring's open center. Kept clear of the APPROVED badge.
-_PHOTO_CENTER = (132, 242)
-_PHOTO_RADIUS = 76
-_NAME_X = 272
-_NAME_WIDTH = 210
-# The blue rule is at y=258. The first white bar is just under it (y=268-306)
-# and the second white bar is y=312-348.
-_NAME_Y = 278
-_ROLE_Y = 314
-_COMPANY_Y = 326
-_PASS_Y = 337
-# Values sit under each printed underline and stop before the card edge.
-_LEFT_VALUE = (100, 142)
-_RIGHT_VALUE = (352, 140)
-_VALUE_ROWS = (400, 480, 561)
-# Open band between the Date/Time cards (bottom ~y=586) and the
-# "Valid for today only" line (~y=700). The QR is centered under the left column.
-_QR_TOP = 589
-_QR_SIZE = 108
-_QR_LEFT = 140 - _QR_SIZE // 2
-_DIVIDER_X = 262
-_LOGO_RIGHT = 494
-_LABEL_BLUE = (0, 102, 204)
+# Coordinates match delivery_pass_blank.png at 525x1024 (flat centred design).
+_PHOTO_CENTER = (263, 152)
+_PHOTO_RADIUS = 56
+# Centred identity lines under the photo ring.
+_NAME_Y = 222
+_ROLE_Y = 254
+_COMPANY_Y = 276
+_PASS_Y = 296
+# Values sit above the printed underlines inside each box (lines at y=371/426/486).
+_LEFT_VALUE = (104, 142)
+_RIGHT_VALUE = (344, 142)
+_VALUE_ROWS = (350, 405, 465)
+# Open white band (~y506-783) above "Valid for today only".
+# Big QR centred first; the hospital logo sits below it.
+_QR_TOP = 512
+_QR_SIZE = 230
+_LOGO_BOX = (130, 747, 395, 782)
 _SIZE_ABBREV = {
     "SMALL": "S",
     "MEDIUM": "M",
@@ -77,15 +72,6 @@ class DeliveryPassContent:
     qr_png: bytes | None = None
     photo_png: bytes | None = None
     logo_png: bytes | None = None
-
-
-def _cover_label(base: Image.Image, box: tuple[int, int, int, int]) -> None:
-    """Hide a printed visitor label so the delivery label can replace it."""
-    sample = base.getpixel((box[2] + 8, box[1] + 4))
-    if not isinstance(sample, tuple):
-        return
-    fill = sample[:3]
-    ImageDraw.Draw(base).rectangle(box, fill=fill)
 
 
 def item_line(delivery, items: list) -> str:
@@ -297,53 +283,33 @@ def render_delivery_pass(content: DeliveryPassContent, *, scale: int = 1) -> byt
             pass
 
     draw = ImageDraw.Draw(base)
-    # The artwork says Visiting / Department. This pass is a delivery.
-    _cover_label(base, (92, 366, 210, 392))
-    _cover_label(base, (348, 366, 460, 392))
-    _fit_text(draw, (100, 372), "Delivery To", max_width=140, size=12, fill=_LABEL_BLUE, bold=True)
-    _fit_text(draw, (352, 372), "PO No.", max_width=100, size=12, fill=_LABEL_BLUE, bold=True)
 
-    _fit_text(draw, (_NAME_X, _NAME_Y), content.driver_name, max_width=_NAME_WIDTH, size=15, fill=_NAVY)
-    _fit_text(draw, (_NAME_X, _ROLE_Y), "Delivery Partner", max_width=_NAME_WIDTH, size=11, fill=_BLACK)
-    _fit_text(draw, (_NAME_X, _COMPANY_Y), content.company_name, max_width=_NAME_WIDTH, size=10, fill=_BLUE)
-    _fit_text(draw, (_NAME_X, _PASS_Y), "Delivery Pass", max_width=_NAME_WIDTH, size=10, fill=_BLUE)
+    _center_text(draw, _NAME_Y, content.driver_name, size=26, fill=_NAVY)
+    _center_text(draw, _ROLE_Y, "Delivery Partner", size=16, fill=_NAVY)
+    _center_text(draw, _COMPANY_Y, content.company_name, size=13, fill=_BLACK, bold=False)
+    _center_text(draw, _PASS_Y, "Delivery Pass", size=13, fill=_BLUE, bold=False)
 
     left_x, left_width = _LEFT_VALUE
     right_x, right_width = _RIGHT_VALUE
-    row_deliver, row_item, row_date = _VALUE_ROWS
-    _fit_text(draw, (left_x, row_deliver), content.deliver_to, max_width=left_width, size=13, fill=_NAVY)
-    _fit_text(draw, (right_x, row_deliver), content.po_number, max_width=right_width, size=13, fill=_NAVY)
+    row_partner, row_item, row_date = _VALUE_ROWS
+    _fit_text(draw, (left_x, row_partner), content.driver_name, max_width=left_width, size=12, fill=_NAVY)
+    _fit_text(draw, (right_x, row_partner), content.po_number, max_width=right_width, size=12, fill=_NAVY)
     _fit_text(draw, (left_x, row_item), content.item_text, max_width=left_width, size=12, fill=_NAVY)
     _fit_text(draw, (right_x, row_item), content.vehicle_text, max_width=right_width, size=12, fill=_NAVY)
     _fit_text(draw, (left_x, row_date), content.date_text, max_width=left_width, size=12, fill=_NAVY)
     _fit_text(draw, (right_x, row_date), content.time_text, max_width=right_width, size=12, fill=_NAVY)
 
-    logo_left = _DIVIDER_X + 18
-    logo_right = _LOGO_RIGHT
     if content.logo_png or content.qr_png:
         try:
-            paste_aligned_qr_and_logo(
-                base,
-                qr_png=content.qr_png,
-                logo_png=content.logo_png,
-                qr_left=_QR_LEFT,
-                row_top=_QR_TOP,
-                side=_QR_SIZE,
-                logo_left=logo_left,
-                logo_right=logo_right,
-            )
+            if content.qr_png:
+                qr_left = (_BASE_WIDTH - _QR_SIZE) // 2
+                paste_crisp_qr(base, content.qr_png, qr_left, _QR_TOP, _QR_SIZE)
+            if content.logo_png:
+                _paste_logo(base, content.logo_png, _LOGO_BOX, plate=True, pad=2)
         except Exception:
             pass
     elif content.hospital_name:
-        _fit_text(
-            draw,
-            (logo_left, _QR_TOP + 28),
-            content.hospital_name,
-            max_width=logo_right - logo_left - 8,
-            size=13,
-            fill=_NAVY,
-            bold=True,
-        )
+        _center_text(draw, _LOGO_BOX[1] + 6, content.hospital_name, size=13, fill=_NAVY)
 
     output_scale = scale if scale > 1 else 1
     if output_scale > 1:
@@ -354,16 +320,23 @@ def render_delivery_pass(content: DeliveryPassContent, *, scale: int = 1) -> byt
         # Re-paint QR + logo after enlarge so modules stay sharp and stay aligned.
         if content.logo_png or content.qr_png:
             try:
-                paste_aligned_qr_and_logo(
-                    base,
-                    qr_png=content.qr_png,
-                    logo_png=content.logo_png,
-                    qr_left=_QR_LEFT * output_scale,
-                    row_top=_QR_TOP * output_scale,
-                    side=_QR_SIZE * output_scale,
-                    logo_left=logo_left * output_scale,
-                    logo_right=logo_right * output_scale,
-                )
+                if content.qr_png:
+                    qr_left = (base.width - _QR_SIZE * output_scale) // 2
+                    paste_crisp_qr(
+                        base,
+                        content.qr_png,
+                        qr_left,
+                        _QR_TOP * output_scale,
+                        _QR_SIZE * output_scale,
+                    )
+                if content.logo_png:
+                    _paste_logo(
+                        base,
+                        content.logo_png,
+                        tuple(v * output_scale for v in _LOGO_BOX),
+                        plate=True,
+                        pad=2 * output_scale,
+                    )
             except Exception:
                 pass
 

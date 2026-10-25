@@ -20,7 +20,7 @@ HOSPITAL_LOGO_DIR = ASSETS_DIR / "hospital-logos"
 # Coordinates match meeting_pass_blank.png at 525x1024 (flat centred design).
 _BASE_WIDTH = 525
 _BASE_HEIGHT = 1024
-_PHOTO_CENTER = (263, 167)
+_PHOTO_CENTER = (263, 152)
 _PHOTO_RADIUS = 56
 # Centred identity lines under the photo ring.
 _NAME_Y = 222
@@ -135,12 +135,23 @@ def _center_text(
     size: int,
     fill: tuple[int, int, int],
     bold: bool = True,
+    max_width: int | None = None,
 ) -> None:
     cleaned = " ".join((text or "").split())
     if not cleaned:
         return
+    cap = max_width or (_BASE_WIDTH - 60)
     font = _load_font(size, bold=bold)
     width = draw.textlength(cleaned, font=font)
+    while width > cap and size > 9:
+        size -= 1
+        font = _load_font(size, bold=bold)
+        width = draw.textlength(cleaned, font=font)
+    while cleaned and draw.textlength(cleaned + "\u2026", font=font) > cap:
+        cleaned = cleaned[:-1]
+    if len(cleaned) < len(" ".join((text or "").split())):
+        cleaned += "\u2026"
+        width = draw.textlength(cleaned, font=font)
     draw.text(((_BASE_WIDTH - width) / 2, y), cleaned, font=font, fill=fill)
 
 

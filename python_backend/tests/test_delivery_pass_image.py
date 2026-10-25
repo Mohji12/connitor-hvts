@@ -93,15 +93,14 @@ def test_long_values_stay_inside_the_printed_boxes() -> None:
     assert rendered.size == blank.size
 
     allowed = [
-        (260, 268, 508, 352),
-        (88, 362, 250, 420),
-        (340, 362, 508, 420),
-        (94, 474, 250, 500),
-        (346, 474, 508, 500),
-        (94, 554, 250, 582),
-        (346, 554, 508, 582),
-        (86, 589, 194, 697),
-        (280, 589, 494, 697),
+        (20, 215, 505, 315),    # centred identity lines
+        (100, 348, 255, 382),   # row1 left value
+        (340, 348, 490, 382),   # row1 right value
+        (100, 403, 255, 437),   # row2 left value
+        (340, 403, 490, 437),   # row2 right value
+        (100, 463, 255, 497),   # row3 left value
+        (340, 463, 490, 497),   # row3 right value
+        (110, 505, 415, 790),   # QR plate + logo plate
     ]
     blank_px = blank.load()
     rendered_px = rendered.load()
