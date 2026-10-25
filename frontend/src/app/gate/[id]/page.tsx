@@ -12,6 +12,7 @@ import { attendantApplyPath } from '@/lib/attendant-pass-url';
 import { getStoredAuthToken } from '@/lib/auth-storage';
 import { gateIdFromLocation } from '@/lib/static-export-route';
 import { gateDeepLink, gateWebUrl, tryOpenNativeGateApp } from '@/lib/gate-deeplink';
+import { isNativeApp } from '@/lib/platform';
 
 type BranchInfo = {
   id: string;
@@ -65,6 +66,35 @@ export default function HospitalGatePage(): React.ReactElement {
     const prompted = tryOpenNativeGateApp(branchId, web);
     if (prompted) setAppPrompted(true);
   }, [branchId]);
+
+  // Inside the app: hardware back exits when the gate page is the QR entry point.
+  React.useEffect(() => {
+    if (!isNativeApp()) return;
+    let cancelled = false;
+    let handle: { remove: () => Promise<void> } | undefined;
+    void import('@capacitor/app')
+      .then(({ App }) =>
+        App.addListener('backButton', () => {
+          if (window.history.length <= 1) {
+            void App.exitApp();
+          } else {
+            window.history.back();
+          }
+        }),
+      )
+      .then((h) => {
+        if (cancelled) {
+          void h.remove();
+        } else {
+          handle = h;
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      void handle?.remove();
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!branchId) {

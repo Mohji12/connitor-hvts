@@ -6,12 +6,30 @@ export const APP_HOME_PATH = '/app/';
 
 type Router = { back: () => void; push: (href: string) => void };
 
+/** Exit the native app when the gate page is the entry point (QR scan). */
+function tryExitNativeGate(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (!window.location.pathname.startsWith('/gate/')) return false;
+  try {
+    type CapApp = { Plugins?: { App?: { exitApp?: () => void } } };
+    const app = (window as unknown as { Capacitor?: CapApp }).Capacitor?.Plugins?.App;
+    if (app?.exitApp) {
+      app.exitApp();
+      return true;
+    }
+  } catch {
+    // fall through
+  }
+  return false;
+}
+
 /** Go to the previous page, or the app launch screen when there is no history. */
 export function goBackInApp(router: Router): void {
   if (typeof window !== 'undefined' && window.history.length > 1) {
     router.back();
     return;
   }
+  if (tryExitNativeGate()) return;
   router.push(APP_HOME_PATH);
 }
 
