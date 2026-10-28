@@ -7,13 +7,6 @@ import { Button } from '@/components/ui/button';
 import { ConninterWordmark } from '@/components/brand/ConninterWordmark';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
-const navLinks = [
-  { label: 'Hospitals', href: '#hospitals' },
-  { label: 'Pricing', href: '#pricing' },
-  { label: 'Partners', href: '#hospitals' },
-  { label: 'Demo', href: '/demo' },
-];
-
 const accessLinks = [
   { label: 'Visitor pass', href: '/visitor-pass' },
   { label: 'Online session', href: '/online-session' },
@@ -43,28 +36,6 @@ export default function Navbar() {
         <span className="hidden md:inline-flex">
           <ConninterWordmark size="lg" />
         </span>
-
-        <div className="hidden items-center gap-8 xl:flex">
-          {navLinks.map((l) =>
-            l.href.startsWith('/') ? (
-              <Link
-                key={l.label}
-                href={l.href}
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {l.label}
-              </Link>
-            ) : (
-              <a
-                key={l.label}
-                href={l.href}
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {l.label}
-              </a>
-            ),
-          )}
-        </div>
 
         <div className="hidden items-center gap-2 md:flex">
           {accessLinks.map((item) => (
@@ -106,24 +77,6 @@ export default function Navbar() {
                 </Link>
               </Button>
             </div>
-            <ul className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-              {navLinks.map((l) => {
-                const className = 'flex min-h-12 items-center px-3 m-body active:bg-muted';
-                return (
-                  <li key={l.label} className="border-b border-slate-100 last:border-b-0">
-                    {l.href.startsWith('/') ? (
-                      <Link href={l.href} className={className} onClick={() => setMobileOpen(false)}>
-                        {l.label}
-                      </Link>
-                    ) : (
-                      <a href={l.href} className={className} onClick={() => setMobileOpen(false)}>
-                        {l.label}
-                      </a>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
           </div>
         </SheetContent>
       </Sheet>
